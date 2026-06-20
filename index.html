@@ -345,6 +345,43 @@
             Gerar Relatório Executivo
           </button>
         </div>
+
+        <div class="card row-block">
+          <div class="card-title" style="font-size:15px;margin-bottom:4px;">Relatórios Detalhados</div>
+          <div style="font-size:12.3px;color:var(--muted);margin-bottom:16px;">Relatório por município, relatório estratégico de um estado, ou checklist de adesão de todos os municípios de um estado.</div>
+          <div class="rep-form-row">
+            <div class="rep-form-field">
+              <label for="repTipo">Tipo de relatório</label>
+              <select class="select-control" id="repTipo">
+                <option value="municipio">Relatório de um Município</option>
+                <option value="estado">Relatório Estratégico do Estado</option>
+                <option value="checklist">Checklist de Municípios do Estado</option>
+                <option value="contatos">Lista de Contatos (Prefeito, Gestor, Cadastrador)</option>
+              </select>
+            </div>
+            <div class="rep-form-field">
+              <label for="repEstado">Estado</label>
+              <select class="select-control" id="repEstado"><option value="">Selecione...</option></select>
+            </div>
+            <div class="rep-form-field" id="repMunicipioWrap">
+              <label for="repMunicipio">Município</label>
+              <select class="select-control" id="repMunicipio"><option value="">Selecione o estado primeiro</option></select>
+            </div>
+            <div class="rep-form-field" id="repFiltroWrap" style="display:none;">
+              <label for="repFiltroAdesao">Filtro de adesão</label>
+              <select class="select-control" id="repFiltroAdesao">
+                <option value="todos">Todos os municípios</option>
+                <option value="aderidos">Só com adesão</option>
+                <option value="naoAderidos">Só sem adesão</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" id="btnGerarRelatorioDetalhado">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/></svg>
+              Gerar Relatório
+            </button>
+          </div>
+        </div>
+
         <div id="reportContainer"></div>
       </section>
 

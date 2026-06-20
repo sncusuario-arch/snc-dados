@@ -1154,6 +1154,8 @@
   function renderReport(agg) {
     const el = document.getElementById("reportContainer");
     if (!el || !agg) return;
+    STATE.reportOrientation = "portrait";
+    STATE.reportFilename = `relatorio-executivo-snc-${new Date().toISOString().slice(0,10)}.pdf`;
 
     const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
     const ufLabel = STATE.filters.uf ? `Filtro aplicado: ${UF_NOME[STATE.filters.uf] || STATE.filters.uf}` : "Abrangência: nacional";
@@ -1286,16 +1288,22 @@
     window.__SNC.goTo("relatorios");
     const target = document.querySelector("#reportContainer .report-page");
     if (!target) return;
+    // Reset scroll position before capture: html2canvas can produce duplicated/ghosted
+    // content when the scrollable container (#content) isn't at the top, since it
+    // miscalculates element offsets relative to the scrolled viewport.
+    const contentEl = document.getElementById("content");
+    if (contentEl) contentEl.scrollTop = 0;
+    window.scrollTo(0, 0);
     const dataStr = new Date().toISOString().slice(0, 10);
     const opt = {
       margin: [10, 10, 10, 10],
-      filename: `relatorio-executivo-snc-${dataStr}.pdf`,
+      filename: STATE.reportFilename || `relatorio-executivo-snc-${dataStr}.pdf`,
       image: { type: "jpeg", quality: 0.97 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+      jsPDF: { unit: "mm", format: "a4", orientation: STATE.reportOrientation || "portrait" },
       pagebreak: { mode: ["css", "legacy"] }
     };
-    html2pdf().set(opt).from(target).save();
+    setTimeout(() => { html2pdf().set(opt).from(target).save(); }, 60);
   }
 
   S.renderReport = renderReport;
@@ -1401,6 +1409,44 @@
     }
     const pageSizeSel = document.getElementById("cfgPageSize");
     if (pageSizeSel) pageSizeSel.value = String(STATE.table.pageSize);
+
+    const repEstadoSel = document.getElementById("repEstado");
+    if (repEstadoSel) {
+      const ufsPresentes = Array.from(new Set(STATE.raw.map((r) => r.uf))).sort((a, b) => (UF_NOME[a] || a).localeCompare(UF_NOME[b] || b));
+      const previous = repEstadoSel.value;
+      repEstadoSel.innerHTML = `<option value="">Selecione...</option>` + ufsPresentes.map((uf) => `<option value="${uf}">${UF_NOME[uf] || uf} (${uf})</option>`).join("");
+      if (ufsPresentes.includes(previous)) repEstadoSel.value = previous;
+    }
+    populateRepMunicipioSelect(document.getElementById("repEstado") ? document.getElementById("repEstado").value : "");
+  }
+
+  /* ---------------- Cascata Estado -> Município (painel de Relatórios) ---------------- */
+  function populateRepMunicipioSelect(uf) {
+    const sel = document.getElementById("repMunicipio");
+    if (!sel) return;
+    if (!uf) {
+      sel.innerHTML = `<option value="">Selecione o estado primeiro</option>`;
+      return;
+    }
+    const tipoEl = document.getElementById("repTipo");
+    const isContatos = tipoEl && tipoEl.value === "contatos";
+    const placeholder = isContatos ? "Todos os municípios do estado" : "Selecione...";
+    const municipios = STATE.raw.filter((r) => r.uf === uf).slice().sort((a, b) => a.m.localeCompare(b.m));
+    sel.innerHTML = `<option value="">${placeholder}</option>` + municipios.map((r) =>
+      `<option value="${escapeHtml(r.m)}">${escapeHtml(r.m)}${!r.ad ? " (sem adesão)" : ""}</option>`
+    ).join("");
+  }
+
+  function updateRepFormVisibility() {
+    const tipoSel = document.getElementById("repTipo");
+    if (!tipoSel) return;
+    const tipo = tipoSel.value;
+    const muniWrap = document.getElementById("repMunicipioWrap");
+    const filtroWrap = document.getElementById("repFiltroWrap");
+    if (muniWrap) muniWrap.style.display = (tipo === "municipio" || tipo === "contatos") ? "" : "none";
+    if (filtroWrap) filtroWrap.style.display = tipo === "checklist" ? "" : "none";
+    const repEstadoEl = document.getElementById("repEstado");
+    if (tipo === "contatos" || tipo === "municipio") populateRepMunicipioSelect(repEstadoEl ? repEstadoEl.value : "");
   }
 
   /* ---------------- Upload de planilha ---------------- */
@@ -1474,6 +1520,39 @@
     const btnGerar = document.getElementById("btnGerarRelatorio");
     if (btnGerar) btnGerar.addEventListener("click", () => { S.renderReport(STATE.lastAgg); goTo("relatorios"); });
 
+    const repTipo = document.getElementById("repTipo");
+    if (repTipo) repTipo.addEventListener("change", updateRepFormVisibility);
+
+    const repEstado = document.getElementById("repEstado");
+    if (repEstado) repEstado.addEventListener("change", () => populateRepMunicipioSelect(repEstado.value));
+
+    const btnGerarDetalhado = document.getElementById("btnGerarRelatorioDetalhado");
+    if (btnGerarDetalhado) {
+      btnGerarDetalhado.addEventListener("click", () => {
+        const tipo = document.getElementById("repTipo").value;
+        const uf = document.getElementById("repEstado").value;
+        if (!uf) { showToast("Selecione um estado.", true); return; }
+        if (tipo === "municipio") {
+          const mNome = document.getElementById("repMunicipio").value;
+          if (!mNome) { showToast("Selecione um município.", true); return; }
+          const row = STATE.raw.find((r) => r.uf === uf && r.m === mNome);
+          if (!row) { showToast("Município não encontrado.", true); return; }
+          S.renderMunicipioReport(row);
+        } else if (tipo === "estado") {
+          S.renderEstadoReport(uf);
+        } else if (tipo === "checklist") {
+          const filtro = document.getElementById("repFiltroAdesao").value;
+          S.renderChecklistReport(uf, filtro);
+        } else if (tipo === "contatos") {
+          const mNome = document.getElementById("repMunicipio").value;
+          S.renderContatosReport(uf, mNome || null);
+        }
+        const container = document.getElementById("reportContainer");
+        if (container) container.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    updateRepFormVisibility();
+
     const btnPdf = document.getElementById("btnExportPdf");
     if (btnPdf) btnPdf.addEventListener("click", () => S.exportPdfReport());
     const btnPdf2 = document.getElementById("btnExportPdf2");
@@ -1524,4 +1603,412 @@
   S.goToUF = goToUF;
   S.refreshAll = refreshAll;
   S.showToast = showToast;
+})();
+
+/* ============================================================================
+   PARTE 8 — Relatórios Detalhados: Município, Estado e Checklist
+   ============================================================================ */
+(function () {
+  "use strict";
+  const S = window.__SNC;
+  const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS,
+    fmtInt, fmtPct, fmtDate, escapeHtml } = S;
+
+  const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  function fmtMesAno(iso) {
+    if (!iso) return "—";
+    const parts = iso.split("-");
+    if (parts.length !== 3) return iso;
+    const mIdx = parseInt(parts[1], 10) - 1;
+    return `${MESES[mIdx] || parts[1]}/${parts[0]}`;
+  }
+  function atualizadoRecente(iso) {
+    if (!iso) return false;
+    const d = new Date(iso);
+    const doisAnos = new Date();
+    doisAnos.setFullYear(doisAnos.getFullYear() - 2);
+    return d >= doisAnos;
+  }
+
+  /* ---------------- Status granular (badges) ---------------- */
+  const STATUS_META = {
+    "Concluída": { label: "Concluída", color: "green" },
+    "Não informado(a)": { label: "Não informado", color: "gray" },
+    "Avaliando anexo": { label: "Avaliando anexo", color: "blue" },
+    "Arquivo incorreto": { label: "Arquivo incorreto", color: "red" },
+    "Arquivo incompleto": { label: "Arquivo incompleto", color: "amber" },
+    "Arquivo danificado": { label: "Arquivo danificado", color: "red" },
+    "Em preenchimento": { label: "Em preenchimento", color: "amber" }
+  };
+  function statusBadge(st) {
+    if (!st) return `<span class="status-badge gray">—</span>`;
+    const meta = STATUS_META[st] || { label: st, color: "gray" };
+    return `<span class="status-badge ${meta.color}">${meta.color === "green" ? "✓ " : ""}${meta.label}</span>`;
+  }
+
+  function filtroAdesaoLabel(f) {
+    if (f === "aderidos") return "apenas municípios com adesão";
+    if (f === "naoAderidos") return "apenas municípios sem adesão";
+    return "todos os municípios";
+  }
+
+  function reportFooter() {
+    return `
+      <div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted);text-align:center;">
+        Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura
+      </div>`;
+  }
+
+  /* ---------------- Checklist de municípios (tabela reutilizável) ---------------- */
+  function checklistTableHtml(rows, opts) {
+    opts = opts || {};
+    const showAdesao = opts.showAdesao !== false;
+    if (!rows.length) {
+      return `<div class="section-sub" style="margin:0;padding:20px 0;text-align:center;">Nenhum município encontrado para os filtros selecionados.</div>`;
+    }
+    return `
+      <table class="report-table compact">
+        <thead>
+          <tr>
+            <th>Município</th>
+            ${showAdesao ? "<th>Situação</th>" : ""}
+            <th>Atualização</th><th>Lei Sistema</th><th>Conselho (Lei)</th><th>Ata Conselho</th><th>Fundo</th><th>Plano</th><th>Órgão Gestor</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r) => `
+            <tr>
+              <td><b>${escapeHtml(r.m)}</b></td>
+              ${showAdesao ? `<td>${r.ad ? `<span class="status-badge green">✓ Aderido</span>` : `<span class="status-badge gray">Sem adesão</span>`}</td>` : ""}
+              <td>${r.upd ? fmtDate(r.upd) : "—"}</td>
+              <td>${statusBadge(r.sisSt)}</td>
+              <td>${statusBadge(r.conSt)}</td>
+              <td>${statusBadge(r.ataSt)}</td>
+              <td>${statusBadge(r.funSt)}</td>
+              <td>${statusBadge(r.plaSt)}</td>
+              <td>${statusBadge(r.orgSt)}</td>
+            </tr>`).join("")}
+        </tbody>
+      </table>`;
+  }
+
+  /* ---------------- Nota técnica (gerada a partir dos dados reais do município) ---------------- */
+  function gerarNotaTecnica(r) {
+    const partes = [];
+    const adesaoTxt = r.dtAd ? `Adesão desde ${fmtMesAno(r.dtAd)}` : "Sem registro de adesão";
+    const updTxt = r.upd
+      ? (atualizadoRecente(r.upd) ? ", com atualização cadastral recente" : `, sem atualização cadastral desde ${fmtMesAno(r.upd)}`)
+      : ", sem registro de atualização cadastral";
+    partes.push(adesaoTxt + updTxt + ".");
+
+    const COMP_LABELS_SHORT = { sis: "Lei do Sistema", org: "Órgão Gestor", con: "Lei do Conselho", fun: "Fundo", pla: "Plano" };
+    const concluidos = COMPONENT_KEYS.filter((k) => r[k] === 1).map((k) => COMP_LABELS_SHORT[k]);
+    const pendentes = COMPONENT_KEYS.filter((k) => r[k] === 0).map((k) => COMP_LABELS_SHORT[k]);
+    if (concluidos.length) partes.push(`${concluidos.join(" e ")} concluído${concluidos.length > 1 ? "s" : ""}.`);
+    if (r.ataSt && r.ataSt !== "Concluída") {
+      const ataLabel = (STATUS_META[r.ataSt] ? STATUS_META[r.ataSt].label : r.ataSt).toLowerCase();
+      partes.push(`Ata do Conselho pendente (${ataLabel}).`);
+    }
+    if (pendentes.length) partes.push(`Pendências: ${pendentes.join(", ")} sem registro de conclusão.`);
+
+    if (r.porte) {
+      const nivel = r.idx <= 1 ? "baixo" : r.idx <= 3 ? "médio" : "alto";
+      const grande = r.porte.indexOf("Porte 4") === 0 || r.porte.indexOf("Porte 5") === 0;
+      const alerta = grande && r.idx <= 2 ? " — abaixo do esperado para seu porte" : "";
+      partes.push(`Município de ${r.porte} (${r.pop ? fmtInt(r.pop) : "população não informada"}${r.pop ? " hab." : ""}) com nível ${nivel} de institucionalização${alerta}.`);
+    }
+    return partes.join(" ");
+  }
+
+  function conselhoDetail(r) {
+    const parts = [];
+    if (r.conData) parts.push("Lei de " + fmtDate(r.conData));
+    const adj = [];
+    if (r.conExcl) adj.push("exclusivo");
+    if (r.conParit) adj.push("paritário");
+    if (adj.length) parts.push(adj.join(", "));
+    return parts.length ? parts.join(" — ") : "—";
+  }
+
+  /* ---------------- Relatório de Município ---------------- */
+  function renderMunicipioReport(r) {
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    const douPill = r.sit === "Publicado no DOU"
+      ? `<span class="pill green"><span class="pill-dot" style="background:currentColor"></span>Publicado no DOU</span>`
+      : r.ad
+        ? `<span class="pill amber"><span class="pill-dot" style="background:currentColor"></span>${escapeHtml(r.sit)}</span>`
+        : `<span class="pill red"><span class="pill-dot" style="background:currentColor"></span>Sem adesão ao SNC</span>`;
+
+    const compRows = [
+      { label: "Lei do Sistema Municipal de Cultura", badge: statusBadge(r.sisSt), detail: r.sisData ? fmtDate(r.sisData) : "—" },
+      { label: "Órgão Gestor de Cultura", badge: statusBadge(r.orgSt), detail: [r.orgData ? "Lei de " + fmtDate(r.orgData) : null, r.orgPerfil].filter(Boolean).join(" — ") || "—" },
+      { label: "Conselho de Política Cultural — Lei", badge: statusBadge(r.conSt), detail: conselhoDetail(r) },
+      { label: "Conselho de Política Cultural — Ata", badge: statusBadge(r.ataSt), detail: r.ataData ? "Assinada em " + fmtDate(r.ataData) : (r.ataSt === "Em preenchimento" ? "Sem ata válida registrada" : "—") },
+      { label: "Fundo Municipal de Cultura — Lei", badge: statusBadge(r.funSt), detail: r.funData ? fmtDate(r.funData) : "—" },
+      { label: "Plano Municipal de Cultura", badge: statusBadge(r.plaSt), detail: r.planoData ? fmtDate(r.planoData) + (r.periodicidade ? " — " + r.periodicidade : "") : "—" },
+      { label: "ACF incluído", badge: r.acf ? `<span class="status-badge green">✓ Sim</span>` : `<span class="status-badge gray">—</span>`, detail: "—" },
+      { label: "Plano de Trabalho", badge: r.pt === "Aprovado" ? `<span class="status-badge green">✓ Aprovado</span>` : r.pt === "Rejeitado" ? `<span class="status-badge red">Rejeitado</span>` : `<span class="status-badge gray">—</span>`, detail: r.pt || "—" }
+    ];
+
+    const html = `
+      <div class="report-page">
+        <div class="report-header">
+          <div>
+            <div class="rh-title">Relatório de Institucionalização de ${escapeHtml(r.m)}/${r.uf} junto ao SNC</div>
+            <div class="rh-sub">${escapeHtml(r.m)} · ${UF_NOME[r.uf] || r.uf} · Gerado em ${hoje}</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Iniciativa coordenada pelo SNC</div>
+        </div>
+
+        <div class="grid grid-3" style="margin-bottom:18px;">
+          <div class="card" style="padding:14px;">
+            <div style="font-weight:800;font-size:18px;">${r.ad ? "Possui Adesão" : "Não possui Adesão"}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">${r.dtAd ? fmtDate(r.dtAd) : "—"}</div>
+          </div>
+          <div class="card" style="padding:14px;">
+            <div style="font-weight:800;font-size:18px;">${r.idx}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">Componentes concluídos</div>
+          </div>
+          <div class="card" style="padding:14px;">
+            <div style="font-weight:800;font-size:18px;">${r.upd ? fmtMesAno(r.upd) : "—"}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">Última atualização</div>
+          </div>
+        </div>
+
+        <div class="report-section">
+          <div style="background:var(--accent);color:#fff;padding:9px 14px;border-radius:8px;font-weight:700;font-size:13px;margin-bottom:10px;">${UF_NOME[r.uf] || r.uf} — ${escapeHtml(r.m)}</div>
+          ${douPill}
+        </div>
+
+        <div class="detail-grid" style="margin-bottom:18px;">
+          <div class="detail-item"><label>Gestor de Cultura</label><div>${escapeHtml(r.gestor || "Não informado")}</div></div>
+          <div class="detail-item"><label>E-mail Gestor</label><div>${escapeHtml(r.emailGestor || "Não informado")}</div></div>
+          <div class="detail-item"><label>Prefeito(a)</label><div>${escapeHtml(r.pref || "Não informado")}</div></div>
+          <div class="detail-item"><label>E-mail Gabinete</label><div>${escapeHtml(r.emailPref || "Não informado")}</div></div>
+        </div>
+
+        <div class="report-section">
+          <h3>Componentes do SNC</h3>
+          <table class="report-table">
+            <thead><tr><th>Componente</th><th>Situação</th><th>Detalhes / Data</th></tr></thead>
+            <tbody>
+              ${compRows.map((c) => `<tr><td>${c.label}</td><td>${c.badge}</td><td style="color:var(--muted);">${c.detail}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <h3>Nota Técnica</h3>
+          <div style="font-size:12.3px;line-height:1.6;color:var(--text);background:var(--surface-2);padding:14px 16px;border-radius:10px;">
+            ${gerarNotaTecnica(r)}
+          </div>
+        </div>
+
+        ${reportFooter()}
+      </div>`;
+
+    document.getElementById("reportContainer").innerHTML = html;
+    STATE.reportOrientation = "portrait";
+    STATE.reportFilename = `relatorio-${r.m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-")}-${r.uf.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  }
+
+  /* ---------------- Relatório Estratégico de Estado ---------------- */
+  function renderEstadoReport(uf) {
+    const rows = STATE.raw.filter((r) => r.uf === uf);
+    const aderidos = rows.filter((r) => r.ad);
+    const naoAderidos = rows.length - aderidos.length;
+    const pctCobertura = rows.length ? (aderidos.length / rows.length) * 100 : 0;
+    const anoAtual = new Date().getFullYear();
+    const atualizAnoAtual = aderidos.filter((r) => r.upd && r.upd.slice(0, 4) === String(anoAtual)).length;
+    const atualizAnteriores = aderidos.length - atualizAnoAtual;
+
+    const byYear = {};
+    aderidos.forEach((r) => { if (r.dtAd) { const y = r.dtAd.slice(0, 4); byYear[y] = (byYear[y] || 0) + 1; } });
+    const years = Object.keys(byYear).sort();
+    let acc = 0;
+    const evolucao = years.map((y) => { acc += byYear[y]; return { year: y, novo: byYear[y], acumulado: acc }; });
+    const maxNovo = Math.max(1, ...evolucao.map((d) => d.novo));
+
+    const compStats = {};
+    COMPONENT_KEYS.forEach((k) => { compStats[k] = aderidos.reduce((s, r) => s + r[k], 0); });
+    const COMP_LABEL_LONG = { sis: "Lei do Sistema Municipal de Cultura", con: "Conselho Municipal de Política Cultural", fun: "Fundo Municipal de Cultura", pla: "Plano Municipal de Cultura", org: "Órgão Gestor de Cultura" };
+
+    const semAdesaoNomes = rows.filter((r) => !r.ad).map((r) => r.m).sort((a, b) => a.localeCompare(b));
+    const aderidosOrdenados = aderidos.slice().sort((a, b) => a.m.localeCompare(b.m));
+
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+    const html = `
+      <div class="report-page">
+        <div class="report-header">
+          <div>
+            <div class="rh-title">${UF_NOME[uf] || uf} — Evolução das Adesões ao Sistema Nacional de Cultura</div>
+            <div class="rh-sub">Análise estratégica completa · Componentes Estruturantes · Gerado em ${hoje}</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Iniciativa coordenada pelo SNC</div>
+        </div>
+
+        <div class="report-section">
+          <h3>Indicadores Executivos</h3>
+          <table class="report-table">
+            <thead><tr><th>Indicador</th><th>Valor</th></tr></thead>
+            <tbody>
+              <tr><td>Total de municípios</td><td>${fmtInt(rows.length)}</td></tr>
+              <tr><td>Com adesão ao SNC</td><td>${fmtInt(aderidos.length)} (${fmtPct(pctCobertura)})</td></tr>
+              <tr><td>Sem adesão</td><td>${fmtInt(naoAderidos)} (${fmtPct(100 - pctCobertura)})</td></tr>
+              <tr><td>Atualizações em ${anoAtual}</td><td>${fmtInt(atualizAnoAtual)}</td></tr>
+              <tr><td>Atualizações em anos anteriores</td><td>${fmtInt(atualizAnteriores)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <h3>Evolução das Adesões por Ano (Data Oficial)</h3>
+          <table class="report-table">
+            <thead><tr><th>Ano</th><th>Novas adesões</th><th>Acumulado</th><th></th></tr></thead>
+            <tbody>
+              ${evolucao.map((d) => `
+                <tr>
+                  <td><b>${d.year}</b></td>
+                  <td>${fmtInt(d.novo)}</td>
+                  <td>${fmtInt(d.acumulado)}</td>
+                  <td style="width:35%;"><div style="background:var(--surface-2);border-radius:6px;height:9px;overflow:hidden;"><div style="background:var(--accent);height:100%;width:${((d.novo / maxNovo) * 100).toFixed(0)}%;"></div></div></td>
+                </tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--muted);">Sem histórico de adesões registrado.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <h3>Componentes Estruturantes do SNC</h3>
+          ${COMPONENT_KEYS.map((k) => {
+            const n = compStats[k];
+            const pct = aderidos.length ? (n / aderidos.length) * 100 : 0;
+            return `
+              <div style="margin-bottom:14px;">
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;margin-bottom:4px;">
+                  <span>${COMP_LABEL_LONG[k]}</span><span>${fmtPct(pct)}</span>
+                </div>
+                <div style="background:var(--surface-2);border-radius:9999px;height:8px;overflow:hidden;">
+                  <div style="background:${S.COMPONENT_COLORS[k]};height:100%;width:${pct}%;border-radius:9999px;"></div>
+                </div>
+                <div style="font-size:11px;color:var(--muted);margin-top:3px;">${fmtInt(n)} concluídos · ${fmtInt(aderidos.length - n)} não informados</div>
+              </div>`;
+          }).join("")}
+        </div>
+
+        <div class="report-section">
+          <h3>Municípios Sem Adesão ao SNC (${fmtInt(semAdesaoNomes.length)})</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${semAdesaoNomes.length ? semAdesaoNomes.map((m) => `<span class="status-badge gray">${escapeHtml(m)}</span>`).join("") : `<span style="color:var(--muted);font-size:12px;">Todos os municípios possuem adesão.</span>`}
+          </div>
+        </div>
+
+        <div class="report-section">
+          <h3>Municípios Com Adesão ao SNC (${fmtInt(aderidosOrdenados.length)})</h3>
+          ${checklistTableHtml(aderidosOrdenados, { showAdesao: false })}
+        </div>
+
+        ${reportFooter()}
+      </div>`;
+
+    document.getElementById("reportContainer").innerHTML = html;
+    STATE.reportOrientation = "landscape";
+    STATE.reportFilename = `relatorio-estrategico-${uf.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  }
+
+  /* ---------------- Checklist de Municípios do Estado (lote) ---------------- */
+  function renderChecklistReport(uf, filtro) {
+    let rows = STATE.raw.filter((r) => r.uf === uf);
+    if (filtro === "aderidos") rows = rows.filter((r) => r.ad);
+    if (filtro === "naoAderidos") rows = rows.filter((r) => !r.ad);
+    rows = rows.slice().sort((a, b) => a.m.localeCompare(b.m));
+
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+    const html = `
+      <div class="report-page">
+        <div class="report-header">
+          <div>
+            <div class="rh-title">Checklist de Municípios — ${UF_NOME[uf] || uf}</div>
+            <div class="rh-sub">Gerado em ${hoje} · ${fmtInt(rows.length)} municípios listados (${filtroAdesaoLabel(filtro)})</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Iniciativa coordenada pelo SNC</div>
+        </div>
+        <div class="report-section">
+          ${checklistTableHtml(rows, { showAdesao: filtro === "todos" })}
+        </div>
+        ${reportFooter()}
+      </div>`;
+
+    document.getElementById("reportContainer").innerHTML = html;
+    STATE.reportOrientation = "landscape";
+    STATE.reportFilename = `checklist-municipios-${uf.toLowerCase()}-${filtro}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  }
+
+  /* ---------------- Lista de Contatos (Prefeito, Gestor, Cadastrador) ---------------- */
+  function contatoCell(nome, email) {
+    const nomeHtml = nome ? `<b>${escapeHtml(nome)}</b>` : `<span style="color:var(--muted);">Não informado</span>`;
+    const emailHtml = email ? `<a href="mailto:${escapeHtml(email)}" style="color:var(--accent);text-decoration:none;">${escapeHtml(email)}</a>` : `<span style="color:var(--muted);">—</span>`;
+    return `<td>${nomeHtml}</td><td>${emailHtml}</td>`;
+  }
+
+  function renderContatosReport(uf, municipioNome) {
+    let rows = STATE.raw.filter((r) => r.uf === uf);
+    if (municipioNome) rows = rows.filter((r) => r.m === municipioNome);
+    rows = rows.slice().sort((a, b) => a.m.localeCompare(b.m));
+
+    const semContato = rows.filter((r) => !r.pref && !r.gestor && !r.cad).length;
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    const escopo = municipioNome ? `${municipioNome}/${uf}` : (UF_NOME[uf] || uf);
+
+    const tableHtml = !rows.length
+      ? `<div class="section-sub" style="margin:0;padding:20px 0;text-align:center;">Nenhum município encontrado.</div>`
+      : `
+      <table class="report-table compact">
+        <thead>
+          <tr>
+            <th>Município</th>
+            <th>Prefeito(a)</th><th>E-mail Gabinete</th>
+            <th>Gestor de Cultura</th><th>E-mail Gestor</th>
+            <th>Cadastrador</th><th>E-mail Cadastrador</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r) => `
+            <tr>
+              <td><b>${escapeHtml(r.m)}</b>${!r.ad ? ` <span class="status-badge gray" style="margin-left:4px;">sem adesão</span>` : ""}</td>
+              ${contatoCell(r.pref, r.emailPref)}
+              ${contatoCell(r.gestor, r.emailGestor)}
+              ${contatoCell(r.cad, r.emailCad)}
+            </tr>`).join("")}
+        </tbody>
+      </table>`;
+
+    const html = `
+      <div class="report-page">
+        <div class="report-header">
+          <div>
+            <div class="rh-title">Lista de Contatos — ${escapeHtml(escopo)}</div>
+            <div class="rh-sub">Gerado em ${hoje} · ${fmtInt(rows.length)} município${rows.length === 1 ? "" : "s"} listado${rows.length === 1 ? "" : "s"}${semContato ? ` · ${fmtInt(semContato)} sem nenhum contato informado` : ""}</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Iniciativa coordenada pelo SNC</div>
+        </div>
+        <div class="report-section">
+          ${tableHtml}
+        </div>
+        ${reportFooter()}
+      </div>`;
+
+    document.getElementById("reportContainer").innerHTML = html;
+    STATE.reportOrientation = "landscape";
+    const sufixo = municipioNome ? municipioNome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-") : "todos";
+    STATE.reportFilename = `contatos-${uf.toLowerCase()}-${sufixo}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  }
+
+  S.statusBadge = statusBadge;
+  S.checklistTableHtml = checklistTableHtml;
+  S.renderMunicipioReport = renderMunicipioReport;
+  S.renderEstadoReport = renderEstadoReport;
+  S.renderChecklistReport = renderChecklistReport;
+  S.renderContatosReport = renderContatosReport;
 })();
