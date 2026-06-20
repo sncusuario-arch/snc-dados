@@ -378,14 +378,19 @@
   const { STATE, UF_NOME, UF_TILES, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS,
     classifyMaturity, colorForPct, fmtInt, fmtPct, fmtDate, escapeHtml } = S;
 
-  Chart.defaults.font.family = "'Inter', sans-serif";
-  Chart.defaults.color = "#64748b";
-  Chart.defaults.font.size = 11.5;
+  if (typeof Chart !== "undefined") {
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = "#64748b";
+    Chart.defaults.font.size = 11.5;
+  } else {
+    console.warn("Chart.js não foi carregado — gráficos não serão exibidos, mas o restante do painel continua funcionando.");
+  }
 
   function destroyChart(id) {
     if (STATE.charts[id]) { STATE.charts[id].destroy(); delete STATE.charts[id]; }
   }
   function mkChart(id, config) {
+    if (typeof Chart === "undefined") return null;
     const canvas = document.getElementById(id);
     if (!canvas) return null;
     destroyChart(id);
@@ -1246,6 +1251,10 @@
 
   /* ---------------- Exportação Excel ---------------- */
   function exportExcel() {
+    if (typeof XLSX === "undefined") {
+      S.showToast("Biblioteca de planilhas não carregou — recarregue a página e tente novamente.", true);
+      return;
+    }
     const rows = STATE.lastFiltered || STATE.raw;
     const data = rows.map((r) => ({
       "Ente Federado": r.m, "UF": r.uf, "Região": r.reg,
@@ -1267,6 +1276,10 @@
 
   /* ---------------- Exportação PDF ---------------- */
   function exportPdfReport() {
+    if (typeof html2pdf === "undefined") {
+      S.showToast("Biblioteca de exportação PDF não carregou — recarregue a página e tente novamente.", true);
+      return;
+    }
     if (!document.getElementById("reportContainer").innerHTML.trim()) {
       renderReport(STATE.lastAgg);
     }
@@ -1393,6 +1406,10 @@
   /* ---------------- Upload de planilha ---------------- */
   function handleFileUpload(file) {
     if (!file) return;
+    if (typeof XLSX === "undefined") {
+      showToast("Biblioteca de planilhas não carregou — recarregue a página e tente novamente.", true);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
