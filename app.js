@@ -112,7 +112,8 @@
     filters: { uf: "", periodo: "", search: "" },
     table: { sortKey: "idx", sortDir: "desc", page: 1, pageSize: 25, search: "" },
     mapLabels: true,
-    charts: {}
+    charts: {},
+    activeReportKind: null    // "executivo" | "municipio" | "estado" | "checklist" | "contatos" | null
   };
 
   /* ---------------------------------------------------------------------
@@ -338,7 +339,9 @@
       const d = new Date(r.upd);
       return d < doisAnosAtras;
     }).length;
-    const piorEstado = Object.values(byUF).filter((b) => b.total >= 3).sort((a, b) => a.pct - b.pct)[0];
+    const piorEstado = Object.keys(byUF).length > 1
+      ? Object.values(byUF).filter((b) => b.total >= 3).sort((a, b) => a.pct - b.pct)[0]
+      : null;
 
     // situação detalhada (DOU / aguardando / diligência)
     const situacaoCount = {};
@@ -427,10 +430,11 @@
   function renderKPIs(agg, containerId) {
     const el = document.getElementById(containerId || "kpiRow");
     if (!el) return;
+    const nUf = Object.keys(agg.byUF).length;
     el.innerHTML = [
       kpiCardHtml({
         label: "Total de Municípios", value: fmtInt(agg.total), tone: "blue", icon: ICONS.municipios,
-        delta: `${fmtInt(Object.keys(agg.byUF).length)} unidades federativas`, deltaTone: "flat"
+        delta: `${fmtInt(nUf)} unidade${nUf === 1 ? "" : "s"} federativa${nUf === 1 ? "" : "s"}`, deltaTone: "flat"
       }),
       kpiCardHtml({
         label: "Municípios com Adesão", value: fmtInt(agg.aderidosCount), tone: "green", icon: ICONS.check,
@@ -448,8 +452,8 @@
   }
 
   /* ---------------- Gráfico: evolução das adesões ---------------- */
-  function renderEvolucaoChart(agg, canvasId) {
-    mkChart(canvasId || "chartEvolucao", {
+  function buildEvolucaoConfig(agg) {
+    return {
       type: "line",
       data: {
         labels: agg.evolucao.map((d) => d.year),
@@ -486,13 +490,16 @@
           y: { grid: { color: "#eef2f7" }, beginAtZero: true }
         }
       }
-    });
+    };
+  }
+  function renderEvolucaoChart(agg, canvasId) {
+    mkChart(canvasId || "chartEvolucao", buildEvolucaoConfig(agg));
   }
 
   /* ---------------- Gráfico: adesões por estado (ranking, barras horizontais) ---------------- */
-  function renderEstadosChart(agg, canvasId) {
+  function buildEstadosConfig(agg) {
     const arr = Object.values(agg.byUF).sort((a, b) => b.aderidos - a.aderidos).slice(0, 12);
-    mkChart(canvasId || "chartEstados", {
+    return {
       type: "bar",
       data: {
         labels: arr.map((b) => b.uf),
@@ -512,7 +519,10 @@
         },
         scales: { x: { grid: { color: "#eef2f7" } }, y: { grid: { display: false } } }
       }
-    });
+    };
+  }
+  function renderEstadosChart(agg, canvasId) {
+    mkChart(canvasId || "chartEstados", buildEstadosConfig(agg));
   }
 
   /* ---------------- Gráfico: componentes do SNC (barras) ---------------- */
@@ -623,7 +633,10 @@
       const b = agg.byUF[uf];
       const pct = b ? b.pct : 0;
       const color = b ? colorForPct(pct) : "#e2e8f0";
-      html += `<g class="map-tile" data-uf="${uf}">
+      const ariaLabel = b
+        ? `${UF_NOME[uf] || uf}: ${fmtInt(b.aderidos)} de ${fmtInt(b.total)} municípios aderidos, ${fmtPct(b.pct)} de adesão`
+        : `${UF_NOME[uf] || uf}: sem dados`;
+      html += `<g class="map-tile" data-uf="${uf}" tabindex="0" role="button" aria-label="${ariaLabel}">
         <rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="7" fill="${color}" stroke="#fff" stroke-width="2"></rect>
         ${STATE.mapLabels ? `<text class="map-tile-label" x="${x + cell / 2}" y="${y + cell / 2 + 3.5}">${uf}</text>` : ""}
       </g>`;
@@ -643,6 +656,14 @@
           : `<b>${UF_NOME[uf] || uf}</b><br>Sem dados`;
       });
       g.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+      g.addEventListener("focus", () => {
+        g.style.outline = "2px solid var(--accent)";
+        g.style.outlineOffset = "2px";
+      });
+      g.addEventListener("blur", () => { g.style.outline = "none"; });
+      g.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); g.dispatchEvent(new Event("click")); }
+      });
       g.addEventListener("click", () => {
         const b = agg.byUF[uf];
         const panel = document.getElementById(panelId);
@@ -662,6 +683,34 @@
     });
   }
 
+  /* ---------------- Captura de gráfico offscreen (para imagens em relatórios) ----------------
+     Usa um canvas temporário com tamanho explícito, fora da árvore de views (que têm
+     display:none quando inativas e por isso produziriam imagem em branco/quebrada). */
+  function renderChartToImage(config, width, height) {
+    if (typeof Chart === "undefined") return "";
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.style.position = "fixed";
+    canvas.style.left = "-99999px";
+    canvas.style.top = "0";
+    document.body.appendChild(canvas);
+    let src = "";
+    try {
+      const offscreenConfig = JSON.parse(JSON.stringify(config, (k, v) => (typeof v === "function" ? undefined : v)));
+      offscreenConfig.options = offscreenConfig.options || {};
+      offscreenConfig.options.responsive = false;
+      offscreenConfig.options.maintainAspectRatio = false;
+      offscreenConfig.options.animation = false;
+      offscreenConfig.options.devicePixelRatio = 2;
+      const chart = new Chart(canvas.getContext("2d"), offscreenConfig);
+      src = chart.toBase64Image();
+      chart.destroy();
+    } catch (e) { src = ""; }
+    document.body.removeChild(canvas);
+    return src;
+  }
+
   S.renderKPIs = renderKPIs;
   S.renderEvolucaoChart = renderEvolucaoChart;
   S.renderEstadosChart = renderEstadosChart;
@@ -671,6 +720,9 @@
   S.renderBrazilMap = renderBrazilMap;
   S.mkChart = mkChart;
   S.ICONS = ICONS;
+  S.buildEvolucaoConfig = buildEvolucaoConfig;
+  S.buildEstadosConfig = buildEstadosConfig;
+  S.renderChartToImage = renderChartToImage;
 })();
 
 /* ============================================================================
@@ -770,6 +822,12 @@
       orgPct: b.aderidos ? (b.org / b.aderidos) * 100 : 0
     }));
 
+    const searchEl = document.getElementById("estadosSearch");
+    const searchTerm = (STATE.estadosSearch || "").toLowerCase();
+    if (searchTerm) {
+      rows = rows.filter((r) => r.uf.toLowerCase().includes(searchTerm) || r.nome.toLowerCase().includes(searchTerm));
+    }
+
     rows.sort((a, b) => {
       const va = a[sort.key], vb = b[sort.key];
       if (typeof va === "string") return sort.dir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
@@ -827,7 +885,7 @@
     { key: "uf", label: "UF" },
     { key: "m", label: "Município" },
     { key: "sit", label: "Situação" },
-    { key: "__comp", label: "Componentes", sortable: false },
+    { key: "__comp", label: "Componentes", sortable: false, headerTitle: "Sistema · Conselho · Fundo · Plano · Órgão Gestor (passe o mouse sobre cada bolinha)" },
     { key: "idx", label: "Índice" },
     { key: "upd", label: "Atualizado em" }
   ];
@@ -876,7 +934,7 @@
 
     const thead = table.querySelector("thead");
     thead.innerHTML = `<tr>${MUNICIPIOS_COLUMNS.map((c) => {
-      if (c.sortable === false) return `<th>${c.label}</th>`;
+      if (c.sortable === false) return `<th${c.headerTitle ? ` title="${c.headerTitle}" style="cursor:help;text-decoration:underline dotted;text-underline-offset:3px;"` : ""}>${c.label}</th>`;
       const active = t.sortKey === c.key;
       return `<th class="${active ? "sorted" : ""}" data-key="${c.key}" style="cursor:pointer;">${c.label}<span class="sort-arrow">${active ? (t.sortDir === "asc" ? "▲" : "▼") : "↕"}</span></th>`;
     }).join("")}</tr>`;
@@ -898,7 +956,7 @@
           <td><b>${r.uf}</b></td>
           <td>${escapeHtml(r.m)}</td>
           <td><span class="pill ${r.ad ? (r.sit === "Publicado no DOU" ? "green" : "amber") : "red"}"><span class="pill-dot" style="background:currentColor"></span>${escapeHtml(r.sit)}</span></td>
-          <td><div class="idx-dot-row">${COMPONENT_KEYS.map((k) => `<span class="idx-dot ${r[k] ? "on" : ""}" title="${COMPONENT_LABELS[k]}"></span>`).join("")}</div></td>
+          <td><div class="idx-dot-row">${COMPONENT_KEYS.map((k) => `<span class="idx-dot ${r[k] ? "on" : ""}" title="${COMPONENT_LABELS[k]}: ${r[k] ? "concluído" : "pendente"}"></span>`).join("")}</div></td>
           <td>${r.idx} / 5</td>
           <td>${fmtDate(r.upd)}</td>
         </tr>`).join("");
@@ -1142,11 +1200,11 @@
   const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS,
     fmtInt, fmtPct, fmtDate, escapeHtml } = S;
 
-  function chartImg(canvasId, alt) {
-    const chart = STATE.charts[canvasId];
-    if (!chart) return "";
+  function chartImg(configBuilder, agg, alt) {
     try {
-      const src = chart.toBase64Image();
+      const config = configBuilder(agg);
+      const src = S.renderChartToImage(config, 1000, 420);
+      if (!src || src === "data:,") return "";
       return `<img src="${src}" alt="${alt}" style="width:100%;max-width:520px;display:block;margin:0 auto;">`;
     } catch (e) { return ""; }
   }
@@ -1192,7 +1250,7 @@
 
         <div class="report-section">
           <h3>Evolução das Adesões</h3>
-          ${chartImg("chartEvolucao", "Evolução das adesões")}
+          ${chartImg(S.buildEvolucaoConfig, agg, "Evolução das adesões")}
         </div>
 
         <div class="report-section">
@@ -1283,6 +1341,7 @@
       return;
     }
     if (!document.getElementById("reportContainer").innerHTML.trim()) {
+      STATE.activeReportKind = "executivo";
       renderReport(STATE.lastAgg);
     }
     window.__SNC.goTo("relatorios");
@@ -1317,7 +1376,7 @@
 (function () {
   "use strict";
   const S = window.__SNC;
-  const { STATE, UF_NOME, fmtInt, fmtPct, debounce, escapeHtml } = S;
+  const { STATE, UF_NOME, fmtInt, fmtPct, fmtDate, debounce, escapeHtml } = S;
 
   const VIEW_META = {
     dashboard: { title: "Dashboard Executivo", sub: "Monitoramento nacional do Sistema Nacional de Cultura" },
@@ -1389,10 +1448,27 @@
     S.renderPlanosView(agg);
     S.renderBrasilView(agg);
 
+    // Mantém o Relatório Executivo sempre em sincronia com os filtros globais, evitando
+    // que ele fique mostrando dados desatualizados depois de o usuário trocar o filtro.
+    if (STATE.activeReportKind === "executivo") {
+      S.renderReport(agg);
+    }
+
     const cfgFonte = document.getElementById("cfgFonte");
     const cfgTotal = document.getElementById("cfgTotal");
     if (cfgFonte) cfgFonte.textContent = STATE.sourceLabel;
     if (cfgTotal) cfgTotal.textContent = fmtInt(STATE.raw.length) + " municípios carregados";
+
+    const lastUpdEl = document.getElementById("lastDataUpdate");
+    if (lastUpdEl) {
+      const datasUpd = STATE.raw.filter((r) => r.upd).map((r) => r.upd);
+      if (datasUpd.length) {
+        const maisRecente = datasUpd.reduce((max, d) => (d > max ? d : max));
+        lastUpdEl.textContent = `Dados da plataforma até ${fmtDate(maisRecente)}`;
+      } else {
+        lastUpdEl.textContent = "";
+      }
+    }
   }
 
   /* ---------------- Filtros (topbar) ---------------- */
@@ -1509,6 +1585,14 @@
       }, 280));
     }
 
+    const estadosSearch = document.getElementById("estadosSearch");
+    if (estadosSearch) {
+      estadosSearch.addEventListener("input", debounce(() => {
+        STATE.estadosSearch = estadosSearch.value.trim();
+        S.renderEstadosTable(STATE.lastAgg);
+      }, 280));
+    }
+
     const btnRefresh = document.getElementById("btnRefresh");
     if (btnRefresh) btnRefresh.addEventListener("click", () => { refreshAll(); showToast("Dados atualizados."); });
 
@@ -1518,7 +1602,22 @@
     if (fileUpload2) fileUpload2.addEventListener("change", (e) => { handleFileUpload(e.target.files[0]); e.target.value = ""; });
 
     const btnGerar = document.getElementById("btnGerarRelatorio");
-    if (btnGerar) btnGerar.addEventListener("click", () => { S.renderReport(STATE.lastAgg); goTo("relatorios"); });
+    if (btnGerar) {
+      btnGerar.addEventListener("click", () => {
+        const original = btnGerar.innerHTML;
+        btnGerar.disabled = true;
+        btnGerar.innerHTML = "Gerando relatório...";
+        goTo("relatorios");
+        setTimeout(() => {
+          STATE.activeReportKind = "executivo";
+          S.renderReport(STATE.lastAgg);
+          btnGerar.disabled = false;
+          btnGerar.innerHTML = original;
+          const container = document.getElementById("reportContainer");
+          if (container) container.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 30);
+      });
+    }
 
     const repTipo = document.getElementById("repTipo");
     if (repTipo) repTipo.addEventListener("change", updateRepFormVisibility);
@@ -1535,20 +1634,33 @@
         if (tipo === "municipio") {
           const mNome = document.getElementById("repMunicipio").value;
           if (!mNome) { showToast("Selecione um município.", true); return; }
-          const row = STATE.raw.find((r) => r.uf === uf && r.m === mNome);
-          if (!row) { showToast("Município não encontrado.", true); return; }
-          S.renderMunicipioReport(row);
-        } else if (tipo === "estado") {
-          S.renderEstadoReport(uf);
-        } else if (tipo === "checklist") {
-          const filtro = document.getElementById("repFiltroAdesao").value;
-          S.renderChecklistReport(uf, filtro);
-        } else if (tipo === "contatos") {
-          const mNome = document.getElementById("repMunicipio").value;
-          S.renderContatosReport(uf, mNome || null);
         }
-        const container = document.getElementById("reportContainer");
-        if (container) container.scrollIntoView({ behavior: "smooth", block: "start" });
+        const original = btnGerarDetalhado.innerHTML;
+        btnGerarDetalhado.disabled = true;
+        btnGerarDetalhado.innerHTML = "Gerando relatório...";
+        setTimeout(() => {
+          if (tipo === "municipio") {
+            const mNome = document.getElementById("repMunicipio").value;
+            const row = STATE.raw.find((r) => r.uf === uf && r.m === mNome);
+            if (row) { STATE.activeReportKind = "municipio"; S.renderMunicipioReport(row); }
+            else showToast("Município não encontrado.", true);
+          } else if (tipo === "estado") {
+            STATE.activeReportKind = "estado";
+            S.renderEstadoReport(uf);
+          } else if (tipo === "checklist") {
+            const filtro = document.getElementById("repFiltroAdesao").value;
+            STATE.activeReportKind = "checklist";
+            S.renderChecklistReport(uf, filtro);
+          } else if (tipo === "contatos") {
+            const mNome = document.getElementById("repMunicipio").value;
+            STATE.activeReportKind = "contatos";
+            S.renderContatosReport(uf, mNome || null);
+          }
+          btnGerarDetalhado.disabled = false;
+          btnGerarDetalhado.innerHTML = original;
+          const container = document.getElementById("reportContainer");
+          if (container) container.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 30);
       });
     }
     updateRepFormVisibility();
@@ -2011,4 +2123,303 @@
   S.renderEstadoReport = renderEstadoReport;
   S.renderChecklistReport = renderChecklistReport;
   S.renderContatosReport = renderContatosReport;
+})();
+
+/* ============================================================================
+   PARTE 9 — Painel de Pendências do SNC (módulo independente)
+   ----------------------------------------------------------------------------
+   Este bloco é autocontido: tem seu próprio estado, seu próprio listener de
+   DOMContentLoaded, suas próprias funções de exportação (Excel/PDF) e não
+   chama nem modifica nenhuma função das PARTEs 1–8. Lê apenas, em modo
+   somente-leitura, o dataset compartilhado em window.__SNC.STATE.raw — não
+   escreve em STATE, não participa de refreshAll(), não altera relatórios,
+   exportações, mapa, filtros globais ou qualquer tela já existente.
+   ============================================================================ */
+(function () {
+  "use strict";
+
+  const PEND_CATEGORIES = [
+    { key: "con", label: "Conselho", desc: "Lei do Conselho de Política Cultural" },
+    { key: "pla", label: "Plano", desc: "Plano Municipal de Cultura" },
+    { key: "fun", label: "Fundo", desc: "Fundo Municipal de Cultura" },
+    { key: "confNac", label: "Conferência", desc: "Participação na Conferência Nacional de Cultura" },
+    { key: "siic", label: "Sistema de Informações", desc: "Registro no SIIC (Sistema de Informações e Indicadores Culturais)" }
+  ];
+
+  const PEND_ICON = `<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M10.3 3.86L1.82 18a1.8 1.8 0 001.54 2.7h17.28A1.8 1.8 0 0022.18 18L13.7 3.86a1.8 1.8 0 00-3.4 0z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
+
+  const pendEsc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const pendFmtInt = (n) => Number(n || 0).toLocaleString("pt-BR");
+  const pendFmtPct = (n) => `${Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+
+  let pendState = { uf: "", lastResult: null, activeCategory: null };
+
+  function getRaw() {
+    return (window.__SNC && window.__SNC.STATE && Array.isArray(window.__SNC.STATE.raw)) ? window.__SNC.STATE.raw : [];
+  }
+  function getUfNome(uf) {
+    return (window.__SNC && window.__SNC.UF_NOME && window.__SNC.UF_NOME[uf]) || uf;
+  }
+
+  /* ---------------- Cálculo (independente de computeAggregates) ---------------- */
+  function computePendencias(uf) {
+    const raw = getRaw();
+    const aderidos = raw.filter((r) => r.ad && (!uf || r.uf === uf));
+    const total = aderidos.length;
+    const categorias = PEND_CATEGORIES.map((c) => {
+      const pendentes = aderidos.filter((r) => !r[c.key]);
+      return {
+        key: c.key,
+        label: c.label,
+        desc: c.desc,
+        total,
+        count: pendentes.length,
+        pct: total ? (pendentes.length / total) * 100 : 0,
+        municipios: pendentes.slice().sort((a, b) => a.uf === b.uf ? a.m.localeCompare(b.m) : a.uf.localeCompare(b.uf))
+      };
+    });
+    return { uf, total, categorias };
+  }
+
+  /* ---------------- Filtro de estado (próprio, não usa #ufFilter global) ---------------- */
+  function populatePendUfFilter() {
+    const sel = document.getElementById("pendUfFilter");
+    if (!sel) return;
+    const raw = getRaw();
+    const ufs = Array.from(new Set(raw.map((r) => r.uf))).sort((a, b) => getUfNome(a).localeCompare(getUfNome(b)));
+    sel.innerHTML = `<option value="">Todos os estados</option>` + ufs.map((uf) =>
+      `<option value="${uf}">${pendEsc(getUfNome(uf))} (${uf})</option>`
+    ).join("");
+  }
+
+  /* ---------------- Renderização dos 5 cards ---------------- */
+  function cardHtml(c) {
+    const tone = c.pct >= 80 ? "red" : c.pct >= 40 ? "amber" : "blue";
+    const toneVar = tone === "red" ? "var(--danger)" : tone === "amber" ? "var(--warning)" : "var(--accent)";
+    return `
+      <div class="card kpi-card pend-card" data-cat="${c.key}" style="cursor:pointer;">
+        <div class="kpi-top">
+          <div class="kpi-label">Sem ${pendEsc(c.label)}</div>
+          <div class="kpi-icon ${tone === "red" ? "red" : tone === "amber" ? "amber" : "blue"}">${PEND_ICON}</div>
+        </div>
+        <div class="kpi-value" style="color:${toneVar};">${pendFmtInt(c.count)}</div>
+        <div class="kpi-delta flat">${pendFmtPct(c.pct)} dos ${pendFmtInt(c.total)} aderidos</div>
+      </div>`;
+  }
+
+  function renderPendCards(result) {
+    const el = document.getElementById("pendCardsRow");
+    if (!el) return;
+    if (!result.total) {
+      el.innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;color:var(--muted);padding:24px;">Nenhum município aderido encontrado para este filtro.</div>`;
+      return;
+    }
+    el.innerHTML = result.categorias.map(cardHtml).join("");
+    el.querySelectorAll(".pend-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const cat = card.getAttribute("data-cat");
+        pendState.activeCategory = cat;
+        renderPendDetalhe(cat, result);
+      });
+    });
+  }
+
+  /* ---------------- Tabela de detalhe (lista nominal) ---------------- */
+  function renderPendDetalhe(catKey, result) {
+    const wrap = document.getElementById("pendDetalheCard");
+    const titulo = document.getElementById("pendDetalheTitulo");
+    const table = document.getElementById("pendDetalheTable");
+    if (!wrap || !table) return;
+    const cat = result.categorias.find((c) => c.key === catKey);
+    if (!cat) return;
+    wrap.style.display = "";
+    titulo.textContent = `Municípios aderidos sem ${cat.label} (${pendFmtInt(cat.count)} de ${pendFmtInt(cat.total)})`;
+    table.querySelector("thead").innerHTML = `<tr><th>UF</th><th>Município</th><th>Situação</th><th>Última atualização</th></tr>`;
+    const fmtDate = (window.__SNC && window.__SNC.fmtDate) || ((d) => d || "—");
+    table.querySelector("tbody").innerHTML = cat.municipios.length
+      ? cat.municipios.map((r) => `
+          <tr>
+            <td><b>${r.uf}</b></td>
+            <td>${pendEsc(r.m)}</td>
+            <td>${pendEsc(r.sit || "—")}</td>
+            <td>${fmtDate(r.upd)}</td>
+          </tr>`).join("")
+      : `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">Nenhum município pendente nesta categoria.</td></tr>`;
+    wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  /* ---------------- Atualização geral do painel ---------------- */
+  function refreshPendenciasPanel() {
+    const result = computePendencias(pendState.uf);
+    pendState.lastResult = result;
+    renderPendCards(result);
+    const wrap = document.getElementById("pendDetalheCard");
+    if (wrap) wrap.style.display = "none";
+    pendState.activeCategory = null;
+  }
+
+  /* ---------------- Exportação Excel (própria, não usa exportExcel() existente) ---------------- */
+  function exportPendenciasExcel() {
+    if (typeof XLSX === "undefined") {
+      if (window.__SNC && window.__SNC.showToast) window.__SNC.showToast("Biblioteca de planilhas não carregou — recarregue a página.", true);
+      return;
+    }
+    const result = pendState.lastResult || computePendencias(pendState.uf);
+    const raw = getRaw().filter((r) => r.ad && (!pendState.uf || r.uf === pendState.uf));
+    const rows = raw.slice().sort((a, b) => a.uf === b.uf ? a.m.localeCompare(b.m) : a.uf.localeCompare(b.uf)).map((r) => ({
+      "UF": r.uf,
+      "Município": r.m,
+      "Conselho": r.con ? "OK" : "Pendente",
+      "Plano": r.pla ? "OK" : "Pendente",
+      "Fundo": r.fun ? "OK" : "Pendente",
+      "Conferência": r.confNac ? "OK" : "Pendente",
+      "Sistema de Informações": r.siic ? "OK" : "Pendente",
+      "Última atualização": r.upd || ""
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{ wch: 5 }, { wch: 26 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 13 }, { wch: 22 }, { wch: 16 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Pendências SNC");
+    const dataStr = new Date().toISOString().slice(0, 10);
+    const sufixo = pendState.uf ? pendState.uf.toLowerCase() : "brasil";
+    XLSX.writeFile(wb, `pendencias-snc-${sufixo}-${dataStr}.xlsx`);
+  }
+
+  /* ---------------- Exportação PDF (própria, container dedicado offscreen) ---------------- */
+  function exportPendenciasPdf() {
+    if (typeof html2pdf === "undefined") {
+      if (window.__SNC && window.__SNC.showToast) window.__SNC.showToast("Biblioteca de exportação PDF não carregou — recarregue a página.", true);
+      return;
+    }
+    const result = pendState.lastResult || computePendencias(pendState.uf);
+    const raw = getRaw().filter((r) => r.ad && (!pendState.uf || r.uf === pendState.uf));
+    const rows = raw.slice().sort((a, b) => a.uf === b.uf ? a.m.localeCompare(b.m) : a.uf.localeCompare(b.uf));
+    const escopo = pendState.uf ? `${getUfNome(pendState.uf)} (${pendState.uf})` : "Brasil (todos os estados)";
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+    const resumoRows = result.categorias.map((c) => `
+      <tr><td>Sem ${pendEsc(c.label)}</td><td>${pendFmtInt(c.count)}</td><td>${pendFmtInt(c.total)}</td><td>${pendFmtPct(c.pct)}</td></tr>`).join("");
+
+    const detalheRows = rows.map((r) => `
+      <tr>
+        <td><b>${r.uf}</b></td>
+        <td>${pendEsc(r.m)}</td>
+        <td>${r.con ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
+        <td>${r.pla ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
+        <td>${r.fun ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
+        <td>${r.confNac ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
+        <td>${r.siic ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
+      </tr>`).join("");
+
+    const html = `
+      <div class="report-page">
+        <div class="report-header">
+          <div>
+            <div class="rh-title">Painel de Pendências do SNC</div>
+            <div class="rh-sub">Gerado em ${hoje} · Escopo: ${pendEsc(escopo)} · ${pendFmtInt(result.total)} municípios aderidos</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Iniciativa coordenada pelo SNC</div>
+        </div>
+        <div class="report-section">
+          <h3>Resumo por Categoria</h3>
+          <table class="report-table">
+            <thead><tr><th>Categoria</th><th>Pendentes</th><th>Total aderidos</th><th>%</th></tr></thead>
+            <tbody>${resumoRows}</tbody>
+          </table>
+        </div>
+        <div class="report-section">
+          <h3>Detalhe por Município</h3>
+          <table class="report-table compact">
+            <thead><tr><th>UF</th><th>Município</th><th>Conselho</th><th>Plano</th><th>Fundo</th><th>Conferência</th><th>Sist. Informações</th></tr></thead>
+            <tbody>${detalheRows}</tbody>
+          </table>
+        </div>
+        <div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted);text-align:center;">Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura</div>
+      </div>`;
+
+    const container = document.getElementById("pendReportContainer");
+    if (!container) return;
+    container.innerHTML = html;
+    container.style.display = "block";
+
+    // Mesma correção de scroll aplicada ao sistema de relatórios principal, para evitar
+    // duplicação/ghosting do html2canvas quando a página não está no topo da rolagem.
+    const contentEl = document.getElementById("content");
+    if (contentEl) contentEl.scrollTop = 0;
+    window.scrollTo(0, 0);
+
+    const dataStr = new Date().toISOString().slice(0, 10);
+    const sufixo = pendState.uf ? pendState.uf.toLowerCase() : "brasil";
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `pendencias-snc-${sufixo}-${dataStr}.pdf`,
+      image: { type: "jpeg", quality: 0.97 },
+      html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
+      pagebreak: { mode: ["css", "legacy"] }
+    };
+    setTimeout(() => {
+      html2pdf().set(opt).from(container.querySelector(".report-page")).save().then(() => {
+        container.style.display = "none";
+        container.innerHTML = "";
+      });
+    }, 60);
+  }
+
+  /* ---------------- Navegação própria (não depende de goTo()/VIEW_META da PARTE 7) ----------------
+     O goTo() existente tem um guard que só atua sobre views cadastradas em VIEW_META;
+     como não alteramos PARTE 7, ele ignora silenciosamente o clique em "Pendências".
+     Em compensação, quando o usuário navega para QUALQUER outra tela existente, o
+     próprio goTo() já esconde #view-pendencias de volta (ele itera todos os .view
+     genericamente), então só precisamos cuidar da metade "entrar" da navegação aqui. */
+  function activatePendenciasView() {
+    document.querySelectorAll(".nav-item").forEach((n) => n.classList.toggle("active", n.getAttribute("data-view") === "pendencias"));
+    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "view-pendencias"));
+    const title = document.getElementById("topbarTitle");
+    const sub = document.getElementById("topbarSub");
+    if (title) title.textContent = "Pendências";
+    if (sub) sub.textContent = "Painel de pendências de institucionalização ao SNC";
+    const content = document.getElementById("content");
+    if (content) content.scrollTop = 0;
+    if (window.__SNC) window.__SNC.STATE.currentView = "pendencias";
+  }
+
+  /* ---------------- Wiring de eventos (próprio) ---------------- */
+  function wirePendenciasEvents() {
+    const navItem = document.querySelector('.nav-item[data-view="pendencias"]');
+    if (navItem) navItem.addEventListener("click", activatePendenciasView);
+
+    const ufSel = document.getElementById("pendUfFilter");
+    if (ufSel) {
+      ufSel.addEventListener("change", () => {
+        pendState.uf = ufSel.value;
+        refreshPendenciasPanel();
+      });
+    }
+    const btnExcel = document.getElementById("btnExportPendExcel");
+    if (btnExcel) btnExcel.addEventListener("click", exportPendenciasExcel);
+    const btnPdf = document.getElementById("btnExportPendPdf");
+    if (btnPdf) btnPdf.addEventListener("click", exportPendenciasPdf);
+  }
+
+  /* ---------------- Inicialização própria (listener separado, não interfere na PARTE 7) ---------------- */
+  function initPendenciasModule() {
+    // Aguarda os dados estarem disponíveis (a PARTE 7 popula STATE.raw no seu próprio
+    // DOMContentLoaded, registrado antes deste). Faz uma verificação leve com retry
+    // para garantir robustez independente da ordem exata de carregamento.
+    let tentativas = 0;
+    const tryInit = () => {
+      tentativas++;
+      if (getRaw().length > 0 || tentativas > 40) {
+        populatePendUfFilter();
+        wirePendenciasEvents();
+        refreshPendenciasPanel();
+      } else {
+        setTimeout(tryInit, 50);
+      }
+    };
+    tryInit();
+  }
+
+  document.addEventListener("DOMContentLoaded", initPendenciasModule);
 })();

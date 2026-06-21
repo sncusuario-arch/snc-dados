@@ -69,6 +69,10 @@
         <svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v15H6V2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12h6M9 16h6M9 8h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         Planos de Cultura
       </li>
+      <li class="nav-item" data-view="pendencias">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M10.3 3.86L1.82 18a1.8 1.8 0 001.54 2.7h17.28A1.8 1.8 0 0022.18 18L13.7 3.86a1.8 1.8 0 00-3.4 0z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        Pendências
+      </li>
     </ul>
 
     <div class="nav-group-label">Saída</div>
@@ -89,7 +93,8 @@
 
     <div class="sidebar-footer">
       Iniciativa coordenada pelo SNC<br>
-      Criado pelo Chefe de Divisão Fagner Silva Ribeiro
+      Criado pelo Chefe de Divisão Fagner Silva Ribeiro<br>
+      <span id="lastDataUpdate" style="opacity:0.75;"></span>
     </div>
   </aside>
 
@@ -107,10 +112,10 @@
           <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           <input type="text" id="globalMunicipioFilter" placeholder="Filtrar município...">
         </div>
-        <select class="select-control" id="ufFilter">
+        <select class="select-control" id="ufFilter" autocomplete="off">
           <option value="">Todos os estados</option>
         </select>
-        <select class="select-control" id="periodFilter">
+        <select class="select-control" id="periodFilter" autocomplete="off">
           <option value="">Todo o período</option>
         </select>
         <button class="btn btn-secondary" id="btnRefresh">
@@ -238,6 +243,10 @@
         <div class="card">
           <div class="table-toolbar">
             <div class="card-title">Painel por unidade federativa</div>
+            <div class="search-control">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              <input type="text" id="estadosSearch" placeholder="Pesquisar estado..." autocomplete="off">
+            </div>
           </div>
           <div class="table-scroll">
             <table class="data-table" id="tableEstados">
@@ -333,6 +342,48 @@
         </div>
       </section>
 
+      <!-- ---------- PENDÊNCIAS (módulo independente) ---------- -->
+      <section class="view" id="view-pendencias">
+        <div class="card row-block" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+          <div>
+            <div class="card-title">Painel de Pendências do SNC</div>
+            <div class="section-sub" style="margin-top:2px;">Municípios aderidos com componentes pendentes, por categoria</div>
+          </div>
+          <div class="rep-form-row" style="margin:0;">
+            <div class="rep-form-field">
+              <label>Estado</label>
+              <select class="select-control" id="pendUfFilter" autocomplete="off">
+                <option value="">Todos os estados</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary" id="btnExportPendExcel">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Exportar Excel
+            </button>
+            <button class="btn btn-primary" id="btnExportPendPdf">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Exportar PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-5 row-block" id="pendCardsRow"></div>
+
+        <div class="card" id="pendDetalheCard" style="display:none;">
+          <div class="table-toolbar">
+            <div class="card-title" id="pendDetalheTitulo">Municípios pendentes</div>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="pendDetalheTable">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="pendReportContainer" style="position:fixed; left:-99999px; top:0; width:1100px;"></div>
+      </section>
+
       <!-- ---------- RELATORIOS ---------- -->
       <section class="view" id="view-relatorios">
         <div class="card row-block" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
@@ -352,7 +403,7 @@
           <div class="rep-form-row">
             <div class="rep-form-field">
               <label for="repTipo">Tipo de relatório</label>
-              <select class="select-control" id="repTipo">
+              <select class="select-control" id="repTipo" autocomplete="off">
                 <option value="municipio">Relatório de um Município</option>
                 <option value="estado">Relatório Estratégico do Estado</option>
                 <option value="checklist">Checklist de Municípios do Estado</option>
@@ -361,15 +412,15 @@
             </div>
             <div class="rep-form-field">
               <label for="repEstado">Estado</label>
-              <select class="select-control" id="repEstado"><option value="">Selecione...</option></select>
+              <select class="select-control" id="repEstado" autocomplete="off"><option value="">Selecione...</option></select>
             </div>
             <div class="rep-form-field" id="repMunicipioWrap">
               <label for="repMunicipio">Município</label>
-              <select class="select-control" id="repMunicipio"><option value="">Selecione o estado primeiro</option></select>
+              <select class="select-control" id="repMunicipio" autocomplete="off"><option value="">Selecione o estado primeiro</option></select>
             </div>
             <div class="rep-form-field" id="repFiltroWrap" style="display:none;">
               <label for="repFiltroAdesao">Filtro de adesão</label>
-              <select class="select-control" id="repFiltroAdesao">
+              <select class="select-control" id="repFiltroAdesao" autocomplete="off">
                 <option value="todos">Todos os municípios</option>
                 <option value="aderidos">Só com adesão</option>
                 <option value="naoAderidos">Só sem adesão</option>
@@ -433,7 +484,7 @@
           </div>
           <div class="settings-item">
             <div><div class="si-title">Linhas por página (tabela de municípios)</div><div class="si-desc">Quantidade de registros exibidos por página</div></div>
-            <select class="select-control" id="cfgPageSize">
+            <select class="select-control" id="cfgPageSize" autocomplete="off">
               <option value="10">10</option>
               <option value="25" selected>25</option>
               <option value="50">50</option>
