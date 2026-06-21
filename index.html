@@ -23,6 +23,8 @@
 
 <div class="app-shell">
 
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
   <!-- ===================== SIDEBAR ===================== -->
   <aside class="sidebar">
     <div class="brand">
@@ -40,10 +42,6 @@
       <li class="nav-item active" data-view="dashboard">
         <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7"/></svg>
         Dashboard
-      </li>
-      <li class="nav-item" data-view="brasil">
-        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M3 12h18M12 3c2.5 2.7 3.8 6 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-6-3.8-9s1.3-6.3 3.8-9z" stroke="currentColor" stroke-width="1.7"/></svg>
-        Brasil
       </li>
       <li class="nav-item" data-view="estados">
         <svg viewBox="0 0 24 24" fill="none"><path d="M3 21V9l9-6 9 6v12" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 21v-7h6v7" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
@@ -69,9 +67,13 @@
         <svg viewBox="0 0 24 24" fill="none"><path d="M6 2h9l5 5v15H6V2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12h6M9 16h6M9 8h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         Planos de Cultura
       </li>
-      <li class="nav-item" data-view="pendencias">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M10.3 3.86L1.82 18a1.8 1.8 0 001.54 2.7h17.28A1.8 1.8 0 0022.18 18L13.7 3.86a1.8 1.8 0 00-3.4 0z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-        Pendências
+      <li class="nav-item" data-view="fundo">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v10M9.5 9.3c0-1.3 1.1-2.3 2.5-2.3s2.5.9 2.5 2c0 1.3-1.1 1.7-2.5 2.2-1.4.5-2.5 1-2.5 2.3 0 1.1 1.1 2 2.5 2s2.5-.9 2.5-2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        Fundo de Cultura
+      </li>
+      <li class="nav-item" data-view="conselho">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.7"/><circle cx="16" cy="8" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M2.5 20c0-3 2.5-5.5 5.5-5.5S13.5 17 13.5 20M11.5 14.8c.9-.8 2-1.3 3.2-1.3 3 0 5.5 2.5 5.5 5.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        Conselho
       </li>
     </ul>
 
@@ -104,13 +106,19 @@
     <!-- ===================== TOPBAR ===================== -->
     <header class="topbar">
       <div class="topbar-title">
-        <h1 id="topbarTitle">Dashboard Executivo</h1>
-        <span id="topbarSub">Monitoramento nacional do Sistema Nacional de Cultura</span>
+        <button class="sidebar-toggle-btn" id="sidebarToggle" aria-label="Mostrar/recolher menu" title="Mostrar/recolher menu">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div>
+          <h1 id="topbarTitle">Dashboard Executivo</h1>
+          <span id="topbarSub">Monitoramento nacional do Sistema Nacional de Cultura</span>
+        </div>
       </div>
       <div class="topbar-controls">
-        <div class="search-control">
+        <div class="search-control" style="position:relative;">
           <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          <input type="text" id="globalMunicipioFilter" placeholder="Filtrar município...">
+          <input type="text" id="globalMunicipioFilter" placeholder="Filtrar município..." autocomplete="off">
+          <div id="globalMunicipioSuggest" class="autocomplete-dropdown" style="display:none;"></div>
         </div>
         <select class="select-control" id="ufFilter" autocomplete="off">
           <option value="">Todos os estados</option>
@@ -159,7 +167,7 @@
           </div>
         </div>
 
-        <div class="grid row-block" style="grid-template-columns: 1.3fr 1fr 1fr;">
+        <div class="grid grid-dashboard-row3 row-block">
           <div class="card">
             <div class="card-title-row">
               <div class="card-title">Componentes do SNC</div>
@@ -213,29 +221,6 @@
         </div>
         <div class="grid grid-3" id="alertsRow"></div>
 
-      </section>
-
-      <!-- ---------- BRASIL ---------- -->
-      <section class="view" id="view-brasil">
-        <div class="card row-block">
-          <div class="card-title-row">
-            <div class="card-title">Distribuição nacional por estado</div>
-            <div class="card-tag" id="mapClickHint2">Clique em um estado para detalhes</div>
-          </div>
-          <div class="map-wrap">
-            <div class="map-svg-holder"><svg id="brazilMap2" viewBox="0 0 360 380" width="420"></svg></div>
-            <div class="map-scale">
-              <div style="font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:2px;">Percentual de adesão</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#0a6e3a"></span> Acima de 80%</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#3fae6b"></span> 60% a 80%</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f2c94c"></span> 40% a 60%</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f08c3a"></span> 20% a 40%</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#dc2626"></span> Abaixo de 20%</div>
-              <div id="mapStatePanel2" style="margin-top:10px;"></div>
-            </div>
-          </div>
-        </div>
-        <div class="grid grid-5 row-block" id="regiaoCards"></div>
       </section>
 
       <!-- ---------- ESTADOS ---------- -->
@@ -342,46 +327,42 @@
         </div>
       </section>
 
-      <!-- ---------- PENDÊNCIAS (módulo independente) ---------- -->
-      <section class="view" id="view-pendencias">
-        <div class="card row-block" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
-          <div>
-            <div class="card-title">Painel de Pendências do SNC</div>
-            <div class="section-sub" style="margin-top:2px;">Municípios aderidos com componentes pendentes, por categoria</div>
-          </div>
-          <div class="rep-form-row" style="margin:0;">
-            <div class="rep-form-field">
-              <label>Estado</label>
-              <select class="select-control" id="pendUfFilter" autocomplete="off">
-                <option value="">Todos os estados</option>
-              </select>
+      <!-- ---------- FUNDO DE CULTURA ---------- -->
+      <section class="view" id="view-fundo">
+        <div class="grid grid-4 row-block" id="fundoKpiRow"></div>
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-title-row">
+              <div class="card-title">Situação da Lei do Fundo de Cultura</div>
             </div>
-            <button class="btn btn-secondary" id="btnExportPendExcel">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              Exportar Excel
-            </button>
-            <button class="btn btn-primary" id="btnExportPendPdf">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              Exportar PDF
-            </button>
+            <div class="chart-wrap h-260"><canvas id="chartFundoStatus"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title-row">
+              <div class="card-title">Fundos de Cultura criados por ano</div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartFundoAno"></canvas></div>
           </div>
         </div>
+      </section>
 
-        <div class="grid grid-5 row-block" id="pendCardsRow"></div>
-
-        <div class="card" id="pendDetalheCard" style="display:none;">
-          <div class="table-toolbar">
-            <div class="card-title" id="pendDetalheTitulo">Municípios pendentes</div>
+      <!-- ---------- CONSELHO ---------- -->
+      <section class="view" id="view-conselho">
+        <div class="grid grid-4 row-block" id="conselhoKpiRow"></div>
+        <div class="grid grid-2">
+          <div class="card">
+            <div class="card-title-row">
+              <div class="card-title">Situação da Lei do Conselho</div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartConselhoStatus"></canvas></div>
           </div>
-          <div class="table-scroll">
-            <table class="data-table" id="pendDetalheTable">
-              <thead></thead>
-              <tbody></tbody>
-            </table>
+          <div class="card">
+            <div class="card-title-row">
+              <div class="card-title">Perfil do Conselho (entre os concluídos)</div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartConselhoNatureza"></canvas></div>
           </div>
         </div>
-
-        <div id="pendReportContainer" style="position:fixed; left:-99999px; top:0; width:1100px;"></div>
       </section>
 
       <!-- ---------- RELATORIOS ---------- -->

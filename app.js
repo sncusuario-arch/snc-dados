@@ -838,13 +838,13 @@
     thead.innerHTML = `<tr>${ESTADOS_COLUMNS.map((c) => {
       const active = sort.key === c.key;
       return `<th class="${active ? "sorted" : ""}" data-key="${c.key}" style="cursor:pointer;">${c.label}<span class="sort-arrow">${active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}</span></th>`;
-    }).join("")}</tr>`;
+    }).join("")}<th>Checklist</th></tr>`;
     thead.querySelectorAll("th[data-key]").forEach((th) => {
       th.addEventListener("click", () => {
         const key = th.getAttribute("data-key");
         if (sort.key === key) sort.dir = sort.dir === "asc" ? "desc" : "asc";
         else { sort.key = key; sort.dir = "desc"; }
-        renderEstadosTable(STATE.lastAgg);
+        renderEstadosTable(STATE.lastAggEstados || STATE.lastAgg);
       });
     });
 
@@ -862,14 +862,79 @@
         <td>${fmtPct(r.funPct, 0)}</td>
         <td>${fmtPct(r.plaPct, 0)}</td>
         <td>${fmtPct(r.orgPct, 0)}</td>
+        <td>
+          <button class="btn-icon-sm estado-checklist-btn" data-uf="${r.uf}" title="Ver checklist de componentes">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </td>
       </tr>`).join("");
     tbody.querySelectorAll("tr[data-uf]").forEach((tr) => {
       tr.addEventListener("click", () => window.__SNC.goToUF(tr.getAttribute("data-uf")));
     });
+    tbody.querySelectorAll(".estado-checklist-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        S.openEstadoModal(btn.getAttribute("data-uf"), STATE.lastAggEstados || STATE.lastAgg);
+      });
+    });
+  }
+
+  /* ---------------- Detalhe do estado: componentes em formato checklist ---------------- */
+  function openEstadoModal(uf, agg) {
+    const backdrop = document.getElementById("modalBackdrop");
+    const content = document.getElementById("modalContent");
+    if (!backdrop || !content) return;
+    const b = agg.byUF[uf];
+    if (!b) return;
+    const compRows = [
+      { label: "Sistema Municipal de Cultura", n: b.sis, pct: b.aderidos ? (b.sis / b.aderidos) * 100 : 0 },
+      { label: "Conselho de Política Cultural", n: b.con, pct: b.aderidos ? (b.con / b.aderidos) * 100 : 0 },
+      { label: "Fundo de Cultura", n: b.fun, pct: b.aderidos ? (b.fun / b.aderidos) * 100 : 0 },
+      { label: "Plano de Cultura", n: b.pla, pct: b.aderidos ? (b.pla / b.aderidos) * 100 : 0 },
+      { label: "Órgão Gestor de Cultura", n: b.org, pct: b.aderidos ? (b.org / b.aderidos) * 100 : 0 }
+    ];
+    const checklistHtml = compRows.map((c) => {
+      const ok = c.pct >= 50;
+      return `
+        <div class="detail-item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg viewBox="0 0 24 24" fill="none" width="17" height="17" style="color:${ok ? "var(--success)" : "var(--danger)"};flex-shrink:0;">${ok
+              ? '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+              : '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'}</svg>
+            <span style="font-weight:600;">${c.label}</span>
+          </div>
+          <div style="text-align:right;color:var(--muted);font-size:12.3px;">${fmtInt(c.n)} de ${fmtInt(b.aderidos)} (${fmtPct(c.pct)})</div>
+        </div>`;
+    }).join("");
+    content.innerHTML = `
+      <div class="modal-header">
+        <div>
+          <h2>${UF_NOME[uf] || uf} <span class="pill gray" style="margin-left:6px;">${uf}</span></h2>
+          <span>Checklist de componentes do SNC — % de municípios aderidos com cada componente concluído</span>
+        </div>
+        <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-item"><label>Total de municípios</label><div>${fmtInt(b.total)}</div></div>
+        <div class="detail-item"><label>Municípios aderidos</label><div>${fmtInt(b.aderidos)} (${fmtPct(b.pct)})</div></div>
+        <div class="detail-item"><label>Índice médio de maturidade</label><div>${b.idxMedio.toFixed(1)} / 5</div></div>
+      </div>
+      <div class="detail-item" style="margin-top:6px;">
+        <label style="margin-bottom:10px;display:block;">Checklist de componentes</label>
+        <div style="display:flex;flex-direction:column;gap:10px;">${checklistHtml}</div>
+      </div>
+      <div style="margin-top:16px;text-align:right;">
+        <button class="btn btn-secondary" id="estadoModalVerMunicipios">Ver municípios deste estado</button>
+      </div>`;
+    backdrop.classList.add("open");
+    document.getElementById("modalCloseBtn").addEventListener("click", S.closeModal);
+    const btnVer = document.getElementById("estadoModalVerMunicipios");
+    if (btnVer) btnVer.addEventListener("click", () => { S.closeModal(); window.__SNC.goToUF(uf); });
   }
 
   S.renderAlerts = renderAlerts;
   S.renderEstadosTable = renderEstadosTable;
+  S.openEstadoModal = openEstadoModal;
 })();
 
 /* ============================================================================
@@ -977,7 +1042,15 @@
     const content = document.getElementById("modalContent");
     if (!backdrop || !content || !r) return;
     const compItems = COMPONENT_KEYS.map((k) => `
-      <div class="detail-item"><label>${COMPONENT_LABELS[k]}</label><div style="color:${r[k] ? "var(--success)" : "var(--danger)"}">${r[k] ? "Concluído" : "Pendente"}</div></div>`).join("");
+      <div class="detail-item">
+        <label>${COMPONENT_LABELS[k]}</label>
+        <div style="display:flex;align-items:center;gap:6px;color:${r[k] ? "var(--success)" : "var(--danger)"};font-weight:600;">
+          <svg viewBox="0 0 24 24" fill="none" width="16" height="16">${r[k]
+            ? '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+            : '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'}</svg>
+          ${r[k] ? "Concluído" : "Pendente"}
+        </div>
+      </div>`).join("");
     content.innerHTML = `
       <div class="modal-header">
         <div>
@@ -987,11 +1060,13 @@
         <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       </div>
       <div class="detail-grid">
-        <div class="detail-item"><label>Situação da adesão</label><div>${escapeHtml(r.sit)}</div></div>
+        <div class="detail-item"><label>Situação da adesão</label><div>${escapeHtml(r.sit)}${r.ad ? "" : " (sem adesão ao SNC)"}</div></div>
         <div class="detail-item"><label>Data de adesão</label><div>${fmtDate(r.dtAd)}</div></div>
         <div class="detail-item"><label>Índice de maturidade</label><div>${r.idx} / 5 — ${classifyMaturity(r.idx).label}</div></div>
         <div class="detail-item"><label>Última atualização</label><div>${fmtDate(r.upd)}</div></div>
-        ${compItems}
+        <div class="detail-item" style="grid-column:1/-1;"><label style="margin-bottom:8px;display:block;">Checklist de componentes do SNC</label>
+          <div class="detail-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));padding:0;">${compItems}</div>
+        </div>
         <div class="detail-item"><label>Plano de Trabalho</label><div>${escapeHtml(r.pt || "Não informado")}</div></div>
         <div class="detail-item"><label>ACF incluído</label><div>${r.acf ? "Sim" : "Não informado"}</div></div>
         <div class="detail-item"><label>Vigência do Plano de Cultura</label><div>${r.vig || "—"}${r.venc ? " (vencido)" : ""}</div></div>
@@ -1023,29 +1098,6 @@
   const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS,
     fmtInt, fmtPct, fmtDate, escapeHtml } = S;
   const ICONS = S.ICONS;
-
-  /* ---------------- Brasil: cards por região + segundo mapa ---------------- */
-  const REGIAO_ORDEM = ["Norte", "Nordeste", "Centro Oeste", "Sudeste", "Sul"];
-
-  function renderBrasilView(agg) {
-    const el = document.getElementById("regiaoCards");
-    if (el) {
-      const cards = REGIAO_ORDEM.map((reg) => {
-        const b = agg.byRegiao[reg] || { total: 0, aderidos: 0, pct: 0 };
-        return `
-          <div class="card kpi-card">
-            <div class="kpi-top">
-              <div class="kpi-label">${reg}</div>
-              <div class="kpi-icon blue">${ICONS.municipios}</div>
-            </div>
-            <div class="kpi-value">${fmtPct(b.pct)}</div>
-            <div class="kpi-delta flat">${fmtInt(b.aderidos)} de ${fmtInt(b.total)} municípios aderidos</div>
-          </div>`;
-      }).join("");
-      el.innerHTML = cards;
-    }
-    S.renderBrazilMap("brazilMap2", "mapStatePanel2", agg);
-  }
 
   /* ---------------- Adesões ---------------- */
   function renderAdesoesView(agg) {
@@ -1185,10 +1237,145 @@
     });
   }
 
-  S.renderBrasilView = renderBrasilView;
+  /* ---------------- Fundo de Cultura ---------------- */
+  const STATUS_ORDEM = ["Concluída", "Avaliando anexo", "Em preenchimento", "Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado", "Não informado(a)"];
+  const STATUS_CORES = { "Concluída": "#16a34a", "Avaliando anexo": "#2f6feb", "Em preenchimento": "#f2994a", "Arquivo incorreto": "#dc2626", "Arquivo incompleto": "#dc2626", "Arquivo danificado": "#dc2626", "Não informado(a)": "#d2d2d7" };
+
+  function statusDistribution(aderidosArr, key) {
+    const count = {};
+    aderidosArr.forEach((r) => {
+      const v = r[key] || "Não informado(a)";
+      count[v] = (count[v] || 0) + 1;
+    });
+    const labels = STATUS_ORDEM.filter((s) => count[s]);
+    return { labels, values: labels.map((s) => count[s]), colors: labels.map((s) => STATUS_CORES[s] || "#94a3b8") };
+  }
+
+  function renderFundoView(agg) {
+    const fundoData = agg.componentRates.fun;
+    const aderidos = agg.aderidosArr;
+    const avaliandoAnexo = aderidos.filter((r) => r.funSt === "Avaliando anexo").length;
+    const comProblema = aderidos.filter((r) => ["Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado"].includes(r.funSt)).length;
+
+    const el = document.getElementById("fundoKpiRow");
+    if (el) {
+      el.innerHTML = [
+        `<div class="card kpi-card">
+          <div class="kpi-top"><div class="kpi-label">Fundos de Cultura concluídos</div><div class="kpi-icon green">${ICONS.check}</div></div>
+          <div class="kpi-value">${fmtInt(fundoData.n)}</div>
+          <div class="kpi-delta up">${fmtPct(fundoData.pct)} dos municípios aderidos</div>
+        </div>`,
+        `<div class="card kpi-card">
+          <div class="kpi-top"><div class="kpi-label">Fundos pendentes</div><div class="kpi-icon red">${ICONS.x}</div></div>
+          <div class="kpi-value">${fmtInt(agg.alerts.semFundo)}</div>
+          <div class="kpi-delta down">Sem lei concluída</div>
+        </div>`,
+        `<div class="card kpi-card">
+          <div class="kpi-top"><div class="kpi-label">Avaliando anexo</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
+          <div class="kpi-value">${fmtInt(avaliandoAnexo)}</div>
+          <div class="kpi-delta flat">Em análise pela equipe SNC</div>
+        </div>`,
+        `<div class="card kpi-card">
+          <div class="kpi-top"><div class="kpi-label">Arquivo com problema</div><div class="kpi-icon red">${ICONS.x}</div></div>
+          <div class="kpi-value">${fmtInt(comProblema)}</div>
+          <div class="kpi-delta down">Incorreto, incompleto ou danificado</div>
+        </div>`
+      ].join("");
+    }
+
+    const dist = statusDistribution(aderidos, "funSt");
+    S.mkChart("chartFundoStatus", {
+      type: "doughnut",
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "62%",
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
+      }
+    });
+
+    const fundoAnoCount = {};
+    aderidos.forEach((r) => { if (r.funData) { const y = r.funData.slice(0, 4); fundoAnoCount[y] = (fundoAnoCount[y] || 0) + 1; } });
+    const fundoAnos = Object.keys(fundoAnoCount).sort().slice(-12);
+    S.mkChart("chartFundoAno", {
+      type: "bar",
+      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
+      }
+    });
+  }
+
+  /* ---------------- Conselho ---------------- */
+  function renderConselhoView(agg) {
+    const conData = agg.componentRates.con;
+    const aderidos = agg.aderidosArr;
+    const concluidos = aderidos.filter((r) => r.con === 1);
+    const paritarios = concluidos.filter((r) => r.conParit === true).length;
+    const exclusivos = concluidos.filter((r) => r.conExcl === true).length;
+
+    const el = document.getElementById("conselhoKpiRow");
+    if (el) {
+      el.innerHTML = [
+        `<div class="card kpi-card">
+          <div class="kpi-top"><div class="kpi-label">Conselhos concluídos</div><div class="kpi-icon green">${ICONS.check}</div></div>
+          <div class="kpi-value">${fmtInt(conData.n)}</div>
+          <div class="kpi-delta up">${fmtPct(conData.pct)} dos municípios aderidos</div>
+        </div>`,
+        `<div class="card kpi-card">
+          <div class="kpi-top"><div class="kpi-label">Conselhos pendentes</div><div class="kpi-icon red">${ICONS.x}</div></div>
+          <div class="kpi-value">${fmtInt(agg.alerts.semConselho)}</div>
+          <div class="kpi-delta down">Sem lei concluída</div>
+        </div>`,
+        `<div class="card kpi-card">
+          <div class="kpi-top"><div class="kpi-label">Paritários</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
+          <div class="kpi-value">${fmtInt(paritarios)}</div>
+          <div class="kpi-delta flat">Entre os concluídos</div>
+        </div>`,
+        `<div class="card kpi-card">
+          <div class="kpi-top"><div class="kpi-label">Exclusivos de cultura</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
+          <div class="kpi-value">${fmtInt(exclusivos)}</div>
+          <div class="kpi-delta flat">Entre os concluídos</div>
+        </div>`
+      ].join("");
+    }
+
+    const dist = statusDistribution(aderidos, "conSt");
+    S.mkChart("chartConselhoStatus", {
+      type: "doughnut",
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "62%",
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
+      }
+    });
+
+    const naoParitarios = concluidos.length - paritarios;
+    const naoExclusivos = concluidos.length - exclusivos;
+    S.mkChart("chartConselhoNatureza", {
+      type: "bar",
+      data: {
+        labels: ["Paritário", "Não paritário", "Exclusivo de cultura", "Compartilhado"],
+        datasets: [{
+          data: [paritarios, naoParitarios, exclusivos, naoExclusivos],
+          backgroundColor: ["#2f6feb", "#d2d2d7", "#16a34a", "#d2d2d7"],
+          borderRadius: 6, maxBarThickness: 36
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
+      }
+    });
+  }
+
   S.renderAdesoesView = renderAdesoesView;
   S.renderComponentesView = renderComponentesView;
   S.renderPlanosView = renderPlanosView;
+  S.renderFundoView = renderFundoView;
+  S.renderConselhoView = renderConselhoView;
 })();
 
 /* ============================================================================
@@ -1380,18 +1567,48 @@
 
   const VIEW_META = {
     dashboard: { title: "Dashboard Executivo", sub: "Monitoramento nacional do Sistema Nacional de Cultura" },
-    brasil: { title: "Brasil", sub: "Visão geográfica da adesão por unidade federativa" },
     estados: { title: "Estados", sub: "Painel comparativo por unidade federativa" },
     municipios: { title: "Municípios", sub: "Tabela executiva com busca, ordenação e detalhamento" },
     adesoes: { title: "Adesões", sub: "Evolução histórica e situação das adesões ao SNC" },
     componentes: { title: "Componentes", sub: "Sistema, Conselho, Fundo, Plano e Órgão Gestor" },
     planos: { title: "Planos de Cultura", sub: "Monitoramento e vigência dos planos municipais" },
+    fundo: { title: "Fundo de Cultura", sub: "Situação da Lei do Fundo Municipal de Cultura" },
+    conselho: { title: "Conselho", sub: "Situação da Lei do Conselho de Política Cultural" },
     relatorios: { title: "Relatórios", sub: "Relatório executivo consolidado, pronto para exportação" },
     exportacoes: { title: "Exportações", sub: "Exportação de dados e atualização da base" },
     config: { title: "Configurações", sub: "Preferências de exibição e fonte de dados" }
   };
 
   /* ---------------- Navegação ---------------- */
+  /* ---------------- Menu lateral: recolher (desktop) / gaveta (mobile) ---------------- */
+  function isMobileLayout() {
+    return window.innerWidth <= 860;
+  }
+
+  function toggleSidebar() {
+    if (isMobileLayout()) {
+      document.body.classList.toggle("sidebar-mobile-open");
+    } else {
+      document.body.classList.toggle("sidebar-collapsed");
+      try { localStorage.setItem("snc-sidebar-collapsed", document.body.classList.contains("sidebar-collapsed") ? "1" : "0"); } catch (e) { /* sem suporte a localStorage, ignora */ }
+    }
+  }
+
+  function closeSidebarMobile() {
+    document.body.classList.remove("sidebar-mobile-open");
+  }
+
+  function initSidebarState() {
+    if (!isMobileLayout()) {
+      try {
+        if (localStorage.getItem("snc-sidebar-collapsed") === "1") document.body.classList.add("sidebar-collapsed");
+      } catch (e) { /* sem suporte a localStorage, ignora */ }
+    }
+    window.addEventListener("resize", debounce(() => {
+      if (!isMobileLayout()) document.body.classList.remove("sidebar-mobile-open");
+    }, 150));
+  }
+
   function goTo(view) {
     if (!VIEW_META[view]) return;
     STATE.currentView = view;
@@ -1402,6 +1619,13 @@
     document.getElementById("topbarSub").textContent = meta.sub;
     const content = document.getElementById("content");
     if (content) content.scrollTop = 0;
+
+    // A busca por nome de município não se aplica à tela de Estados — esse filtro
+    // existe só para localizar municípios individuais nas demais telas.
+    const searchControl = document.getElementById("globalMunicipioFilter")
+      ? document.getElementById("globalMunicipioFilter").closest(".search-control")
+      : null;
+    if (searchControl) searchControl.style.display = view === "estados" ? "none" : "";
   }
 
   function goToUF(uf) {
@@ -1441,12 +1665,23 @@
     S.renderGauge(agg);
     S.renderBrazilMap("brazilMap", "mapStatePanel", agg);
     S.renderAlerts(agg);
-    S.renderEstadosTable(agg);
+
+    // Estados não usa o filtro de busca por nome de município (esse campo nem aparece
+    // nessa tela) — recalcula um agregado próprio considerando só UF e período.
+    const filteredForEstados = STATE.raw.filter((r) => {
+      if (STATE.filters.uf && r.uf !== STATE.filters.uf) return false;
+      if (STATE.filters.periodo && (!r.dtAd || !r.dtAd.startsWith(STATE.filters.periodo))) return false;
+      return true;
+    });
+    STATE.lastAggEstados = S.computeAggregates(filteredForEstados);
+    S.renderEstadosTable(STATE.lastAggEstados);
+
     S.renderMunicipiosTable();
     S.renderAdesoesView(agg);
     S.renderComponentesView(agg);
     S.renderPlanosView(agg);
-    S.renderBrasilView(agg);
+    S.renderFundoView(agg);
+    S.renderConselhoView(agg);
 
     // Mantém o Relatório Executivo sempre em sincronia com os filtros globais, evitando
     // que ele fique mostrando dados desatualizados depois de o usuário trocar o filtro.
@@ -1559,21 +1794,88 @@
   /* ---------------- Wiring de eventos ---------------- */
   function wireEvents() {
     document.querySelectorAll(".nav-item[data-view]").forEach((item) => {
-      item.addEventListener("click", () => goTo(item.getAttribute("data-view")));
+      item.addEventListener("click", () => {
+        goTo(item.getAttribute("data-view"));
+        if (isMobileLayout()) closeSidebarMobile();
+      });
     });
 
+    const sidebarToggle = document.getElementById("sidebarToggle");
+    if (sidebarToggle) sidebarToggle.addEventListener("click", toggleSidebar);
+    const sidebarBackdrop = document.getElementById("sidebarBackdrop");
+    if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebarMobile);
+
     const ufFilter = document.getElementById("ufFilter");
-    if (ufFilter) ufFilter.addEventListener("change", () => { STATE.filters.uf = ufFilter.value; refreshAll(); });
+    if (ufFilter) {
+      ufFilter.addEventListener("change", () => {
+        STATE.filters.uf = ufFilter.value;
+        refreshAll();
+        const suggestBox = document.getElementById("globalMunicipioSuggest");
+        const globalSearchEl = document.getElementById("globalMunicipioFilter");
+        if (suggestBox) {
+          if (document.activeElement === globalSearchEl && ufFilter.value) {
+            globalSearchEl.dispatchEvent(new Event("input"));
+          } else {
+            suggestBox.style.display = "none";
+          }
+        }
+      });
+    }
 
     const periodFilter = document.getElementById("periodFilter");
     if (periodFilter) periodFilter.addEventListener("change", () => { STATE.filters.periodo = periodFilter.value; refreshAll(); });
 
     const globalSearch = document.getElementById("globalMunicipioFilter");
+    const suggestBox = document.getElementById("globalMunicipioSuggest");
+
+    function renderMunicipioSuggestions() {
+      if (!suggestBox) return;
+      const uf = STATE.filters.uf;
+      if (!uf) { suggestBox.style.display = "none"; suggestBox.innerHTML = ""; return; }
+      const term = globalSearch.value.trim().toLowerCase();
+      const matches = STATE.raw
+        .filter((r) => r.uf === uf && (!term || r.m.toLowerCase().includes(term)))
+        .sort((a, b) => a.m.localeCompare(b.m))
+        .slice(0, 8);
+      if (!matches.length) {
+        suggestBox.innerHTML = `<div class="autocomplete-empty">Nenhum município encontrado em ${escapeHtml(UF_NOME[uf] || uf)}.</div>`;
+        suggestBox.style.display = "block";
+        return;
+      }
+      suggestBox.innerHTML = matches.map((r) => `
+        <div class="autocomplete-item" data-m="${escapeHtml(r.m)}">
+          <span>${escapeHtml(r.m)}</span>
+          <span class="autocomplete-tag ${r.ad ? "ok" : "no"}">${r.ad ? "Aderido" : "Sem adesão"}</span>
+        </div>`).join("");
+      suggestBox.style.display = "block";
+      suggestBox.querySelectorAll(".autocomplete-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          const mNome = item.getAttribute("data-m");
+          const row = STATE.raw.find((r) => r.uf === uf && r.m === mNome);
+          globalSearch.value = mNome;
+          STATE.filters.search = mNome;
+          suggestBox.style.display = "none";
+          refreshAll();
+          if (row) S.openMunicipioModal(row);
+        });
+      });
+    }
+
     if (globalSearch) {
       globalSearch.addEventListener("input", debounce(() => {
         STATE.filters.search = globalSearch.value.trim();
         refreshAll();
       }, 320));
+      globalSearch.addEventListener("input", renderMunicipioSuggestions);
+      globalSearch.addEventListener("focus", renderMunicipioSuggestions);
+      document.addEventListener("click", (e) => {
+        if (suggestBox && !suggestBox.contains(e.target) && e.target !== globalSearch) {
+          suggestBox.style.display = "none";
+        }
+      });
+      globalSearch.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && suggestBox) suggestBox.style.display = "none";
+      });
     }
 
     const tableSearch = document.getElementById("tableSearch");
@@ -1589,7 +1891,7 @@
     if (estadosSearch) {
       estadosSearch.addEventListener("input", debounce(() => {
         STATE.estadosSearch = estadosSearch.value.trim();
-        S.renderEstadosTable(STATE.lastAgg);
+        S.renderEstadosTable(STATE.lastAggEstados || STATE.lastAgg);
       }, 280));
     }
 
@@ -1696,7 +1998,7 @@
     if (modalBackdrop) {
       modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) S.closeModal(); });
     }
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") S.closeModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") { S.closeModal(); closeSidebarMobile(); } });
   }
 
   /* ---------------- Inicialização ---------------- */
@@ -1707,6 +2009,7 @@
     }
     populateFilters();
     wireEvents();
+    initSidebarState();
     refreshAll();
     goTo("dashboard");
   });
@@ -2123,303 +2426,4 @@
   S.renderEstadoReport = renderEstadoReport;
   S.renderChecklistReport = renderChecklistReport;
   S.renderContatosReport = renderContatosReport;
-})();
-
-/* ============================================================================
-   PARTE 9 — Painel de Pendências do SNC (módulo independente)
-   ----------------------------------------------------------------------------
-   Este bloco é autocontido: tem seu próprio estado, seu próprio listener de
-   DOMContentLoaded, suas próprias funções de exportação (Excel/PDF) e não
-   chama nem modifica nenhuma função das PARTEs 1–8. Lê apenas, em modo
-   somente-leitura, o dataset compartilhado em window.__SNC.STATE.raw — não
-   escreve em STATE, não participa de refreshAll(), não altera relatórios,
-   exportações, mapa, filtros globais ou qualquer tela já existente.
-   ============================================================================ */
-(function () {
-  "use strict";
-
-  const PEND_CATEGORIES = [
-    { key: "con", label: "Conselho", desc: "Lei do Conselho de Política Cultural" },
-    { key: "pla", label: "Plano", desc: "Plano Municipal de Cultura" },
-    { key: "fun", label: "Fundo", desc: "Fundo Municipal de Cultura" },
-    { key: "confNac", label: "Conferência", desc: "Participação na Conferência Nacional de Cultura" },
-    { key: "siic", label: "Sistema de Informações", desc: "Registro no SIIC (Sistema de Informações e Indicadores Culturais)" }
-  ];
-
-  const PEND_ICON = `<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M10.3 3.86L1.82 18a1.8 1.8 0 001.54 2.7h17.28A1.8 1.8 0 0022.18 18L13.7 3.86a1.8 1.8 0 00-3.4 0z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
-
-  const pendEsc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const pendFmtInt = (n) => Number(n || 0).toLocaleString("pt-BR");
-  const pendFmtPct = (n) => `${Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
-
-  let pendState = { uf: "", lastResult: null, activeCategory: null };
-
-  function getRaw() {
-    return (window.__SNC && window.__SNC.STATE && Array.isArray(window.__SNC.STATE.raw)) ? window.__SNC.STATE.raw : [];
-  }
-  function getUfNome(uf) {
-    return (window.__SNC && window.__SNC.UF_NOME && window.__SNC.UF_NOME[uf]) || uf;
-  }
-
-  /* ---------------- Cálculo (independente de computeAggregates) ---------------- */
-  function computePendencias(uf) {
-    const raw = getRaw();
-    const aderidos = raw.filter((r) => r.ad && (!uf || r.uf === uf));
-    const total = aderidos.length;
-    const categorias = PEND_CATEGORIES.map((c) => {
-      const pendentes = aderidos.filter((r) => !r[c.key]);
-      return {
-        key: c.key,
-        label: c.label,
-        desc: c.desc,
-        total,
-        count: pendentes.length,
-        pct: total ? (pendentes.length / total) * 100 : 0,
-        municipios: pendentes.slice().sort((a, b) => a.uf === b.uf ? a.m.localeCompare(b.m) : a.uf.localeCompare(b.uf))
-      };
-    });
-    return { uf, total, categorias };
-  }
-
-  /* ---------------- Filtro de estado (próprio, não usa #ufFilter global) ---------------- */
-  function populatePendUfFilter() {
-    const sel = document.getElementById("pendUfFilter");
-    if (!sel) return;
-    const raw = getRaw();
-    const ufs = Array.from(new Set(raw.map((r) => r.uf))).sort((a, b) => getUfNome(a).localeCompare(getUfNome(b)));
-    sel.innerHTML = `<option value="">Todos os estados</option>` + ufs.map((uf) =>
-      `<option value="${uf}">${pendEsc(getUfNome(uf))} (${uf})</option>`
-    ).join("");
-  }
-
-  /* ---------------- Renderização dos 5 cards ---------------- */
-  function cardHtml(c) {
-    const tone = c.pct >= 80 ? "red" : c.pct >= 40 ? "amber" : "blue";
-    const toneVar = tone === "red" ? "var(--danger)" : tone === "amber" ? "var(--warning)" : "var(--accent)";
-    return `
-      <div class="card kpi-card pend-card" data-cat="${c.key}" style="cursor:pointer;">
-        <div class="kpi-top">
-          <div class="kpi-label">Sem ${pendEsc(c.label)}</div>
-          <div class="kpi-icon ${tone === "red" ? "red" : tone === "amber" ? "amber" : "blue"}">${PEND_ICON}</div>
-        </div>
-        <div class="kpi-value" style="color:${toneVar};">${pendFmtInt(c.count)}</div>
-        <div class="kpi-delta flat">${pendFmtPct(c.pct)} dos ${pendFmtInt(c.total)} aderidos</div>
-      </div>`;
-  }
-
-  function renderPendCards(result) {
-    const el = document.getElementById("pendCardsRow");
-    if (!el) return;
-    if (!result.total) {
-      el.innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;color:var(--muted);padding:24px;">Nenhum município aderido encontrado para este filtro.</div>`;
-      return;
-    }
-    el.innerHTML = result.categorias.map(cardHtml).join("");
-    el.querySelectorAll(".pend-card").forEach((card) => {
-      card.addEventListener("click", () => {
-        const cat = card.getAttribute("data-cat");
-        pendState.activeCategory = cat;
-        renderPendDetalhe(cat, result);
-      });
-    });
-  }
-
-  /* ---------------- Tabela de detalhe (lista nominal) ---------------- */
-  function renderPendDetalhe(catKey, result) {
-    const wrap = document.getElementById("pendDetalheCard");
-    const titulo = document.getElementById("pendDetalheTitulo");
-    const table = document.getElementById("pendDetalheTable");
-    if (!wrap || !table) return;
-    const cat = result.categorias.find((c) => c.key === catKey);
-    if (!cat) return;
-    wrap.style.display = "";
-    titulo.textContent = `Municípios aderidos sem ${cat.label} (${pendFmtInt(cat.count)} de ${pendFmtInt(cat.total)})`;
-    table.querySelector("thead").innerHTML = `<tr><th>UF</th><th>Município</th><th>Situação</th><th>Última atualização</th></tr>`;
-    const fmtDate = (window.__SNC && window.__SNC.fmtDate) || ((d) => d || "—");
-    table.querySelector("tbody").innerHTML = cat.municipios.length
-      ? cat.municipios.map((r) => `
-          <tr>
-            <td><b>${r.uf}</b></td>
-            <td>${pendEsc(r.m)}</td>
-            <td>${pendEsc(r.sit || "—")}</td>
-            <td>${fmtDate(r.upd)}</td>
-          </tr>`).join("")
-      : `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">Nenhum município pendente nesta categoria.</td></tr>`;
-    wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
-
-  /* ---------------- Atualização geral do painel ---------------- */
-  function refreshPendenciasPanel() {
-    const result = computePendencias(pendState.uf);
-    pendState.lastResult = result;
-    renderPendCards(result);
-    const wrap = document.getElementById("pendDetalheCard");
-    if (wrap) wrap.style.display = "none";
-    pendState.activeCategory = null;
-  }
-
-  /* ---------------- Exportação Excel (própria, não usa exportExcel() existente) ---------------- */
-  function exportPendenciasExcel() {
-    if (typeof XLSX === "undefined") {
-      if (window.__SNC && window.__SNC.showToast) window.__SNC.showToast("Biblioteca de planilhas não carregou — recarregue a página.", true);
-      return;
-    }
-    const result = pendState.lastResult || computePendencias(pendState.uf);
-    const raw = getRaw().filter((r) => r.ad && (!pendState.uf || r.uf === pendState.uf));
-    const rows = raw.slice().sort((a, b) => a.uf === b.uf ? a.m.localeCompare(b.m) : a.uf.localeCompare(b.uf)).map((r) => ({
-      "UF": r.uf,
-      "Município": r.m,
-      "Conselho": r.con ? "OK" : "Pendente",
-      "Plano": r.pla ? "OK" : "Pendente",
-      "Fundo": r.fun ? "OK" : "Pendente",
-      "Conferência": r.confNac ? "OK" : "Pendente",
-      "Sistema de Informações": r.siic ? "OK" : "Pendente",
-      "Última atualização": r.upd || ""
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 5 }, { wch: 26 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 13 }, { wch: 22 }, { wch: 16 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Pendências SNC");
-    const dataStr = new Date().toISOString().slice(0, 10);
-    const sufixo = pendState.uf ? pendState.uf.toLowerCase() : "brasil";
-    XLSX.writeFile(wb, `pendencias-snc-${sufixo}-${dataStr}.xlsx`);
-  }
-
-  /* ---------------- Exportação PDF (própria, container dedicado offscreen) ---------------- */
-  function exportPendenciasPdf() {
-    if (typeof html2pdf === "undefined") {
-      if (window.__SNC && window.__SNC.showToast) window.__SNC.showToast("Biblioteca de exportação PDF não carregou — recarregue a página.", true);
-      return;
-    }
-    const result = pendState.lastResult || computePendencias(pendState.uf);
-    const raw = getRaw().filter((r) => r.ad && (!pendState.uf || r.uf === pendState.uf));
-    const rows = raw.slice().sort((a, b) => a.uf === b.uf ? a.m.localeCompare(b.m) : a.uf.localeCompare(b.uf));
-    const escopo = pendState.uf ? `${getUfNome(pendState.uf)} (${pendState.uf})` : "Brasil (todos os estados)";
-    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-
-    const resumoRows = result.categorias.map((c) => `
-      <tr><td>Sem ${pendEsc(c.label)}</td><td>${pendFmtInt(c.count)}</td><td>${pendFmtInt(c.total)}</td><td>${pendFmtPct(c.pct)}</td></tr>`).join("");
-
-    const detalheRows = rows.map((r) => `
-      <tr>
-        <td><b>${r.uf}</b></td>
-        <td>${pendEsc(r.m)}</td>
-        <td>${r.con ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
-        <td>${r.pla ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
-        <td>${r.fun ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
-        <td>${r.confNac ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
-        <td>${r.siic ? "OK" : '<span style="color:var(--danger);font-weight:600;">Pendente</span>'}</td>
-      </tr>`).join("");
-
-    const html = `
-      <div class="report-page">
-        <div class="report-header">
-          <div>
-            <div class="rh-title">Painel de Pendências do SNC</div>
-            <div class="rh-sub">Gerado em ${hoje} · Escopo: ${pendEsc(escopo)} · ${pendFmtInt(result.total)} municípios aderidos</div>
-          </div>
-          <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Iniciativa coordenada pelo SNC</div>
-        </div>
-        <div class="report-section">
-          <h3>Resumo por Categoria</h3>
-          <table class="report-table">
-            <thead><tr><th>Categoria</th><th>Pendentes</th><th>Total aderidos</th><th>%</th></tr></thead>
-            <tbody>${resumoRows}</tbody>
-          </table>
-        </div>
-        <div class="report-section">
-          <h3>Detalhe por Município</h3>
-          <table class="report-table compact">
-            <thead><tr><th>UF</th><th>Município</th><th>Conselho</th><th>Plano</th><th>Fundo</th><th>Conferência</th><th>Sist. Informações</th></tr></thead>
-            <tbody>${detalheRows}</tbody>
-          </table>
-        </div>
-        <div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted);text-align:center;">Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura</div>
-      </div>`;
-
-    const container = document.getElementById("pendReportContainer");
-    if (!container) return;
-    container.innerHTML = html;
-    container.style.display = "block";
-
-    // Mesma correção de scroll aplicada ao sistema de relatórios principal, para evitar
-    // duplicação/ghosting do html2canvas quando a página não está no topo da rolagem.
-    const contentEl = document.getElementById("content");
-    if (contentEl) contentEl.scrollTop = 0;
-    window.scrollTo(0, 0);
-
-    const dataStr = new Date().toISOString().slice(0, 10);
-    const sufixo = pendState.uf ? pendState.uf.toLowerCase() : "brasil";
-    const opt = {
-      margin: [10, 10, 10, 10],
-      filename: `pendencias-snc-${sufixo}-${dataStr}.pdf`,
-      image: { type: "jpeg", quality: 0.97 },
-      html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "landscape" },
-      pagebreak: { mode: ["css", "legacy"] }
-    };
-    setTimeout(() => {
-      html2pdf().set(opt).from(container.querySelector(".report-page")).save().then(() => {
-        container.style.display = "none";
-        container.innerHTML = "";
-      });
-    }, 60);
-  }
-
-  /* ---------------- Navegação própria (não depende de goTo()/VIEW_META da PARTE 7) ----------------
-     O goTo() existente tem um guard que só atua sobre views cadastradas em VIEW_META;
-     como não alteramos PARTE 7, ele ignora silenciosamente o clique em "Pendências".
-     Em compensação, quando o usuário navega para QUALQUER outra tela existente, o
-     próprio goTo() já esconde #view-pendencias de volta (ele itera todos os .view
-     genericamente), então só precisamos cuidar da metade "entrar" da navegação aqui. */
-  function activatePendenciasView() {
-    document.querySelectorAll(".nav-item").forEach((n) => n.classList.toggle("active", n.getAttribute("data-view") === "pendencias"));
-    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "view-pendencias"));
-    const title = document.getElementById("topbarTitle");
-    const sub = document.getElementById("topbarSub");
-    if (title) title.textContent = "Pendências";
-    if (sub) sub.textContent = "Painel de pendências de institucionalização ao SNC";
-    const content = document.getElementById("content");
-    if (content) content.scrollTop = 0;
-    if (window.__SNC) window.__SNC.STATE.currentView = "pendencias";
-  }
-
-  /* ---------------- Wiring de eventos (próprio) ---------------- */
-  function wirePendenciasEvents() {
-    const navItem = document.querySelector('.nav-item[data-view="pendencias"]');
-    if (navItem) navItem.addEventListener("click", activatePendenciasView);
-
-    const ufSel = document.getElementById("pendUfFilter");
-    if (ufSel) {
-      ufSel.addEventListener("change", () => {
-        pendState.uf = ufSel.value;
-        refreshPendenciasPanel();
-      });
-    }
-    const btnExcel = document.getElementById("btnExportPendExcel");
-    if (btnExcel) btnExcel.addEventListener("click", exportPendenciasExcel);
-    const btnPdf = document.getElementById("btnExportPendPdf");
-    if (btnPdf) btnPdf.addEventListener("click", exportPendenciasPdf);
-  }
-
-  /* ---------------- Inicialização própria (listener separado, não interfere na PARTE 7) ---------------- */
-  function initPendenciasModule() {
-    // Aguarda os dados estarem disponíveis (a PARTE 7 popula STATE.raw no seu próprio
-    // DOMContentLoaded, registrado antes deste). Faz uma verificação leve com retry
-    // para garantir robustez independente da ordem exata de carregamento.
-    let tentativas = 0;
-    const tryInit = () => {
-      tentativas++;
-      if (getRaw().length > 0 || tentativas > 40) {
-        populatePendUfFilter();
-        wirePendenciasEvents();
-        refreshPendenciasPanel();
-      } else {
-        setTimeout(tryInit, 50);
-      }
-    };
-    tryInit();
-  }
-
-  document.addEventListener("DOMContentLoaded", initPendenciasModule);
 })();
