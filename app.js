@@ -221,7 +221,7 @@
         reg: map.reg ? (r[map.reg] || "").toString().trim() : "",
         ibge: map.ibge ? parseInt(r[map.ibge], 10) || null : null,
         pop: map.pop ? parseInt(r[map.pop], 10) || null : null,
-        sit: aderiu ? (sitStr || "Publicado no DOU") : "Nao possui adesão",
+        sit: aderiu ? (sitStr || "Publicado no DOU") : "Não possui adesão",
         ad: aderiu,
         dtAd: aderiu && map.dtAd ? parseBrDate(r[map.dtAd]) : null,
         sis, con, fun, pla, org, idx,
@@ -430,22 +430,24 @@
     clock: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`
   };
 
-  function renderKPIs(agg, containerId) {
+  function renderKPIs(agg, aggBase, containerId) {
+    // aggBase pode ser omitido (chamadas legadas) — nesse caso usa agg para tudo
+    const base = aggBase || agg;
     const el = document.getElementById(containerId || "kpiRow");
     if (!el) return;
-    const nUf = Object.keys(agg.byUF).length;
+    const nUf = Object.keys(base.byUF).length;
     el.innerHTML = [
       kpiCardHtml({
-        label: "Total de Municípios", value: fmtInt(agg.total), tone: "blue", icon: ICONS.municipios,
+        label: "Total de Municípios", value: fmtInt(base.total), tone: "blue", icon: ICONS.municipios,
         delta: `${fmtInt(nUf)} unidade${nUf === 1 ? "" : "s"} federativa${nUf === 1 ? "" : "s"}`, deltaTone: "flat"
       }),
       kpiCardHtml({
         label: "Municípios com Adesão", value: fmtInt(agg.aderidosCount), tone: "green", icon: ICONS.check,
-        delta: `${fmtPct(agg.pctAderidos)} do total nacional`, deltaTone: "up"
+        delta: `${fmtPct(base.total ? (agg.aderidosCount / base.total) * 100 : 0)} do total nacional`, deltaTone: "up"
       }),
       kpiCardHtml({
-        label: "Municípios sem Adesão", value: fmtInt(agg.naoAderidos), tone: "red", icon: ICONS.x,
-        delta: `${fmtPct(100 - agg.pctAderidos)} do total nacional`, deltaTone: "down"
+        label: "Municípios sem Adesão", value: fmtInt(base.total - agg.aderidosCount), tone: "red", icon: ICONS.x,
+        delta: `${fmtPct(base.total ? ((base.total - agg.aderidosCount) / base.total) * 100 : 0)} do total nacional`, deltaTone: "down"
       }),
       kpiCardHtml({
         label: "Índice Nacional de Implementação", value: fmtPct(agg.indiceNacional), tone: "amber", icon: ICONS.gauge,
@@ -974,8 +976,20 @@
       </div>`;
     const prev = document.getElementById("pagPrev");
     const next = document.getElementById("pagNext");
-    if (prev) prev.addEventListener("click", () => { if (STATE.table.page > 1) { STATE.table.page--; renderMunicipiosTable(); } });
-    if (next) next.addEventListener("click", () => { STATE.table.page++; renderMunicipiosTable(); });
+    if (prev) prev.addEventListener("click", () => {
+      if (STATE.table.page > 1) {
+        STATE.table.page--;
+        renderMunicipiosTable();
+        const tableEl = document.getElementById("tableMunicipios");
+        if (tableEl) tableEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+    if (next) next.addEventListener("click", () => {
+      STATE.table.page++;
+      renderMunicipiosTable();
+      const tableEl = document.getElementById("tableMunicipios");
+      if (tableEl) tableEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function renderMunicipiosTable() {
@@ -1060,10 +1074,10 @@
           <span>${UF_NOME[r.uf] || r.uf} · ${r.reg || "—"}${r.ibge ? " · IBGE " + r.ibge : ""}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          <button class="btn-icon-sm" id="modalPrintBtn" title="Imprimir">
+          <button class="btn-icon-sm" id="modalPrintBtn" title="Imprimir" aria-label="Imprimir ficha do município">
             <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
           </button>
-          <button class="btn-icon-sm" id="modalPdfBtn" title="Exportar PDF">
+          <button class="btn-icon-sm" id="modalPdfBtn" title="Exportar PDF" aria-label="Exportar PDF da ficha do município">
             <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           </button>
           <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
@@ -1075,6 +1089,11 @@
         <div class="detail-item"><label>Índice de maturidade</label><div>${r.idx} / 5 — ${classifyMaturity(r.idx).label}</div></div>
         <div class="detail-item"><label>Última atualização</label><div>${fmtDate(r.upd)}</div></div>
         <div class="detail-item" style="grid-column:1/-1;"><label style="margin-bottom:8px;display:block;">Checklist de componentes do SNC</label>
+          ${r.ad && r.idx === 0 && r.sit === "Publicado no DOU" ? `
+          <div style="background:var(--warning-light);border:1px solid var(--warning);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--text);display:flex;gap:8px;align-items:flex-start;">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="flex-shrink:0;margin-top:1px;color:var(--warning);"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 3.86L1.82 18a1.8 1.8 0 001.54 2.7h17.28A1.8 1.8 0 0022.18 18L13.7 3.86a1.8 1.8 0 00-3.4 0z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+            <span><b>Inconsistência detectada:</b> este município consta como "Publicado no DOU" na plataforma SNC, mas nenhum componente aparece como concluído. Isso pode indicar atraso na atualização dos dados. Verifique diretamente na plataforma SNC.</span>
+          </div>` : ""}
           <div class="detail-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));padding:0;">${compItems}</div>
         </div>
         <div class="detail-item"><label>Plano de Trabalho</label><div>${escapeHtml(r.pt || "Não informado")}</div></div>
@@ -1727,6 +1746,7 @@
     document.getElementById("topbarSub").textContent = meta.sub;
     const content = document.getElementById("content");
     if (content) content.scrollTop = 0;
+    window.scrollTo(0, 0);
 
     // A busca por nome de município não se aplica à tela de Estados — esse filtro
     // existe só para localizar municípios individuais nas demais telas.
@@ -1765,13 +1785,27 @@
     STATE.lastAgg = agg;
     if (resetPage !== false) STATE.table.page = 1;
 
-    S.renderKPIs(agg, "kpiRow");
+    // BUG#2 / BUG#19: para o card "Total de Municípios" e o mapa, o universo base
+    // deve ignorar o filtro de adesão — só aplica UF, região e período.
+    // Assim o total e o percentual do mapa refletem sempre o universo real.
+    const filteredBase = STATE.raw.filter((r) => {
+      if (STATE.filters.uf && r.uf !== STATE.filters.uf) return false;
+      if (STATE.filters.regiao && r.reg !== STATE.filters.regiao) return false;
+      if (STATE.filters.periodo && (!r.dtAd || !r.dtAd.startsWith(STATE.filters.periodo))) return false;
+      return true;
+    });
+    const aggBase = S.computeAggregates(filteredBase);
+    STATE.lastAggBase = aggBase;
+
+    // KPIs: Total usa aggBase (universo real), aderidos/sem adesão usam agg (filtrado)
+    S.renderKPIs(agg, aggBase, "kpiRow");
     S.renderEvolucaoChart(agg, "chartEvolucao");
     S.renderEstadosChart(agg, "chartEstados");
     S.renderComponentesChart(agg, "chartComponentes");
     S.renderDonut(agg, "chartDonut", "donutLegend");
     S.renderGauge(agg);
-    S.renderBrazilMap("brazilMap", "mapStatePanel", agg);
+    // Mapa sempre usa aggBase para que os percentuais sejam sobre o total real
+    S.renderBrazilMap("brazilMap", "mapStatePanel", aggBase);
     S.renderAlerts(agg);
 
     // Estados não usa o filtro de busca por nome de município (esse campo nem aparece
@@ -1794,10 +1828,11 @@
     S.renderFundoView(agg);
     S.renderConselhoView(agg);
 
-    // Mantém o Relatório Executivo sempre em sincronia com os filtros globais, evitando
-    // que ele fique mostrando dados desatualizados depois de o usuário trocar o filtro.
+    // Mantém o Relatório Executivo sempre em sincronia com os filtros globais.
+    // BUG#11: usa aggBase (ignora filtro de adesão) para o relatório executivo
+    // não mostrar dados distorcidos quando "Com adesão" está ativo.
     if (STATE.activeReportKind === "executivo") {
-      S.renderReport(agg);
+      S.renderReport(aggBase);
     }
 
     const cfgFonte = document.getElementById("cfgFonte");
@@ -1815,6 +1850,7 @@
         lastUpdEl.textContent = "";
       }
     }
+    if (S.updateFilterIndicator) S.updateFilterIndicator();
   }
 
   /* ---------------- Filtros (topbar) ---------------- */
@@ -1827,7 +1863,7 @@
     const periodSel = document.getElementById("periodFilter");
     if (periodSel) {
       const anos = Array.from(new Set(STATE.raw.filter((r) => r.dtAd).map((r) => r.dtAd.slice(0, 4)))).sort().reverse();
-      periodSel.innerHTML = `<option value="">Todo o período</option>` + anos.map((y) => `<option value="${y}">${y}</option>`).join("");
+      periodSel.innerHTML = `<option value="">Ano de adesão</option>` + anos.map((y) => `<option value="${y}">${y}</option>`).join("");
     }
     const pageSizeSel = document.getElementById("cfgPageSize");
     if (pageSizeSel) pageSizeSel.value = String(STATE.table.pageSize);
@@ -1923,17 +1959,16 @@
     const ufFilter = document.getElementById("ufFilter");
     if (ufFilter) {
       ufFilter.addEventListener("change", () => {
+        // BUG#1: limpar o campo de município ao trocar de estado
+        const globalSearchEl = document.getElementById("globalMunicipioFilter");
+        if (globalSearchEl && globalSearchEl.value) {
+          globalSearchEl.value = "";
+          STATE.filters.search = "";
+        }
+        const suggestBox = document.getElementById("globalMunicipioSuggest");
+        if (suggestBox) suggestBox.style.display = "none";
         STATE.filters.uf = ufFilter.value;
         refreshAll();
-        const suggestBox = document.getElementById("globalMunicipioSuggest");
-        const globalSearchEl = document.getElementById("globalMunicipioFilter");
-        if (suggestBox) {
-          if (document.activeElement === globalSearchEl && ufFilter.value) {
-            globalSearchEl.dispatchEvent(new Event("input"));
-          } else {
-            suggestBox.style.display = "none";
-          }
-        }
       });
     }
 
@@ -2000,26 +2035,33 @@
 
     const tableSearch = document.getElementById("tableSearch");
     if (tableSearch) {
-      tableSearch.addEventListener("input", debounce(() => {
+      const tableSearchHandler = debounce(() => {
         STATE.table.search = tableSearch.value.trim();
         STATE.table.page = 1;
         S.renderMunicipiosTable();
-      }, 280));
+      }, 150);
+      tableSearch.addEventListener("input", tableSearchHandler);
+      tableSearch.addEventListener("keyup", tableSearchHandler);
     }
 
     const estadosSearch = document.getElementById("estadosSearch");
     if (estadosSearch) {
-      estadosSearch.addEventListener("input", debounce(() => {
+      const estadosSearchHandler = debounce(() => {
         STATE.estadosSearch = estadosSearch.value.trim();
         S.renderEstadosTable(STATE.lastAggEstados || STATE.lastAgg);
-      }, 280));
+      }, 150);
+      estadosSearch.addEventListener("input", estadosSearchHandler);
+      estadosSearch.addEventListener("keyup", estadosSearchHandler);
     }
 
     const estadosSortKey = document.getElementById("estadosSortKey");
     if (estadosSortKey) {
       estadosSortKey.addEventListener("change", () => {
         if (!STATE.estadosSort) STATE.estadosSort = { key: "aderidos", dir: "desc" };
-        STATE.estadosSort.key = estadosSortKey.value;
+        const newKey = estadosSortKey.value;
+        // BUG#18: nome e uf devem ter A→Z como padrão ao selecionar
+        STATE.estadosSort.dir = (newKey === "nome" || newKey === "uf") ? "asc" : "desc";
+        STATE.estadosSort.key = newKey;
         S.renderEstadosTable(STATE.lastAggEstados || STATE.lastAgg);
       });
     }
@@ -2034,6 +2076,32 @@
 
     const btnRefresh = document.getElementById("btnRefresh");
     if (btnRefresh) btnRefresh.addEventListener("click", () => { refreshAll(); showToast("Dados atualizados."); });
+
+    // BUG#4: botão "Limpar filtros" — aparece quando qualquer filtro está ativo
+    function updateFilterIndicator() {
+      const btn = document.getElementById("btnLimparFiltros");
+      if (!btn) return;
+      const f = STATE.filters;
+      const hasFilter = f.uf || f.regiao || f.adesao || f.periodo || f.search;
+      btn.style.display = hasFilter ? "" : "none";
+    }
+    S.updateFilterIndicator = updateFilterIndicator;
+
+    const btnLimpar = document.getElementById("btnLimparFiltros");
+    if (btnLimpar) {
+      btnLimpar.addEventListener("click", () => {
+        STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
+        document.getElementById("globalMunicipioFilter").value = "";
+        document.getElementById("ufFilter").value = "";
+        document.getElementById("regiaoFilter").value = "";
+        document.getElementById("adesaoFilter").value = "";
+        document.getElementById("periodFilter").value = "";
+        const suggestBox = document.getElementById("globalMunicipioSuggest");
+        if (suggestBox) suggestBox.style.display = "none";
+        refreshAll();
+        showToast("Filtros removidos.");
+      });
+    }
 
     const fileUpload = document.getElementById("fileUpload");
     if (fileUpload) fileUpload.addEventListener("change", (e) => { handleFileUpload(e.target.files[0]); e.target.value = ""; });
@@ -2059,7 +2127,13 @@
     }
 
     const repTipo = document.getElementById("repTipo");
-    if (repTipo) repTipo.addEventListener("change", updateRepFormVisibility);
+    if (repTipo) repTipo.addEventListener("change", () => {
+      // BUG#12: limpar o relatório ativo ao trocar o tipo para não gerar automaticamente
+      STATE.activeReportKind = null;
+      const container = document.getElementById("reportContainer");
+      if (container) container.innerHTML = "";
+      updateRepFormVisibility();
+    });
 
     const repEstado = document.getElementById("repEstado");
     if (repEstado) repEstado.addEventListener("change", () => populateRepMunicipioSelect(repEstado.value));

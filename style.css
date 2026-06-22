@@ -679,3 +679,11 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
   padding: 5px 12px;
 }
 .comp-pill b { color: var(--text); font-weight: 800; margin-left: 3px; }
+
+/* BUG#6: garantir que os cabeçalhos da tabela de municípios não fiquem truncados */
+#tableMunicipios th:nth-child(1) { min-width: 48px; }
+#tableMunicipios th:nth-child(2) { min-width: 140px; }
+#tableMunicipios th:nth-child(3) { min-width: 150px; }
+#tableMunicipios th:nth-child(4) { min-width: 120px; }
+#tableMunicipios th:nth-child(5) { min-width: 70px; }
+#tableMunicipios th:nth-child(6) { min-width: 120px; }
