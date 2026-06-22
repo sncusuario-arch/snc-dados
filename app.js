@@ -1933,7 +1933,12 @@
         if (adesaoSelReset) adesaoSelReset.value = "";
         populateFilters();
         refreshAll();
-        showToast(`Planilha carregada com sucesso: ${fmtInt(normalized.length)} municípios.`);
+        // Calcula a data mais recente da planilha para exibir no toast de confirmação
+        const datasUpd = normalized.filter((r) => r.upd).map((r) => r.upd);
+        const dataRef = datasUpd.length
+          ? fmtDate(datasUpd.reduce((max, d) => (d > max ? d : max)))
+          : "data não identificada";
+        showToast(`Planilha carregada: ${fmtInt(normalized.length)} municípios · dados até ${dataRef}.`);
       } catch (err) {
         showToast("Não foi possível processar a planilha: " + err.message, true);
       }
