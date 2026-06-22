@@ -890,6 +890,11 @@
     if (!backdrop || !content) return;
     const b = agg.byUF[uf];
     if (!b) return;
+
+    // Municípios deste estado (todos, com e sem adesão)
+    const municipiosUF = (STATE.raw || []).filter((r) => r.uf === uf);
+    const aderidos = municipiosUF.filter((r) => r.ad);
+
     const compRows = [
       { label: "Sistema Municipal de Cultura", n: b.sis, pct: b.aderidos ? (b.sis / b.aderidos) * 100 : 0 },
       { label: "Conselho de Política Cultural", n: b.con, pct: b.aderidos ? (b.con / b.aderidos) * 100 : 0 },
@@ -897,43 +902,171 @@
       { label: "Plano de Cultura", n: b.pla, pct: b.aderidos ? (b.pla / b.aderidos) * 100 : 0 },
       { label: "Órgão Gestor de Cultura", n: b.org, pct: b.aderidos ? (b.org / b.aderidos) * 100 : 0 }
     ];
+
     const checklistHtml = compRows.map((c) => {
       const ok = c.pct >= 50;
       return `
-        <div class="detail-item" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:8px;">
             <svg viewBox="0 0 24 24" fill="none" width="17" height="17" style="color:${ok ? "var(--success)" : "var(--danger)"};flex-shrink:0;">${ok
               ? '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
               : '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'}</svg>
-            <span style="font-weight:600;">${c.label}</span>
+            <span style="font-weight:600;font-size:13px;">${c.label}</span>
           </div>
-          <div style="text-align:right;color:var(--muted);font-size:12.3px;">${fmtInt(c.n)} de ${fmtInt(b.aderidos)} (${fmtPct(c.pct)})</div>
+          <div style="text-align:right;color:var(--muted);font-size:12px;">${fmtInt(c.n)} / ${fmtInt(b.aderidos)} (${fmtPct(c.pct)})</div>
         </div>`;
     }).join("");
+
+    // Contatos únicos de gestores e cadastradores
+    const gestores = [...new Map(aderidos.filter((r) => r.gestor).map((r) => [r.gestor, r])).values()].slice(0, 10);
+    const contatosHtml = gestores.length ? gestores.map((r) => `
+      <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.3px;">
+        <b>${escapeHtml(r.m)}</b> —
+        Gestor: ${escapeHtml(r.gestor || "—")}${r.emailGestor ? ` &lt;${escapeHtml(r.emailGestor)}&gt;` : ""}
+      </div>`).join("") : `<div style="color:var(--muted);font-size:12px;padding:8px 0;">Nenhum contato disponível.</div>`;
+
     content.innerHTML = `
       <div class="modal-header">
         <div>
           <h2>${UF_NOME[uf] || uf} <span class="pill gray" style="margin-left:6px;">${uf}</span></h2>
-          <span>Checklist de componentes do SNC — % de municípios aderidos com cada componente concluído</span>
+          <span>Painel completo do estado · SNC</span>
         </div>
-        <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <button class="btn-icon-sm" id="estadoModalPrintBtn" title="Imprimir" aria-label="Imprimir painel do estado">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-icon-sm" id="estadoModalPdfBtn" title="Exportar PDF" aria-label="Exportar PDF do painel do estado">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+          <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        </div>
       </div>
-      <div class="detail-grid">
-        <div class="detail-item"><label>Total de municípios</label><div>${fmtInt(b.total)}</div></div>
-        <div class="detail-item"><label>Municípios aderidos</label><div>${fmtInt(b.aderidos)} (${fmtPct(b.pct)})</div></div>
-        <div class="detail-item"><label>Índice médio de maturidade</label><div>${b.idxMedio.toFixed(1)} / 5</div></div>
-      </div>
-      <div class="detail-item" style="margin-top:6px;">
-        <label style="margin-bottom:10px;display:block;">Checklist de componentes</label>
-        <div style="display:flex;flex-direction:column;gap:10px;">${checklistHtml}</div>
-      </div>
-      <div style="margin-top:16px;text-align:right;">
-        <button class="btn btn-secondary" id="estadoModalVerMunicipios">Ver municípios deste estado</button>
+
+      <div id="estadoModalBody">
+        <div class="detail-grid" style="margin-bottom:16px;">
+          <div class="detail-item"><label>Total de municípios</label><div>${fmtInt(b.total)}</div></div>
+          <div class="detail-item"><label>Municípios aderidos</label><div style="color:var(--success);font-weight:700;">${fmtInt(b.aderidos)} (${fmtPct(b.pct)})</div></div>
+          <div class="detail-item"><label>Sem adesão</label><div style="color:var(--danger);">${fmtInt(b.total - b.aderidos)}</div></div>
+          <div class="detail-item"><label>Índice médio de maturidade</label><div>${b.idxMedio.toFixed(1)} / 5</div></div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:10px;">Checklist de componentes</div>
+          ${checklistHtml}
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:10px;">Contatos dos gestores de cultura (aderidos)</div>
+          ${contatosHtml}
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" id="estadoModalVerMunicipios">Ver municípios deste estado</button>
+          <button class="btn btn-primary" id="estadoModalRelatorio">Gerar relatório completo</button>
+        </div>
       </div>`;
+
     backdrop.classList.add("open");
     document.getElementById("modalCloseBtn").addEventListener("click", S.closeModal);
     const btnVer = document.getElementById("estadoModalVerMunicipios");
     if (btnVer) btnVer.addEventListener("click", () => { S.closeModal(); window.__SNC.goToUF(uf); });
+    const btnRel = document.getElementById("estadoModalRelatorio");
+    if (btnRel) btnRel.addEventListener("click", () => {
+      S.closeModal();
+      goTo("relatorios");
+      setTimeout(() => {
+        const repTipo = document.getElementById("repTipo");
+        const repEstado = document.getElementById("repEstado");
+        if (repTipo) repTipo.value = "estado";
+        if (repEstado) repEstado.value = uf;
+        const updRep = window.__SNC && window.__SNC.updateRepFormVisibility;
+        if (updRep) updRep();
+      }, 100);
+    });
+
+    // Imprimir o modal do estado
+    document.getElementById("estadoModalPrintBtn").addEventListener("click", () => {
+      document.body.classList.add("printing-modal");
+      const cleanup = () => document.body.classList.remove("printing-modal");
+      window.addEventListener("afterprint", cleanup, { once: true });
+      window.print();
+      setTimeout(cleanup, 2000);
+    });
+
+    // Exportar PDF do painel do estado
+    document.getElementById("estadoModalPdfBtn").addEventListener("click", () => {
+      if (typeof html2pdf === "undefined") { return; }
+      const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+      const slug = uf.toLowerCase();
+      const html = `
+        <div class="report-page">
+          <div class="report-header">
+            <div>
+              <div class="rh-title">${UF_NOME[uf] || uf} (${uf}) — Painel SNC</div>
+              <div class="rh-sub">Gerado em ${hoje} · ${fmtInt(b.total)} municípios · ${fmtInt(b.aderidos)} aderidos (${fmtPct(b.pct)})</div>
+            </div>
+            <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Sistema Nacional de Cultura</div>
+          </div>
+          <div class="report-section">
+            <h3>KPIs do Estado</h3>
+            <table class="report-table">
+              <tbody>
+                <tr><td>Total de municípios</td><td>${fmtInt(b.total)}</td></tr>
+                <tr><td>Municípios aderidos</td><td>${fmtInt(b.aderidos)} (${fmtPct(b.pct)})</td></tr>
+                <tr><td>Sem adesão</td><td>${fmtInt(b.total - b.aderidos)}</td></tr>
+                <tr><td>Índice médio de maturidade</td><td>${b.idxMedio.toFixed(1)} / 5</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="report-section">
+            <h3>Checklist de Componentes</h3>
+            <table class="report-table">
+              <thead><tr><th>Componente</th><th>Concluídos</th><th>Total aderidos</th><th>%</th></tr></thead>
+              <tbody>
+                ${compRows.map((c) => `<tr><td>${c.label}</td><td>${fmtInt(c.n)}</td><td>${fmtInt(b.aderidos)}</td><td>${fmtPct(c.pct)}</td></tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+          <div class="report-section">
+            <h3>Contatos — Gestores de Cultura (aderidos)</h3>
+            <table class="report-table">
+              <thead><tr><th>Município</th><th>Gestor de Cultura</th><th>E-mail Gestor</th></tr></thead>
+              <tbody>
+                ${aderidos.filter((r) => r.gestor).map((r) => `<tr><td>${escapeHtml(r.m)}</td><td>${escapeHtml(r.gestor || "—")}</td><td>${escapeHtml(r.emailGestor || "—")}</td></tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted);text-align:center;">
+            Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura
+          </div>
+        </div>`;
+      let container = document.getElementById("estadoReportContainer");
+      if (!container) {
+        container = document.createElement("div");
+        container.id = "estadoReportContainer";
+        container.style.cssText = "position:fixed;left:-99999px;top:0;width:1000px;";
+        document.body.appendChild(container);
+      }
+      container.innerHTML = html;
+      container.style.display = "block";
+      const contentEl = document.getElementById("content");
+      if (contentEl) contentEl.scrollTop = 0;
+      window.scrollTo(0, 0);
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `estado-${slug}-snc-${new Date().toISOString().slice(0, 10)}.pdf`,
+        image: { type: "jpeg", quality: 0.97 },
+        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"] }
+      };
+      setTimeout(() => {
+        html2pdf().set(opt).from(container.querySelector(".report-page")).save().then(() => {
+          container.style.display = "none";
+          container.innerHTML = "";
+        });
+      }, 60);
+    });
   }
 
   S.renderAlerts = renderAlerts;
@@ -1748,12 +1881,15 @@
     if (content) content.scrollTop = 0;
     window.scrollTo(0, 0);
 
-    // A busca por nome de município não se aplica à tela de Estados — esse filtro
-    // existe só para localizar municípios individuais nas demais telas.
+    // A busca por nome de município não se aplica à tela de Estados.
     const searchControl = document.getElementById("globalMunicipioFilter")
       ? document.getElementById("globalMunicipioFilter").closest(".search-control")
       : null;
     if (searchControl) searchControl.style.display = view === "estados" ? "none" : "";
+
+    // Item 1: filtro de adesão não se aplica à tela de Estados (todos os estados têm municípios aderidos)
+    const adesaoSel = document.getElementById("adesaoFilter");
+    if (adesaoSel) adesaoSel.closest(".select-control") && (adesaoSel.style.display = view === "estados" ? "none" : "");
   }
 
   function goToUF(uf) {
@@ -1808,13 +1944,11 @@
     S.renderBrazilMap("brazilMap", "mapStatePanel", aggBase);
     S.renderAlerts(agg);
 
-    // Estados não usa o filtro de busca por nome de município (esse campo nem aparece
-    // nessa tela) — recalcula um agregado próprio considerando UF, região, adesão e período.
+    // Estados: recalcula agregado próprio ignorando busca por nome de município E filtro de adesão
+    // (todos os estados têm adesão — item 1: o filtro de adesão não existe nessa tela)
     const filteredForEstados = STATE.raw.filter((r) => {
       if (STATE.filters.uf && r.uf !== STATE.filters.uf) return false;
       if (STATE.filters.regiao && r.reg !== STATE.filters.regiao) return false;
-      if (STATE.filters.adesao === "com" && !r.ad) return false;
-      if (STATE.filters.adesao === "sem" && r.ad) return false;
       if (STATE.filters.periodo && (!r.dtAd || !r.dtAd.startsWith(STATE.filters.periodo))) return false;
       return true;
     });
@@ -2178,13 +2312,50 @@
           btnGerarDetalhado.innerHTML = original;
           const container = document.getElementById("reportContainer");
           if (container) container.scrollIntoView({ behavior: "smooth", block: "start" });
+          // Item 2: mostrar barra de ações
+          const actionsBar = document.getElementById("reportActionsBar");
+          if (actionsBar && container && container.innerHTML.trim()) actionsBar.style.display = "flex";
         }, 30);
       });
     }
     updateRepFormVisibility();
 
-    const btnPdf = document.getElementById("btnExportPdf");
-    if (btnPdf) btnPdf.addEventListener("click", () => S.exportPdfReport());
+    // Item 2: botões de imprimir e exportar PDF do relatório detalhado
+    const btnImprimirRel = document.getElementById("btnImprimirRelatorio");
+    if (btnImprimirRel) {
+      btnImprimirRel.addEventListener("click", () => {
+        document.body.classList.add("printing-report");
+        const cleanup = () => document.body.classList.remove("printing-report");
+        window.addEventListener("afterprint", cleanup, { once: true });
+        window.print();
+        setTimeout(cleanup, 2000);
+      });
+    }
+    const btnExportarRelDet = document.getElementById("btnExportarRelatorioDetalhado");
+    if (btnExportarRelDet) {
+      btnExportarRelDet.addEventListener("click", () => {
+        if (typeof html2pdf === "undefined") { showToast("Biblioteca PDF não carregou.", true); return; }
+        const container = document.getElementById("reportContainer");
+        if (!container || !container.innerHTML.trim()) { showToast("Gere um relatório primeiro.", true); return; }
+        const tipo = STATE.activeReportKind || "relatorio";
+        const uf = (document.getElementById("repEstado") || {}).value || "br";
+        const dataStr = new Date().toISOString().slice(0, 10);
+        const isLandscape = tipo === "checklist" || tipo === "contatos";
+        const opt = {
+          margin: [8, 8, 8, 8],
+          filename: `${tipo}-snc-${uf.toLowerCase()}-${dataStr}.pdf`,
+          image: { type: "jpeg", quality: 0.97 },
+          html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+          jsPDF: { unit: "mm", format: "a4", orientation: isLandscape ? "landscape" : "portrait" },
+          pagebreak: { mode: ["css", "legacy"] }
+        };
+        const contentEl = document.getElementById("content");
+        if (contentEl) contentEl.scrollTop = 0;
+        window.scrollTo(0, 0);
+        html2pdf().set(opt).from(container.querySelector(".report-page") || container).save();
+      });
+    }
+
     const btnIrRelatorios = document.getElementById("btnIrParaRelatorios");
     if (btnIrRelatorios) btnIrRelatorios.addEventListener("click", () => goTo("relatorios"));
 
@@ -2215,6 +2386,10 @@
       modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) S.closeModal(); });
     }
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") { S.closeModal(); closeSidebarMobile(); } });
+
+    // Expor para uso cross-IIFE (ex: modal do estado navegar para Relatórios)
+    S.updateRepFormVisibility = updateRepFormVisibility;
+    window.__SNC.updateRepFormVisibility = updateRepFormVisibility;
   }
 
   /* ---------------- Inicialização ---------------- */
@@ -2290,6 +2465,14 @@
       </div>`;
   }
 
+  /* helpers visuais para o checklist */
+  const CIRCLE_OK = `<span style="color:#16a34a;font-size:15px;line-height:1;" title="Concluído">●</span>`;
+  const CIRCLE_NO = `<svg viewBox="0 0 16 16" fill="none" width="15" height="15" style="vertical-align:middle;" title="Pendente"><path d="M3 3l10 10M13 3L3 13" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+
+  function checklistCell(done) {
+    return `<td style="text-align:center;">${done ? CIRCLE_OK : CIRCLE_NO}</td>`;
+  }
+
   /* ---------------- Checklist de municípios (tabela reutilizável) ---------------- */
   function checklistTableHtml(rows, opts) {
     opts = opts || {};
@@ -2303,7 +2486,7 @@
           <tr>
             <th>Município</th>
             ${showAdesao ? "<th>Situação</th>" : ""}
-            <th>Atualização</th><th>Lei Sistema</th><th>Conselho (Lei)</th><th>Ata Conselho</th><th>Fundo</th><th>Plano</th><th>Órgão Gestor</th>
+            <th>Atualização</th><th style="text-align:center;">Sistema</th><th style="text-align:center;">Conselho</th><th style="text-align:center;">Ata</th><th style="text-align:center;">Fundo</th><th style="text-align:center;">Plano</th><th style="text-align:center;">Órgão Gestor</th>
           </tr>
         </thead>
         <tbody>
@@ -2312,12 +2495,12 @@
               <td><b>${escapeHtml(r.m)}</b></td>
               ${showAdesao ? `<td>${r.ad ? `<span class="status-badge green">✓ Aderido</span>` : `<span class="status-badge gray">Sem adesão</span>`}</td>` : ""}
               <td>${r.upd ? fmtDate(r.upd) : "—"}</td>
-              <td>${statusBadge(r.sisSt)}</td>
-              <td>${statusBadge(r.conSt)}</td>
-              <td>${statusBadge(r.ataSt)}</td>
-              <td>${statusBadge(r.funSt)}</td>
-              <td>${statusBadge(r.plaSt)}</td>
-              <td>${statusBadge(r.orgSt)}</td>
+              ${checklistCell(r.sisSt === "Concluída")}
+              ${checklistCell(r.conSt === "Concluída")}
+              ${checklistCell(r.ataSt === "Concluída")}
+              ${checklistCell(r.funSt === "Concluída")}
+              ${checklistCell(r.plaSt === "Concluída")}
+              ${checklistCell(r.orgSt === "Concluída")}
             </tr>`).join("")}
         </tbody>
       </table>`;

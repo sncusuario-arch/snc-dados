@@ -687,3 +687,12 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
 #tableMunicipios th:nth-child(4) { min-width: 120px; }
 #tableMunicipios th:nth-child(5) { min-width: 70px; }
 #tableMunicipios th:nth-child(6) { min-width: 120px; }
+
+/* Item 2: Impressão do relatório detalhado */
+@media print {
+  body.printing-report .sidebar,
+  body.printing-report .topbar,
+  body.printing-report .rep-form-card,
+  body.printing-report #reportActionsBar { display: none !important; }
+  body.printing-report .content { padding: 0 !important; }
+}
