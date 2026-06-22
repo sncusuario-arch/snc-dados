@@ -431,7 +431,9 @@
   };
 
   function renderKPIs(agg, aggBase, containerId) {
-    // aggBase pode ser omitido (chamadas legadas) — nesse caso usa agg para tudo
+    // Todos os 4 KPIs usam sempre aggBase (universo real sem filtro de adesão)
+    // para que os números reflitam a realidade, não o subconjunto filtrado.
+    // O filtro de adesão serve para as tabelas/gráficos de detalhe, não para os KPIs de topo.
     const base = aggBase || agg;
     const el = document.getElementById(containerId || "kpiRow");
     if (!el) return;
@@ -442,15 +444,15 @@
         delta: `${fmtInt(nUf)} unidade${nUf === 1 ? "" : "s"} federativa${nUf === 1 ? "" : "s"}`, deltaTone: "flat"
       }),
       kpiCardHtml({
-        label: "Municípios com Adesão", value: fmtInt(agg.aderidosCount), tone: "green", icon: ICONS.check,
-        delta: `${fmtPct(base.total ? (agg.aderidosCount / base.total) * 100 : 0)} do total nacional`, deltaTone: "up"
+        label: "Municípios com Adesão", value: fmtInt(base.aderidosCount), tone: "green", icon: ICONS.check,
+        delta: `${fmtPct(base.pctAderidos)} do total nacional`, deltaTone: "up"
       }),
       kpiCardHtml({
-        label: "Municípios sem Adesão", value: fmtInt(base.total - agg.aderidosCount), tone: "red", icon: ICONS.x,
-        delta: `${fmtPct(base.total ? ((base.total - agg.aderidosCount) / base.total) * 100 : 0)} do total nacional`, deltaTone: "down"
+        label: "Municípios sem Adesão", value: fmtInt(base.naoAderidos), tone: "red", icon: ICONS.x,
+        delta: `${fmtPct(100 - base.pctAderidos)} do total nacional`, deltaTone: "down"
       }),
       kpiCardHtml({
-        label: "Índice Nacional de Implementação", value: fmtPct(agg.indiceNacional), tone: "amber", icon: ICONS.gauge,
+        label: "Índice Nacional de Implementação", value: fmtPct(base.indiceNacional), tone: "amber", icon: ICONS.gauge,
         delta: `Média dos 5 componentes do SNC`, deltaTone: "flat"
       })
     ].join("");
@@ -671,6 +673,11 @@
       });
       g.addEventListener("click", () => {
         const b = agg.byUF[uf];
+        // Na tela de Estados, abre o modal completo em vez do mini-painel
+        if (STATE.currentView === "estados" && S.openEstadoModal) {
+          S.openEstadoModal(uf, STATE.lastAggEstados || STATE.lastAgg);
+          return;
+        }
         const panel = document.getElementById(panelId);
         if (!panel) return;
         if (!b) { panel.innerHTML = `<div class="section-sub" style="margin:0;">Sem dados para ${uf}.</div>`; return; }
@@ -1887,9 +1894,20 @@
       : null;
     if (searchControl) searchControl.style.display = view === "estados" ? "none" : "";
 
-    // Item 1: filtro de adesão não se aplica à tela de Estados (todos os estados têm municípios aderidos)
+    // Telas onde o filtro de adesão não faz sentido (componentes, planos, fundo, conselho,
+    // estados e adesoes só exibem dados de aderidos por natureza)
+    const VIEWS_SEM_ADESAO_FILTER = ["estados", "componentes", "planos", "fundo", "conselho", "adesoes"];
     const adesaoSel = document.getElementById("adesaoFilter");
-    if (adesaoSel) adesaoSel.closest(".select-control") && (adesaoSel.style.display = view === "estados" ? "none" : "");
+    if (adesaoSel) adesaoSel.style.display = VIEWS_SEM_ADESAO_FILTER.includes(view) ? "none" : "";
+
+    // Na tela de Componentes, mostrar o dropdown de municípios automaticamente
+    // quando um estado já estiver selecionado — facilita o drill-down por município
+    if (view === "componentes" && STATE.filters.uf && searchControl) {
+      setTimeout(() => {
+        const inp = document.getElementById("globalMunicipioFilter");
+        if (inp) inp.dispatchEvent(new Event("focus"));
+      }, 200);
+    }
   }
 
   function goToUF(uf) {
@@ -1997,7 +2015,7 @@
     const periodSel = document.getElementById("periodFilter");
     if (periodSel) {
       const anos = Array.from(new Set(STATE.raw.filter((r) => r.dtAd).map((r) => r.dtAd.slice(0, 4)))).sort().reverse();
-      periodSel.innerHTML = `<option value="">Ano de adesão</option>` + anos.map((y) => `<option value="${y}">${y}</option>`).join("");
+      periodSel.innerHTML = `<option value="">Todos</option>` + anos.map((y) => `<option value="${y}">${y}</option>`).join("");
     }
     const pageSizeSel = document.getElementById("cfgPageSize");
     if (pageSizeSel) pageSizeSel.value = String(STATE.table.pageSize);
@@ -2108,6 +2126,12 @@
         if (suggestBox) suggestBox.style.display = "none";
         STATE.filters.uf = ufFilter.value;
         refreshAll();
+        // Item 3: na tela de Estados, ao escolher um estado no filtro, abre o modal completo
+        if (STATE.currentView === "estados" && ufFilter.value && S.openEstadoModal) {
+          setTimeout(() => {
+            S.openEstadoModal(ufFilter.value, STATE.lastAggEstados || STATE.lastAgg);
+          }, 150);
+        }
       });
     }
 
