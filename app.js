@@ -109,7 +109,7 @@
     raw: [],                 // dataset canônico completo
     sourceLabel: "Base padrão SNC (planilha oficial carregada)",
     currentView: "dashboard",
-    filters: { uf: "", periodo: "", search: "" },
+    filters: { uf: "", regiao: "", adesao: "", periodo: "", search: "" },
     table: { sortKey: "idx", sortDir: "desc", page: 1, pageSize: 25, search: "" },
     mapLabels: true,
     charts: {},
@@ -259,6 +259,9 @@
     const f = STATE.filters;
     return data.filter((r) => {
       if (f.uf && r.uf !== f.uf) return false;
+      if (f.regiao && r.reg !== f.regiao) return false;
+      if (f.adesao === "com" && !r.ad) return false;
+      if (f.adesao === "sem" && r.ad) return false;
       if (f.periodo && (!r.dtAd || !r.dtAd.startsWith(f.periodo))) return false;
       if (f.search) {
         const s = f.search.toLowerCase();
@@ -732,7 +735,7 @@
   "use strict";
   const S = window.__SNC;
   const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS, classifyMaturity,
-    fmtInt, fmtPct, fmtDate, escapeHtml } = S;
+    fmtInt, fmtPct, fmtDate, escapeHtml, colorForPct } = S;
   const ICONS = S.ICONS;
 
   /* ---------------- Alertas automáticos ---------------- */
@@ -799,17 +802,9 @@
   }
 
   /* ---------------- Tabela por Estado ---------------- */
-  const ESTADOS_COLUMNS = [
-    { key: "uf", label: "UF" }, { key: "nome", label: "Estado" },
-    { key: "total", label: "Municípios" }, { key: "aderidos", label: "Aderidos" },
-    { key: "pct", label: "% Adesão" }, { key: "idxMedio", label: "Índice médio" },
-    { key: "sisPct", label: "Sistema" }, { key: "conPct", label: "Conselho" },
-    { key: "funPct", label: "Fundo" }, { key: "plaPct", label: "Plano" }, { key: "orgPct", label: "Órgão Gestor" }
-  ];
-
   function renderEstadosTable(agg) {
-    const table = document.getElementById("tableEstados");
-    if (!table) return;
+    const container = document.getElementById("estadosListContainer");
+    if (!container) return;
     if (!STATE.estadosSort) STATE.estadosSort = { key: "aderidos", dir: "desc" };
     const sort = STATE.estadosSort;
 
@@ -822,7 +817,6 @@
       orgPct: b.aderidos ? (b.org / b.aderidos) * 100 : 0
     }));
 
-    const searchEl = document.getElementById("estadosSearch");
     const searchTerm = (STATE.estadosSearch || "").toLowerCase();
     if (searchTerm) {
       rows = rows.filter((r) => r.uf.toLowerCase().includes(searchTerm) || r.nome.toLowerCase().includes(searchTerm));
@@ -834,49 +828,57 @@
       return sort.dir === "asc" ? va - vb : vb - va;
     });
 
-    const thead = table.querySelector("thead");
-    thead.innerHTML = `<tr>${ESTADOS_COLUMNS.map((c) => {
-      const active = sort.key === c.key;
-      return `<th class="${active ? "sorted" : ""}" data-key="${c.key}" style="cursor:pointer;">${c.label}<span class="sort-arrow">${active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}</span></th>`;
-    }).join("")}<th>Checklist</th></tr>`;
-    thead.querySelectorAll("th[data-key]").forEach((th) => {
-      th.addEventListener("click", () => {
-        const key = th.getAttribute("data-key");
-        if (sort.key === key) sort.dir = sort.dir === "asc" ? "desc" : "asc";
-        else { sort.key = key; sort.dir = "desc"; }
-        renderEstadosTable(STATE.lastAggEstados || STATE.lastAgg);
-      });
-    });
+    const sortKeySel = document.getElementById("estadosSortKey");
+    if (sortKeySel && sortKeySel.value !== sort.key) sortKeySel.value = sort.key;
+    const sortDirBtn = document.getElementById("estadosSortDir");
+    if (sortDirBtn) sortDirBtn.style.transform = sort.dir === "asc" ? "scaleY(-1)" : "none";
 
-    const tbody = table.querySelector("tbody");
-    tbody.innerHTML = rows.map((r) => `
-      <tr data-uf="${r.uf}" style="cursor:pointer;">
-        <td><b>${r.uf}</b></td>
-        <td>${r.nome}</td>
-        <td>${fmtInt(r.total)}</td>
-        <td>${fmtInt(r.aderidos)}</td>
-        <td>${fmtPct(r.pct)}</td>
-        <td>${r.idxMedio.toFixed(1)} / 5</td>
-        <td>${fmtPct(r.sisPct, 0)}</td>
-        <td>${fmtPct(r.conPct, 0)}</td>
-        <td>${fmtPct(r.funPct, 0)}</td>
-        <td>${fmtPct(r.plaPct, 0)}</td>
-        <td>${fmtPct(r.orgPct, 0)}</td>
-        <td>
+    const compFields = [
+      { key: "sisPct", label: "Sistema" }, { key: "conPct", label: "Conselho" },
+      { key: "funPct", label: "Fundo" }, { key: "plaPct", label: "Plano" }, { key: "orgPct", label: "Órgão Gestor" }
+    ];
+
+    if (!rows.length) {
+      container.innerHTML = `<div class="section-sub" style="text-align:center;padding:24px;margin:0;">Nenhum estado encontrado.</div>`;
+      return;
+    }
+
+    container.innerHTML = rows.map((r) => `
+      <div class="estado-card" data-uf="${r.uf}">
+        <div class="estado-card-header">
+          <div class="estado-card-title">
+            <span class="pill gray">${r.uf}</span>
+            <b>${escapeHtml(r.nome)}</b>
+          </div>
           <button class="btn-icon-sm estado-checklist-btn" data-uf="${r.uf}" title="Ver checklist de componentes">
             <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
-        </td>
-      </tr>`).join("");
-    tbody.querySelectorAll("tr[data-uf]").forEach((tr) => {
-      tr.addEventListener("click", () => window.__SNC.goToUF(tr.getAttribute("data-uf")));
+        </div>
+        <div class="estado-card-metrics">
+          <div class="estado-metric"><span class="estado-metric-label">Municípios</span><span class="estado-metric-value">${fmtInt(r.total)}</span></div>
+          <div class="estado-metric"><span class="estado-metric-label">Aderidos</span><span class="estado-metric-value">${fmtInt(r.aderidos)}</span></div>
+          <div class="estado-metric"><span class="estado-metric-label">% Adesão</span><span class="estado-metric-value" style="color:${colorForPct(r.pct)};">${fmtPct(r.pct)}</span></div>
+          <div class="estado-metric"><span class="estado-metric-label">Índice médio</span><span class="estado-metric-value">${r.idxMedio.toFixed(1)} / 5</span></div>
+        </div>
+        <div class="estado-card-components">
+          ${compFields.map((c) => `<span class="comp-pill">${c.label} <b>${fmtPct(r[c.key], 0)}</b></span>`).join("")}
+        </div>
+      </div>`).join("");
+
+    container.querySelectorAll(".estado-card").forEach((card) => {
+      card.addEventListener("click", (e) => {
+        if (e.target.closest(".estado-checklist-btn")) return;
+        window.__SNC.goToUF(card.getAttribute("data-uf"));
+      });
     });
-    tbody.querySelectorAll(".estado-checklist-btn").forEach((btn) => {
+    container.querySelectorAll(".estado-checklist-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         S.openEstadoModal(btn.getAttribute("data-uf"), STATE.lastAggEstados || STATE.lastAgg);
       });
     });
+
+    S.renderBrazilMap("brazilMapEstados", "mapStatePanelEstados", agg);
   }
 
   /* ---------------- Detalhe do estado: componentes em formato checklist ---------------- */
@@ -1057,7 +1059,15 @@
           <h2>${escapeHtml(r.m)} <span class="pill gray" style="margin-left:6px;">${r.uf}</span></h2>
           <span>${UF_NOME[r.uf] || r.uf} · ${r.reg || "—"}${r.ibge ? " · IBGE " + r.ibge : ""}</span>
         </div>
-        <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <button class="btn-icon-sm" id="modalPrintBtn" title="Imprimir">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn-icon-sm" id="modalPdfBtn" title="Exportar PDF">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+          <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        </div>
       </div>
       <div class="detail-grid">
         <div class="detail-item"><label>Situação da adesão</label><div>${escapeHtml(r.sit)}${r.ad ? "" : " (sem adesão ao SNC)"}</div></div>
@@ -1078,10 +1088,108 @@
       </div>`;
     backdrop.classList.add("open");
     document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+    document.getElementById("modalPrintBtn").addEventListener("click", printMunicipioModal);
+    document.getElementById("modalPdfBtn").addEventListener("click", () => exportMunicipioModalPdf(r));
   }
   function closeModal() {
     const backdrop = document.getElementById("modalBackdrop");
     if (backdrop) backdrop.classList.remove("open");
+  }
+
+  /* ---------------- Imprimir o modal de município ---------------- */
+  function printMunicipioModal() {
+    document.body.classList.add("printing-modal");
+    const cleanup = () => document.body.classList.remove("printing-modal");
+    window.addEventListener("afterprint", cleanup, { once: true });
+    window.print();
+    // Garantia extra caso o navegador não dispare "afterprint" (alguns mobile browsers).
+    setTimeout(cleanup, 2000);
+  }
+
+  /* ---------------- Exportar o modal de município em PDF (independente dos relatórios) ---------------- */
+  function exportMunicipioModalPdf(r) {
+    if (typeof html2pdf === "undefined") {
+      S.showToast("Biblioteca de exportação PDF não carregou — recarregue a página.", true);
+      return;
+    }
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    const compRows = COMPONENT_KEYS.map((k) => `
+      <tr>
+        <td>${COMPONENT_LABELS[k]}</td>
+        <td>${r[k] ? '<span style="color:var(--success);font-weight:700;">✓ Concluído</span>' : '<span style="color:var(--danger);font-weight:700;">✗ Pendente</span>'}</td>
+      </tr>`).join("");
+    const html = `
+      <div class="report-page">
+        <div class="report-header">
+          <div>
+            <div class="rh-title">${escapeHtml(r.m)} — ${r.uf}</div>
+            <div class="rh-sub">Gerado em ${hoje} · ${UF_NOME[r.uf] || r.uf} · ${r.reg || "—"}${r.ibge ? " · IBGE " + r.ibge : ""}</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Sistema Nacional de Cultura</div>
+        </div>
+        <div class="report-section">
+          <h3>Situação da Adesão</h3>
+          <table class="report-table">
+            <tbody>
+              <tr><td>Situação</td><td>${escapeHtml(r.sit)}${r.ad ? "" : " (sem adesão ao SNC)"}</td></tr>
+              <tr><td>Data de adesão</td><td>${fmtDate(r.dtAd)}</td></tr>
+              <tr><td>Índice de maturidade</td><td>${r.idx} / 5 — ${classifyMaturity(r.idx).label}</td></tr>
+              <tr><td>Última atualização</td><td>${fmtDate(r.upd)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="report-section">
+          <h3>Checklist de Componentes do SNC</h3>
+          <table class="report-table">
+            <thead><tr><th>Componente</th><th>Situação</th></tr></thead>
+            <tbody>${compRows}</tbody>
+          </table>
+        </div>
+        <div class="report-section">
+          <h3>Plano de Cultura e Contatos</h3>
+          <table class="report-table">
+            <tbody>
+              <tr><td>Vigência do Plano de Cultura</td><td>${r.vig || "—"}${r.venc ? " (vencido)" : ""}</td></tr>
+              <tr><td>Plano monitorado</td><td>${r.mon ? "Sim" : "Não"}</td></tr>
+              <tr><td>Prefeito(a)</td><td>${escapeHtml(r.pref || "Não informado")}</td></tr>
+              <tr><td>Cadastrador</td><td>${escapeHtml(r.cad || "Não informado")}</td></tr>
+              <tr><td>Gestor de Cultura</td><td>${escapeHtml(r.gestor || "Não informado")}</td></tr>
+              <tr><td>População (2022)</td><td>${r.pop ? fmtInt(r.pop) : "—"}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted);text-align:center;">Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura</div>
+      </div>`;
+
+    let container = document.getElementById("modalReportContainer");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "modalReportContainer";
+      container.style.cssText = "position:fixed;left:-99999px;top:0;width:900px;";
+      document.body.appendChild(container);
+    }
+    container.innerHTML = html;
+    container.style.display = "block";
+
+    const contentEl = document.getElementById("content");
+    if (contentEl) contentEl.scrollTop = 0;
+    window.scrollTo(0, 0);
+
+    const slug = r.m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `municipio-${slug}-${r.uf.toLowerCase()}.pdf`,
+      image: { type: "jpeg", quality: 0.97 },
+      html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] }
+    };
+    setTimeout(() => {
+      html2pdf().set(opt).from(container.querySelector(".report-page")).save().then(() => {
+        container.style.display = "none";
+        container.innerHTML = "";
+      });
+    }, 60);
   }
 
   S.renderMunicipiosTable = renderMunicipiosTable;
@@ -1667,9 +1775,12 @@
     S.renderAlerts(agg);
 
     // Estados não usa o filtro de busca por nome de município (esse campo nem aparece
-    // nessa tela) — recalcula um agregado próprio considerando só UF e período.
+    // nessa tela) — recalcula um agregado próprio considerando UF, região, adesão e período.
     const filteredForEstados = STATE.raw.filter((r) => {
       if (STATE.filters.uf && r.uf !== STATE.filters.uf) return false;
+      if (STATE.filters.regiao && r.reg !== STATE.filters.regiao) return false;
+      if (STATE.filters.adesao === "com" && !r.ad) return false;
+      if (STATE.filters.adesao === "sem" && r.ad) return false;
       if (STATE.filters.periodo && (!r.dtAd || !r.dtAd.startsWith(STATE.filters.periodo))) return false;
       return true;
     });
@@ -1778,8 +1889,12 @@
         if (!normalized.length) throw new Error("A planilha não contém municípios reconhecíveis.");
         STATE.raw = normalized;
         STATE.sourceLabel = `Planilha carregada: ${file.name} (${normalized.length} municípios)`;
-        STATE.filters = { uf: "", periodo: "", search: "" };
+        STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
         document.getElementById("globalMunicipioFilter").value = "";
+        const regiaoSelReset = document.getElementById("regiaoFilter");
+        if (regiaoSelReset) regiaoSelReset.value = "";
+        const adesaoSelReset = document.getElementById("adesaoFilter");
+        if (adesaoSelReset) adesaoSelReset.value = "";
         populateFilters();
         refreshAll();
         showToast(`Planilha carregada com sucesso: ${fmtInt(normalized.length)} municípios.`);
@@ -1825,6 +1940,12 @@
     const periodFilter = document.getElementById("periodFilter");
     if (periodFilter) periodFilter.addEventListener("change", () => { STATE.filters.periodo = periodFilter.value; refreshAll(); });
 
+    const regiaoFilter = document.getElementById("regiaoFilter");
+    if (regiaoFilter) regiaoFilter.addEventListener("change", () => { STATE.filters.regiao = regiaoFilter.value; refreshAll(); });
+
+    const adesaoFilter = document.getElementById("adesaoFilter");
+    if (adesaoFilter) adesaoFilter.addEventListener("change", () => { STATE.filters.adesao = adesaoFilter.value; refreshAll(); });
+
     const globalSearch = document.getElementById("globalMunicipioFilter");
     const suggestBox = document.getElementById("globalMunicipioSuggest");
 
@@ -1835,8 +1956,7 @@
       const term = globalSearch.value.trim().toLowerCase();
       const matches = STATE.raw
         .filter((r) => r.uf === uf && (!term || r.m.toLowerCase().includes(term)))
-        .sort((a, b) => a.m.localeCompare(b.m))
-        .slice(0, 8);
+        .sort((a, b) => a.m.localeCompare(b.m));
       if (!matches.length) {
         suggestBox.innerHTML = `<div class="autocomplete-empty">Nenhum município encontrado em ${escapeHtml(UF_NOME[uf] || uf)}.</div>`;
         suggestBox.style.display = "block";
@@ -1893,6 +2013,23 @@
         STATE.estadosSearch = estadosSearch.value.trim();
         S.renderEstadosTable(STATE.lastAggEstados || STATE.lastAgg);
       }, 280));
+    }
+
+    const estadosSortKey = document.getElementById("estadosSortKey");
+    if (estadosSortKey) {
+      estadosSortKey.addEventListener("change", () => {
+        if (!STATE.estadosSort) STATE.estadosSort = { key: "aderidos", dir: "desc" };
+        STATE.estadosSort.key = estadosSortKey.value;
+        S.renderEstadosTable(STATE.lastAggEstados || STATE.lastAgg);
+      });
+    }
+    const estadosSortDir = document.getElementById("estadosSortDir");
+    if (estadosSortDir) {
+      estadosSortDir.addEventListener("click", () => {
+        if (!STATE.estadosSort) STATE.estadosSort = { key: "aderidos", dir: "desc" };
+        STATE.estadosSort.dir = STATE.estadosSort.dir === "asc" ? "desc" : "asc";
+        S.renderEstadosTable(STATE.lastAggEstados || STATE.lastAgg);
+      });
     }
 
     const btnRefresh = document.getElementById("btnRefresh");
@@ -1969,8 +2106,8 @@
 
     const btnPdf = document.getElementById("btnExportPdf");
     if (btnPdf) btnPdf.addEventListener("click", () => S.exportPdfReport());
-    const btnPdf2 = document.getElementById("btnExportPdf2");
-    if (btnPdf2) btnPdf2.addEventListener("click", () => S.exportPdfReport());
+    const btnIrRelatorios = document.getElementById("btnIrParaRelatorios");
+    if (btnIrRelatorios) btnIrRelatorios.addEventListener("click", () => goTo("relatorios"));
 
     const btnExcel = document.getElementById("btnExportExcel");
     if (btnExcel) btnExcel.addEventListener("click", () => S.exportExcel());

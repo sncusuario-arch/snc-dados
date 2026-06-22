@@ -566,6 +566,28 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
 @media print {
   .sidebar, .topbar { display: none !important; }
   .content { padding: 0; }
+
+  /* Impressão isolada do modal de detalhe do município: esconde todo o resto
+     da página e mostra só o conteúdo do modal, sem o fundo escurecido. */
+  body.printing-modal .content,
+  body.printing-modal .sidebar-backdrop { display: none !important; }
+  body.printing-modal .modal-backdrop {
+    position: static !important;
+    display: block !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+  }
+  body.printing-modal .modal {
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  body.printing-modal #modalPrintBtn,
+  body.printing-modal #modalPdfBtn,
+  body.printing-modal #modalCloseBtn { display: none !important; }
 }
 
 /* ---------------- Painel de Pendências (módulo independente) ---------------- */
@@ -630,3 +652,30 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
   transition: background 0.12s ease;
 }
 .btn-icon-sm:hover { background: var(--accent-light); }
+
+/* ---------------- Lista empilhada de Estados ---------------- */
+.estado-list { display: flex; flex-direction: column; gap: 12px; }
+.estado-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.estado-card:hover { box-shadow: 0 4px 14px rgba(15,23,42,0.07); border-color: var(--accent); }
+.estado-card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.estado-card-title { display: flex; align-items: center; gap: 8px; font-size: 14.5px; }
+.estado-card-metrics { display: flex; flex-wrap: wrap; gap: 18px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+.estado-metric { display: flex; flex-direction: column; gap: 2px; min-width: 90px; }
+.estado-metric-label { font-size: 10.8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
+.estado-metric-value { font-size: 16px; font-weight: 800; color: var(--text); }
+.estado-card-components { display: flex; flex-wrap: wrap; gap: 8px; }
+.comp-pill {
+  font-size: 11.3px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: 9999px;
+  padding: 5px 12px;
+}
+.comp-pill b { color: var(--text); font-weight: 800; margin-left: 3px; }
