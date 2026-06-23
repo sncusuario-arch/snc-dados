@@ -40,6 +40,9 @@
   const COMPONENT_LABELS = {
     sis: "Sistema", con: "Conselho", fun: "Fundo", pla: "Plano", org: "Órgão Gestor"
   };
+  const COMPONENT_DATE_KEYS = {
+    sis: "sisData", con: "conData", fun: "funData", pla: "planoData", org: "orgData"
+  };
   const COMPONENT_COLORS = {
     sis: "#2f6feb", con: "#0ea5e9", fun: "#16a34a", pla: "#f59e0b", org: "#7c3aed"
   };
@@ -135,14 +138,30 @@
     fun: ["situação da lei do fundo", "fundo"],
     pla: ["situação do plano de cultura", "plano"],
     org: ["situação do órgão gestor", "situação do orgao gestor", "órgão gestor", "orgao gestor"],
+    // Datas das leis dos componentes
+    sisData: ["data da lei do sistema de cultura"],
+    conData: ["data da lei do conselho de política cultural", "data da lei do conselho"],
+    funData: ["data da lei do fundo de cultura", "data da lei do fundo"],
+    planoData: ["data do plano de cultura"],
+    orgData: ["data da lei do órgão gestor", "data da lei do orgao gestor"],
     upd: ["última atualização", "ultima atualizacao", "última atualizacao"],
     pt: ["situação do plano de trabalho"],
     acf: ["acf incluído", "acf incluido"],
     vig: ["último ano de vigência do plano de cultura", "ultimo ano de vigencia"],
     mon: ["plano monitorado"],
     pref: ["prefeito"],
+    emailPref: ["email prefeito", "e-mail prefeito"],
     cad: ["cadastrador"],
-    gestor: ["gestor de cultura"]
+    emailCad: ["email do cadastrador", "e-mail do cadastrador"],
+    gestor: ["gestor de cultura"],
+    emailGestor: ["email do gestor de cultura", "e-mail do gestor de cultura"],
+    conParit: ["conselho paritário", "conselho paritario"],
+    conExcl: ["conselho exclusivo de cultura"],
+    conData2: ["data da lei do conselho de política cultural"],
+    ataSt: ["situação da ata do conselho"],
+    conAtaData: ["data da assinatura da ata"],
+    siic: ["data siic"],
+    porte: ["faixa populacional"],
   };
 
   function findHeader(headers, candidates) {
@@ -221,10 +240,29 @@
         reg: map.reg ? (r[map.reg] || "").toString().trim() : "",
         ibge: map.ibge ? parseInt(r[map.ibge], 10) || null : null,
         pop: map.pop ? parseInt(r[map.pop], 10) || null : null,
+        porte: map.porte ? (r[map.porte] || null) : null,
         sit: aderiu ? (sitStr || "Publicado no DOU") : "Não possui adesão",
         ad: aderiu,
         dtAd: aderiu && map.dtAd ? parseBrDate(r[map.dtAd]) : null,
         sis, con, fun, pla, org, idx,
+        // Datas das leis dos componentes
+        sisData: map.sisData ? parseBrDate(r[map.sisData]) : null,
+        conData: map.conData ? parseBrDate(r[map.conData]) : null,
+        funData: map.funData ? parseBrDate(r[map.funData]) : null,
+        planoData: map.planoData ? parseBrDate(r[map.planoData]) : null,
+        orgData: map.orgData ? parseBrDate(r[map.orgData]) : null,
+        // Status granular dos componentes
+        sisSt: map.sis ? (r[map.sis] || null) : null,
+        conSt: map.con ? (r[map.con] || null) : null,
+        funSt: map.fun ? (r[map.fun] || null) : null,
+        plaSt: map.pla ? (r[map.pla] || null) : null,
+        orgSt: map.org ? (r[map.org] || null) : null,
+        // Ata do conselho
+        ataSt: map.ataSt ? (r[map.ataSt] || null) : null,
+        conAta: null,
+        conAtaData: map.conAtaData ? parseBrDate(r[map.conAtaData]) : null,
+        conExcl: map.conExcl ? (String(r[map.conExcl] || "").toLowerCase() === "sim") : false,
+        conParit: map.conParit ? (String(r[map.conParit] || "").toLowerCase() === "sim") : false,
         upd: map.upd ? parseBrDate(r[map.upd]) : null,
         pt: map.pt ? (r[map.pt] || null) : null,
         acf: map.acf ? truthyDone(r[map.acf]) : 0,
@@ -232,8 +270,11 @@
         venc: (pla === 1 && vigYear !== null && vigYear < new Date().getFullYear()) ? 1 : 0,
         mon: map.mon ? (String(r[map.mon] || "").toLowerCase().startsWith("sim") ? 1 : 0) : 0,
         pref: map.pref ? (r[map.pref] || null) : null,
+        emailPref: map.emailPref ? (r[map.emailPref] || null) : null,
         cad: map.cad ? (r[map.cad] || null) : null,
-        gestor: map.gestor ? (r[map.gestor] || null) : null
+        emailCad: map.emailCad ? (r[map.emailCad] || null) : null,
+        gestor: map.gestor ? (r[map.gestor] || null) : null,
+        emailGestor: map.emailGestor ? (r[map.emailGestor] || null) : null,
       });
     }
 
@@ -1273,16 +1314,22 @@
     const backdrop = document.getElementById("modalBackdrop");
     const content = document.getElementById("modalContent");
     if (!backdrop || !content || !r) return;
-    const compItems = COMPONENT_KEYS.map((k) => `
+    const compItems = COMPONENT_KEYS.map((k) => {
+      const done = !!r[k];
+      const dateKey = COMPONENT_DATE_KEYS[k];
+      const dateVal = r[dateKey] ? fmtDate(r[dateKey]) : null;
+      return `
       <div class="detail-item">
         <label>${COMPONENT_LABELS[k]}</label>
-        <div style="display:flex;align-items:center;gap:6px;color:${r[k] ? "var(--success)" : "var(--danger)"};font-weight:600;">
-          <svg viewBox="0 0 24 24" fill="none" width="16" height="16">${r[k]
+        <div style="display:flex;align-items:center;gap:6px;color:${done ? "var(--success)" : "var(--danger)"};font-weight:600;">
+          <svg viewBox="0 0 24 24" fill="none" width="16" height="16">${done
             ? '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
             : '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'}</svg>
-          ${r[k] ? "Concluído" : "Pendente"}
+          ${done ? "Concluído" : "Pendente"}
         </div>
-      </div>`).join("");
+        ${done && dateVal ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;">Lei: ${dateVal}</div>` : ""}
+      </div>`;
+    }).join("");
     content.innerHTML = `
       <div class="modal-header">
         <div>
