@@ -162,6 +162,9 @@
       <section class="view active" id="view-dashboard">
 
         <div class="grid grid-4 row-block" id="kpiRow"></div>
+        <div id="kpiSearchNote" style="display:none;font-size:12px;color:var(--muted);margin-top:-8px;margin-bottom:8px;padding:0 4px;">
+          Os cards acima mostram o panorama geral — a busca por município afeta apenas a tabela de municípios.
+        </div>
 
         <div class="grid grid-2 row-block">
           <div class="card">
@@ -213,7 +216,7 @@
         <div class="card row-block">
           <div class="card-title-row">
             <div class="card-title">Mapa do Brasil — índice de adesão por estado</div>
-            <div class="card-tag" id="mapClickHint">Clique em um estado para detalhes</div>
+            <div class="card-tag" id="mapClickHint">Clique em um estado para ver resumo</div>
           </div>
           <div class="map-wrap">
             <div class="map-svg-holder"><svg id="brazilMap" viewBox="0 0 360 380" width="380"></svg></div>
@@ -409,7 +412,7 @@
         <div class="card row-block" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
           <div>
             <div class="card-title" style="font-size:15px;">Relatório Executivo do SNC</div>
-            <div style="font-size:12.3px;color:var(--muted);margin-top:3px;">Gera um resumo nacional completo, pronto para exportação em PDF.</div>
+            <div style="font-size:12.3px;color:var(--muted);margin-top:3px;">Gera um resumo nacional completo na tela, com botões para imprimir ou exportar em PDF.</div>
           </div>
           <button class="btn btn-primary" id="btnGerarRelatorio">
             <svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/></svg>

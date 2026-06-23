@@ -335,6 +335,8 @@
     const semConselho = aderidos.filter((r) => r.con === 0).length;
     const semFundo = aderidos.filter((r) => r.fun === 0).length;
     const planosVencidos = aderidos.filter((r) => r.venc === 1).length;
+    // Bug #10: aderidos com 0 componentes implementados
+    const aderidosSemComponentes = aderidos.filter((r) => r.idx === 0).length;
     const hoje = new Date();
     const doisAnosAtras = new Date(hoje.getFullYear() - 2, hoje.getMonth(), hoje.getDate());
     const semAtualizacao2anos = aderidos.filter((r) => {
@@ -360,7 +362,7 @@
     return {
       total, aderidosCount: aderidos.length, naoAderidos, pctAderidos, indiceNacional, mediaMaturidadeAderidos,
       byUF, byRegiao, evolucao, componentRates, donut,
-      alerts: { semPlano, semConselho, semFundo, planosVencidos, semAtualizacao2anos, piorEstado },
+      alerts: { semPlano, semConselho, semFundo, planosVencidos, semAtualizacao2anos, piorEstado, aderidosSemComponentes },
       situacaoCount, vigenciaCount,
       aderidosArr: aderidos
     };
@@ -431,29 +433,48 @@
   };
 
   function renderKPIs(agg, aggBase, containerId) {
-    // Todos os 4 KPIs usam sempre aggBase (universo real sem filtro de adesão)
-    // para que os números reflitam a realidade, não o subconjunto filtrado.
-    // O filtro de adesão serve para as tabelas/gráficos de detalhe, não para os KPIs de topo.
     const base = aggBase || agg;
     const el = document.getElementById(containerId || "kpiRow");
     if (!el) return;
     const nUf = Object.keys(base.byUF).length;
-    el.innerHTML = [
+    // Bug #4: label contextual baseado nos filtros ativos
+    const f = STATE.filters;
+    const contexto = f.uf ? "do total estadual" : f.regiao ? "do total regional" : "do total nacional";
+    // Bug #5: quando filtro de ano está ativo, KPI mostra contexto diferente
+    const anoAtivo = f.periodo;
+    el.innerHTML = anoAtivo ? [
+      kpiCardHtml({
+        label: `Novas adesões em ${anoAtivo}`, value: fmtInt(base.aderidosCount), tone: "green", icon: ICONS.check,
+        delta: `${fmtPct(base.total ? (base.aderidosCount / 5570) * 100 : 0)} do total de municípios brasileiros`, deltaTone: "up"
+      }),
+      kpiCardHtml({
+        label: "Total de municípios no universo", value: fmtInt(base.total), tone: "blue", icon: ICONS.municipios,
+        delta: `Municípios no contexto filtrado`, deltaTone: "flat"
+      }),
+      kpiCardHtml({
+        label: "Índice médio (aderidos no ano)", value: fmtPct(base.indiceNacional), tone: "amber", icon: ICONS.gauge,
+        delta: `Média dos 5 componentes do SNC`, deltaTone: "flat"
+      }),
+      kpiCardHtml({
+        label: "Unidades federativas", value: fmtInt(nUf), tone: "blue", icon: ICONS.municipios,
+        delta: `Com novas adesões em ${anoAtivo}`, deltaTone: "flat"
+      })
+    ].join("") : [
       kpiCardHtml({
         label: "Total de Municípios", value: fmtInt(base.total), tone: "blue", icon: ICONS.municipios,
         delta: `${fmtInt(nUf)} unidade${nUf === 1 ? "" : "s"} federativa${nUf === 1 ? "" : "s"}`, deltaTone: "flat"
       }),
       kpiCardHtml({
         label: "Municípios com Adesão", value: fmtInt(base.aderidosCount), tone: "green", icon: ICONS.check,
-        delta: `${fmtPct(base.pctAderidos)} do total nacional`, deltaTone: "up"
+        delta: `${fmtPct(base.pctAderidos)} ${contexto}`, deltaTone: "up"
       }),
       kpiCardHtml({
         label: "Municípios sem Adesão", value: fmtInt(base.naoAderidos), tone: "red", icon: ICONS.x,
-        delta: `${fmtPct(100 - base.pctAderidos)} do total nacional`, deltaTone: "down"
+        delta: `${fmtPct(100 - base.pctAderidos)} ${contexto}`, deltaTone: "down"
       }),
       kpiCardHtml({
         label: "Índice Nacional de Implementação", value: fmtPct(base.indiceNacional), tone: "amber", icon: ICONS.gauge,
-        delta: `Média dos 5 componentes do SNC`, deltaTone: "flat"
+        delta: `Média dos 5 componentes · calculado sobre todos os municípios (incl. sem adesão)`, deltaTone: "flat"
       })
     ].join("");
   }
@@ -767,6 +788,11 @@
     const a = agg.alerts;
     const cards = [];
     cards.push(alertCardHtml({
+      tone: "red", icon: ICONS.doc, goto: "municipios",
+      label: "Aderidos sem nenhum componente", sub: "Municípios com adesão mas sem implementação",
+      value: fmtInt(a.aderidosSemComponentes || 0)
+    }));
+    cards.push(alertCardHtml({
       tone: "red", icon: ICONS.doc, goto: "componentes",
       label: "Municípios sem Plano de Cultura", sub: "Entre os municípios aderidos ao SNC",
       value: fmtInt(a.semPlano)
@@ -923,12 +949,12 @@
         ].map((c) => `
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
             <div style="display:flex;align-items:center;gap:8px;">
-              <svg viewBox="0 0 24 24" fill="none" width="17" height="17" style="color:${c.ok ? "var(--success)" : "var(--danger)"};flex-shrink:0;">${c.ok
+              <svg viewBox="0 0 24 24" fill="none" width="17" height="17" style="color:${c.ok ? "var(--success)" : "var(--muted)"};flex-shrink:0;">${c.ok
                 ? '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
-                : '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'}</svg>
+                : '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'}</svg>
               <span style="font-weight:600;font-size:13px;">${c.label}</span>
             </div>
-            <div style="text-align:right;color:var(--muted);font-size:12px;">${c.st || "—"}</div>
+            <div style="text-align:right;font-size:12px;color:${c.ok ? "var(--success)" : "var(--muted)"};">${c.st || "Não informado"}</div>
           </div>`).join("")}
       </div>
       <div style="margin-bottom:16px;">
@@ -961,7 +987,11 @@
       </div>` : "";
 
     // Contatos dos gestores municipais
-    const gestores = [...new Map(aderidos.filter((r) => r.gestor).map((r) => [r.gestor, r])).values()].slice(0, 10);
+    const gestores = aderidos
+      .filter((r) => r.gestor)
+      .slice()
+      .sort((a, b) => a.m.localeCompare(b.m, "pt-BR"))
+      .slice(0, 10);
     const contatosHtml = gestores.length ? `
       <div style="margin-bottom:16px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:10px;">Contatos dos gestores municipais (aderidos)</div>
@@ -1004,7 +1034,7 @@
     const btnRel = document.getElementById("estadoModalRelatorio");
     if (btnRel) btnRel.addEventListener("click", () => {
       S.closeModal();
-      goTo("relatorios");
+      window.__SNC.goTo("relatorios");
       setTimeout(() => {
         const repTipo = document.getElementById("repTipo");
         const repEstado = document.getElementById("repEstado");
@@ -1647,12 +1677,12 @@
         `<div class="card kpi-card">
           <div class="kpi-top"><div class="kpi-label">Paritários</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
           <div class="kpi-value">${fmtInt(paritarios)}</div>
-          <div class="kpi-delta flat">Entre os concluídos</div>
+          <div class="kpi-delta flat">Entre os concluídos · atributos não exclusivos</div>
         </div>`,
         `<div class="card kpi-card">
           <div class="kpi-top"><div class="kpi-label">Exclusivos de cultura</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
           <div class="kpi-value">${fmtInt(exclusivos)}</div>
-          <div class="kpi-delta flat">Entre os concluídos</div>
+          <div class="kpi-delta flat">Entre os concluídos · um conselho pode ter ambos</div>
         </div>`
       ].join("");
     }
@@ -2023,7 +2053,8 @@
     S.renderEstadosTable(STATE.lastAggEstados);
 
     S.renderMunicipiosTable();
-    S.renderAdesoesView(agg);
+    // Bug #2: Adesões usa aggBase para que o gráfico de evolução nunca seja distorcido pelo filtro de adesão
+    S.renderAdesoesView(aggBase);
     S.renderComponentesView(agg);
     S.renderPlanosView(agg);
     S.renderFundoView(agg);
@@ -2215,6 +2246,12 @@
         const suggestBox = document.getElementById("globalMunicipioSuggest");
         if (suggestBox) suggestBox.style.display = "none";
         STATE.filters.uf = ufFilter.value;
+        // Bug #3: ao selecionar estado, limpar região (mutuamente exclusivos)
+        if (ufFilter.value && STATE.filters.regiao) {
+          STATE.filters.regiao = "";
+          const regiaoSel = document.getElementById("regiaoFilter");
+          if (regiaoSel) regiaoSel.value = "";
+        }
         refreshAll();
         // Item 3: na tela de Estados, ao escolher um estado no filtro, abre o modal completo
         if (STATE.currentView === "estados" && ufFilter.value && S.openEstadoModal) {
@@ -2229,7 +2266,16 @@
     if (periodFilter) periodFilter.addEventListener("change", () => { STATE.filters.periodo = periodFilter.value; refreshAll(); });
 
     const regiaoFilter = document.getElementById("regiaoFilter");
-    if (regiaoFilter) regiaoFilter.addEventListener("change", () => { STATE.filters.regiao = regiaoFilter.value; refreshAll(); });
+    if (regiaoFilter) regiaoFilter.addEventListener("change", () => {
+      // Bug #3: ao selecionar região, limpar estado (combinação gera 0 resultados)
+      if (regiaoFilter.value && STATE.filters.uf) {
+        STATE.filters.uf = "";
+        const ufSel = document.getElementById("ufFilter");
+        if (ufSel) ufSel.value = "";
+      }
+      STATE.filters.regiao = regiaoFilter.value;
+      refreshAll();
+    });
 
     const adesaoFilter = document.getElementById("adesaoFilter");
     if (adesaoFilter) adesaoFilter.addEventListener("change", () => { STATE.filters.adesao = adesaoFilter.value; refreshAll(); });
@@ -2337,6 +2383,9 @@
       const f = STATE.filters;
       const hasFilter = f.uf || f.regiao || f.adesao || f.periodo || f.search;
       btn.style.display = hasFilter ? "" : "none";
+      // Bug #6: quando só a busca de município está ativa, adicionar nota que KPIs não mudam
+      const kpiNote = document.getElementById("kpiSearchNote");
+      if (kpiNote) kpiNote.style.display = (f.search && !f.uf && !f.regiao && !f.periodo) ? "" : "none";
     }
     S.updateFilterIndicator = updateFilterIndicator;
 
@@ -2474,7 +2523,10 @@
     if (btnIrRelatorios) btnIrRelatorios.addEventListener("click", () => goTo("relatorios"));
 
     const btnExcel = document.getElementById("btnExportExcel");
-    if (btnExcel) btnExcel.addEventListener("click", () => S.exportExcel());
+    if (btnExcel) btnExcel.addEventListener("click", () => {
+      showToast("Gerando planilha Excel, aguarde...");
+      setTimeout(() => S.exportExcel(), 80);
+    });
 
     const toggleLabels = document.getElementById("toggleMapLabels");
     if (toggleLabels) {
