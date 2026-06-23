@@ -895,48 +895,87 @@
     const backdrop = document.getElementById("modalBackdrop");
     const content = document.getElementById("modalContent");
     if (!backdrop || !content) return;
-    const b = agg.byUF[uf];
-    if (!b) return;
+    const b = (agg && agg.byUF) ? agg.byUF[uf] : null;
 
-    // Municípios deste estado (todos, com e sem adesão)
+    // Dados do estado como ente federado (SNC_ESTADOS_DATA)
+    const ed = (typeof SNC_ESTADOS_DATA !== "undefined" && SNC_ESTADOS_DATA[uf]) ? SNC_ESTADOS_DATA[uf] : null;
+
+    // Municípios deste estado para a seção de contatos dos gestores
     const municipiosUF = (STATE.raw || []).filter((r) => r.uf === uf);
     const aderidos = municipiosUF.filter((r) => r.ad);
 
-    const compRows = [
-      { label: "Sistema Municipal de Cultura", n: b.sis, pct: b.aderidos ? (b.sis / b.aderidos) * 100 : 0 },
-      { label: "Conselho de Política Cultural", n: b.con, pct: b.aderidos ? (b.con / b.aderidos) * 100 : 0 },
-      { label: "Fundo de Cultura", n: b.fun, pct: b.aderidos ? (b.fun / b.aderidos) * 100 : 0 },
-      { label: "Plano de Cultura", n: b.pla, pct: b.aderidos ? (b.pla / b.aderidos) * 100 : 0 },
-      { label: "Órgão Gestor de Cultura", n: b.org, pct: b.aderidos ? (b.org / b.aderidos) * 100 : 0 }
-    ];
+    // --- Bloco de dados do estado como ente (se disponível) ---
+    const estadoInfoHtml = ed ? `
+      <div class="detail-grid" style="margin-bottom:16px;">
+        <div class="detail-item"><label>Situação do estado</label><div style="color:var(--success);font-weight:700;">${ed.sit || "—"}</div></div>
+        <div class="detail-item"><label>Data de adesão</label><div>${ed.dtAd ? fmtDate(ed.dtAd) : "—"}</div></div>
+        <div class="detail-item"><label>Vigência do Plano</label><div>${ed.vig ? ed.vig : "—"}</div></div>
+        <div class="detail-item"><label>Última atualização</label><div>${ed.upd ? fmtDate(ed.upd) : "—"}</div></div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:10px;">Componentes do estado</div>
+        ${[
+          { label: "Sistema Estadual de Cultura", st: ed.sisSt, ok: ed.sis === 1 },
+          { label: "Conselho Estadual de Política Cultural", st: ed.conSt, ok: ed.con === 1 },
+          { label: "Fundo Estadual de Cultura", st: ed.funSt, ok: ed.fun === 1 },
+          { label: "Plano Estadual de Cultura", st: ed.plaSt, ok: ed.pla === 1 },
+          { label: "Órgão Gestor de Cultura", st: ed.orgSt, ok: ed.org === 1 }
+        ].map((c) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg viewBox="0 0 24 24" fill="none" width="17" height="17" style="color:${c.ok ? "var(--success)" : "var(--danger)"};flex-shrink:0;">${c.ok
+                ? '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+                : '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'}</svg>
+              <span style="font-weight:600;font-size:13px;">${c.label}</span>
+            </div>
+            <div style="text-align:right;color:var(--muted);font-size:12px;">${c.st || "—"}</div>
+          </div>`).join("")}
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:8px;">Gestor estadual de cultura</div>
+        <div style="font-size:13px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <b>${escapeHtml(ed.gestor || "Não informado")}</b>${ed.emailGestor ? ` · <a href="mailto:${escapeHtml(ed.emailGestor)}" style="color:var(--accent);">${escapeHtml(ed.emailGestor)}</a>` : ""}
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:8px;">Cadastrador estadual</div>
+        <div style="font-size:13px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <b>${escapeHtml(ed.cad || "Não informado")}</b>${ed.emailCad ? ` · <a href="mailto:${escapeHtml(ed.emailCad)}" style="color:var(--accent);">${escapeHtml(ed.emailCad)}</a>` : ""}
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:8px;">Governador / Representante</div>
+        <div style="font-size:13px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <b>${escapeHtml(ed.governador || "Não informado")}</b>${ed.emailGov ? ` · <a href="mailto:${escapeHtml(ed.emailGov)}" style="color:var(--accent);">${escapeHtml(ed.emailGov)}</a>` : ""}
+          ${ed.tel ? ` · Tel: ${escapeHtml(ed.tel)}` : ""}
+        </div>
+      </div>` : `<div style="color:var(--muted);font-size:13px;margin-bottom:16px;">Dados do estado como ente federado não disponíveis.</div>`;
 
-    const checklistHtml = compRows.map((c) => {
-      const ok = c.pct >= 50;
-      return `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <svg viewBox="0 0 24 24" fill="none" width="17" height="17" style="color:${ok ? "var(--success)" : "var(--danger)"};flex-shrink:0;">${ok
-              ? '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
-              : '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'}</svg>
-            <span style="font-weight:600;font-size:13px;">${c.label}</span>
-          </div>
-          <div style="text-align:right;color:var(--muted);font-size:12px;">${fmtInt(c.n)} / ${fmtInt(b.aderidos)} (${fmtPct(c.pct)})</div>
-        </div>`;
-    }).join("");
+    // KPIs de municípios (dados agregados)
+    const kpisHtml = b ? `
+      <div class="detail-grid" style="margin-bottom:16px;">
+        <div class="detail-item"><label>Total de municípios</label><div>${fmtInt(b.total)}</div></div>
+        <div class="detail-item"><label>Municípios aderidos</label><div style="color:var(--success);font-weight:700;">${fmtInt(b.aderidos)} (${fmtPct(b.pct)})</div></div>
+        <div class="detail-item"><label>Sem adesão</label><div style="color:var(--danger);">${fmtInt(b.total - b.aderidos)}</div></div>
+        <div class="detail-item"><label>Índice médio (municípios)</label><div>${b.idxMedio.toFixed(1)} / 5</div></div>
+      </div>` : "";
 
-    // Contatos únicos de gestores e cadastradores
+    // Contatos dos gestores municipais
     const gestores = [...new Map(aderidos.filter((r) => r.gestor).map((r) => [r.gestor, r])).values()].slice(0, 10);
-    const contatosHtml = gestores.length ? gestores.map((r) => `
-      <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.3px;">
-        <b>${escapeHtml(r.m)}</b> —
-        Gestor: ${escapeHtml(r.gestor || "—")}${r.emailGestor ? ` &lt;${escapeHtml(r.emailGestor)}&gt;` : ""}
-      </div>`).join("") : `<div style="color:var(--muted);font-size:12px;padding:8px 0;">Nenhum contato disponível.</div>`;
+    const contatosHtml = gestores.length ? `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:10px;">Contatos dos gestores municipais (aderidos)</div>
+        ${gestores.map((r) => `
+          <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12.3px;">
+            <b>${escapeHtml(r.m)}</b> — Gestor: ${escapeHtml(r.gestor || "—")}${r.emailGestor ? ` &lt;${escapeHtml(r.emailGestor)}&gt;` : ""}
+          </div>`).join("")}
+      </div>` : "";
 
     content.innerHTML = `
       <div class="modal-header">
         <div>
           <h2>${UF_NOME[uf] || uf} <span class="pill gray" style="margin-left:6px;">${uf}</span></h2>
-          <span>Painel completo do estado · SNC</span>
+          <span>Painel completo do estado como ente federado · SNC</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
           <button class="btn-icon-sm" id="estadoModalPrintBtn" title="Imprimir" aria-label="Imprimir painel do estado">
@@ -948,25 +987,10 @@
           <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
         </div>
       </div>
-
       <div id="estadoModalBody">
-        <div class="detail-grid" style="margin-bottom:16px;">
-          <div class="detail-item"><label>Total de municípios</label><div>${fmtInt(b.total)}</div></div>
-          <div class="detail-item"><label>Municípios aderidos</label><div style="color:var(--success);font-weight:700;">${fmtInt(b.aderidos)} (${fmtPct(b.pct)})</div></div>
-          <div class="detail-item"><label>Sem adesão</label><div style="color:var(--danger);">${fmtInt(b.total - b.aderidos)}</div></div>
-          <div class="detail-item"><label>Índice médio de maturidade</label><div>${b.idxMedio.toFixed(1)} / 5</div></div>
-        </div>
-
-        <div style="margin-bottom:16px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:10px;">Checklist de componentes</div>
-          ${checklistHtml}
-        </div>
-
-        <div style="margin-bottom:16px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-bottom:10px;">Contatos dos gestores de cultura (aderidos)</div>
-          ${contatosHtml}
-        </div>
-
+        ${estadoInfoHtml}
+        ${kpisHtml}
+        ${contatosHtml}
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-secondary" id="estadoModalVerMunicipios">Ver municípios deste estado</button>
           <button class="btn btn-primary" id="estadoModalRelatorio">Gerar relatório completo</button>
@@ -991,7 +1015,7 @@
       }, 100);
     });
 
-    // Imprimir o modal do estado
+    // Botões imprimir e exportar PDF
     document.getElementById("estadoModalPrintBtn").addEventListener("click", () => {
       document.body.classList.add("printing-modal");
       const cleanup = () => document.body.classList.remove("printing-modal");
@@ -1000,22 +1024,60 @@
       setTimeout(cleanup, 2000);
     });
 
-    // Exportar PDF do painel do estado
     document.getElementById("estadoModalPdfBtn").addEventListener("click", () => {
-      if (typeof html2pdf === "undefined") { return; }
+      if (typeof html2pdf === "undefined") return;
       const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-      const slug = uf.toLowerCase();
+      const compRows = ed ? [
+        { label: "Sistema Estadual de Cultura", st: ed.sisSt, ok: ed.sis === 1 },
+        { label: "Conselho Estadual de Política Cultural", st: ed.conSt, ok: ed.con === 1 },
+        { label: "Fundo Estadual de Cultura", st: ed.funSt, ok: ed.fun === 1 },
+        { label: "Plano Estadual de Cultura", st: ed.plaSt, ok: ed.pla === 1 },
+        { label: "Órgão Gestor de Cultura", st: ed.orgSt, ok: ed.org === 1 }
+      ] : [];
       const html = `
         <div class="report-page">
           <div class="report-header">
             <div>
-              <div class="rh-title">${UF_NOME[uf] || uf} (${uf}) — Painel SNC</div>
-              <div class="rh-sub">Gerado em ${hoje} · ${fmtInt(b.total)} municípios · ${fmtInt(b.aderidos)} aderidos (${fmtPct(b.pct)})</div>
+              <div class="rh-title">${UF_NOME[uf] || uf} (${uf}) — Painel SNC como Ente Federado</div>
+              <div class="rh-sub">Gerado em ${hoje}${b ? ` · ${fmtInt(b.total)} municípios · ${fmtInt(b.aderidos)} aderidos (${fmtPct(b.pct)})` : ""}</div>
             </div>
             <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Sistema Nacional de Cultura</div>
           </div>
+          ${ed ? `
           <div class="report-section">
-            <h3>KPIs do Estado</h3>
+            <h3>Dados do Estado como Ente Federado</h3>
+            <table class="report-table">
+              <tbody>
+                <tr><td>Situação</td><td>${ed.sit || "—"}</td></tr>
+                <tr><td>Data de adesão</td><td>${ed.dtAd ? fmtDate(ed.dtAd) : "—"}</td></tr>
+                <tr><td>Vigência do Plano</td><td>${ed.vig || "—"}</td></tr>
+                <tr><td>Governador / Representante</td><td>${ed.governador || "—"}</td></tr>
+                <tr><td>E-mail</td><td>${ed.emailGov || "—"}</td></tr>
+                <tr><td>Telefone</td><td>${ed.tel || "—"}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="report-section">
+            <h3>Componentes do Estado</h3>
+            <table class="report-table">
+              <thead><tr><th>Componente</th><th>Situação</th><th>Status</th></tr></thead>
+              <tbody>
+                ${compRows.map((c) => `<tr><td>${c.label}</td><td>${c.st || "—"}</td><td>${c.ok ? "✓ Concluído" : "✗ Pendente"}</td></tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+          <div class="report-section">
+            <h3>Contatos do Estado</h3>
+            <table class="report-table">
+              <tbody>
+                <tr><td>Gestor estadual</td><td>${ed.gestor || "—"}</td><td>${ed.emailGestor || "—"}</td></tr>
+                <tr><td>Cadastrador estadual</td><td>${ed.cad || "—"}</td><td>${ed.emailCad || "—"}</td></tr>
+              </tbody>
+            </table>
+          </div>` : ""}
+          ${b ? `
+          <div class="report-section">
+            <h3>KPIs dos Municípios</h3>
             <table class="report-table">
               <tbody>
                 <tr><td>Total de municípios</td><td>${fmtInt(b.total)}</td></tr>
@@ -1026,23 +1088,14 @@
             </table>
           </div>
           <div class="report-section">
-            <h3>Checklist de Componentes</h3>
-            <table class="report-table">
-              <thead><tr><th>Componente</th><th>Concluídos</th><th>Total aderidos</th><th>%</th></tr></thead>
-              <tbody>
-                ${compRows.map((c) => `<tr><td>${c.label}</td><td>${fmtInt(c.n)}</td><td>${fmtInt(b.aderidos)}</td><td>${fmtPct(c.pct)}</td></tr>`).join("")}
-              </tbody>
-            </table>
-          </div>
-          <div class="report-section">
-            <h3>Contatos — Gestores de Cultura (aderidos)</h3>
+            <h3>Contatos dos Gestores Municipais (aderidos)</h3>
             <table class="report-table">
               <thead><tr><th>Município</th><th>Gestor de Cultura</th><th>E-mail Gestor</th></tr></thead>
               <tbody>
                 ${aderidos.filter((r) => r.gestor).map((r) => `<tr><td>${escapeHtml(r.m)}</td><td>${escapeHtml(r.gestor || "—")}</td><td>${escapeHtml(r.emailGestor || "—")}</td></tr>`).join("")}
               </tbody>
             </table>
-          </div>
+          </div>` : ""}
           <div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted);text-align:center;">
             Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura
           </div>
@@ -1055,26 +1108,22 @@
         document.body.appendChild(container);
       }
       container.innerHTML = html;
-      container.style.display = "block";
-      const contentEl = document.getElementById("content");
-      if (contentEl) contentEl.scrollTop = 0;
-      window.scrollTo(0, 0);
       const opt = {
         margin: [10, 10, 10, 10],
-        filename: `estado-${slug}-snc-${new Date().toISOString().slice(0, 10)}.pdf`,
+        filename: `estado-${uf.toLowerCase()}-snc-${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: "jpeg", quality: 0.97 },
-        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+        html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: { mode: ["css", "legacy"] }
       };
       setTimeout(() => {
         html2pdf().set(opt).from(container.querySelector(".report-page")).save().then(() => {
-          container.style.display = "none";
           container.innerHTML = "";
         });
       }, 60);
     });
   }
+
 
   S.renderAlerts = renderAlerts;
   S.renderEstadosTable = renderEstadosTable;
@@ -2030,21 +2079,62 @@
     populateRepMunicipioSelect(document.getElementById("repEstado") ? document.getElementById("repEstado").value : "");
   }
 
-  /* ---------------- Cascata Estado -> Município (painel de Relatórios) ---------------- */
+  /* ---------------- Cascata Estado -> Município (painel de Relatórios) — com busca ---------------- */
   function populateRepMunicipioSelect(uf) {
-    const sel = document.getElementById("repMunicipio");
-    if (!sel) return;
+    const inp = document.getElementById("repMunicipioInput");
+    const dd = document.getElementById("repMunicipioDropdown");
+    const hiddenSel = document.getElementById("repMunicipio");
+    if (!inp || !dd || !hiddenSel) return;
+
     if (!uf) {
-      sel.innerHTML = `<option value="">Selecione o estado primeiro</option>`;
+      inp.value = "";
+      inp.placeholder = "Selecione o estado primeiro";
+      inp.disabled = true;
+      dd.style.display = "none";
+      hiddenSel.value = "";
       return;
     }
+
     const tipoEl = document.getElementById("repTipo");
     const isContatos = tipoEl && tipoEl.value === "contatos";
-    const placeholder = isContatos ? "Todos os municípios do estado" : "Selecione...";
+    inp.disabled = false;
+    inp.value = "";
+    hiddenSel.value = "";
+    inp.placeholder = isContatos ? "Todos (ou filtre por município)" : "Digite o nome do município...";
+
     const municipios = STATE.raw.filter((r) => r.uf === uf).slice().sort((a, b) => a.m.localeCompare(b.m));
-    sel.innerHTML = `<option value="">${placeholder}</option>` + municipios.map((r) =>
-      `<option value="${escapeHtml(r.m)}">${escapeHtml(r.m)}${!r.ad ? " (sem adesão)" : ""}</option>`
-    ).join("");
+
+    function renderDropdown(filter) {
+      const q = (filter || "").toLowerCase().trim();
+      const filtered = q ? municipios.filter((r) => r.m.toLowerCase().includes(q)) : municipios;
+      if (!filtered.length) {
+        dd.innerHTML = `<div style="padding:10px 14px;color:var(--muted);font-size:13px;">Nenhum município encontrado</div>`;
+      } else {
+        dd.innerHTML = (isContatos ? `<div class="rep-muni-opt" data-value="" style="padding:10px 14px;cursor:pointer;font-size:13px;font-style:italic;border-bottom:1px solid var(--border);">Todos os municípios do estado</div>` : "") +
+          filtered.map((r) => `<div class="rep-muni-opt" data-value="${escapeHtml(r.m)}" style="padding:9px 14px;cursor:pointer;font-size:13px;${!r.ad ? "color:var(--muted);" : ""}">${escapeHtml(r.m)}${!r.ad ? " <small>(sem adesão)</small>" : ""}</div>`).join("");
+        dd.querySelectorAll(".rep-muni-opt").forEach((el) => {
+          el.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            const val = el.getAttribute("data-value");
+            inp.value = val || "";
+            hiddenSel.value = val || "";
+            hiddenSel.innerHTML = `<option value="${escapeHtml(val || "")}" selected>${escapeHtml(val || "")}</option>`;
+            dd.style.display = "none";
+          });
+          el.addEventListener("mouseenter", () => { el.style.background = "var(--surface-2)"; });
+          el.addEventListener("mouseleave", () => { el.style.background = ""; });
+        });
+      }
+    }
+
+    inp.addEventListener("focus", () => { renderDropdown(inp.value); dd.style.display = "block"; });
+    inp.addEventListener("input", () => { renderDropdown(inp.value); dd.style.display = "block"; hiddenSel.value = ""; });
+    inp.addEventListener("blur", () => { setTimeout(() => { dd.style.display = "none"; }, 150); });
+
+    // Fechar ao clicar fora
+    document.addEventListener("click", (e) => {
+      if (!inp.contains(e.target) && !dd.contains(e.target)) dd.style.display = "none";
+    }, { once: false });
   }
 
   function updateRepFormVisibility() {
