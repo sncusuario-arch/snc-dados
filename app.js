@@ -931,10 +931,10 @@
           </button>
         </div>
         <div class="estado-card-metrics">
-          <div class="estado-metric"><span class="estado-metric-label">Municípios</span><span class="estado-metric-value">${fmtInt(r.total)}</span></div>
-          <div class="estado-metric"><span class="estado-metric-label">Aderidos</span><span class="estado-metric-value">${fmtInt(r.aderidos)}</span></div>
-          <div class="estado-metric"><span class="estado-metric-label">% Adesão</span><span class="estado-metric-value" style="color:${colorForPct(r.pct)};">${fmtPct(r.pct)}</span></div>
-          <div class="estado-metric"><span class="estado-metric-label">Índice médio</span><span class="estado-metric-value">${r.idxMedio.toFixed(1)} / 5</span></div>
+          <div class="estado-metric"><span class="estado-metric-label">Municípios</span><span class="estado-metric-value" aria-label="Total de municípios: ${fmtInt(r.total)}">${fmtInt(r.total)}</span></div>
+          <div class="estado-metric"><span class="estado-metric-label">Aderidos</span><span class="estado-metric-value" aria-label="Municípios aderidos: ${fmtInt(r.aderidos)}">${fmtInt(r.aderidos)}</span></div>
+          <div class="estado-metric"><span class="estado-metric-label">% Adesão</span><span class="estado-metric-value" style="color:${colorForPct(r.pct)};" aria-label="Percentual de adesão: ${fmtPct(r.pct)}">${fmtPct(r.pct)}</span></div>
+          <div class="estado-metric"><span class="estado-metric-label">Índice médio</span><span class="estado-metric-value" aria-label="Índice médio de maturidade: ${r.idxMedio.toFixed(1)} de 5">${r.idxMedio.toFixed(1)} / 5</span></div>
         </div>
         <div class="estado-card-components">
           ${compFields.map((c) => `<span class="comp-pill">${c.label} <b>${fmtPct(r[c.key], 0)}</b></span>`).join("")}
@@ -1506,7 +1506,15 @@
         <div class="card kpi-card">
           <div class="kpi-top"><div class="kpi-label">Novas adesões no último ano</div><div class="kpi-icon blue">${ICONS.flag}</div></div>
           <div class="kpi-value">${ultimoAno ? fmtInt(ultimoAno.novo) : "—"}</div>
-          <div class="kpi-delta flat">${ultimoAno ? "Ano de " + ultimoAno.year : "Sem dados de período"}</div>
+          <div class="kpi-delta flat">${ultimoAno ? (() => {
+            const anoAtual = new Date().getFullYear();
+            if (parseInt(ultimoAno.year, 10) === anoAtual) {
+              const meses = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+              const mesAtual = meses[new Date().getMonth()];
+              return `Jan–${mesAtual}/${anoAtual} · acumulado no ano`;
+            }
+            return `Ano completo de ${ultimoAno.year}`;
+          })() : "Sem dados de período"}</div>
         </div>`,
         `
         <div class="card kpi-card">
@@ -2046,12 +2054,15 @@
     const el = document.getElementById("toast");
     if (!el) return;
     const icon = isError
-      ? `<svg viewBox="0 0 24 24" fill="none" style="color:var(--danger)"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`
+      ? `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`
       : `<svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/></svg>`;
     el.innerHTML = `${icon}<span>${escapeHtml(msg)}</span>`;
+    el.classList.toggle("toast-error", !!isError);
     el.classList.add("show");
+    el.setAttribute("role", "alert");
+    el.setAttribute("aria-live", "assertive");
     clearTimeout(window.__toastTimer);
-    window.__toastTimer = setTimeout(() => el.classList.remove("show"), 3400);
+    window.__toastTimer = setTimeout(() => el.classList.remove("show"), isError ? 5000 : 3400);
   }
 
   /* ---------------- Refresh central ---------------- */

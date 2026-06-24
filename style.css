@@ -539,12 +539,15 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
 .empty-state svg { width: 44px; height: 44px; opacity: 0.4; }
 .toast {
   position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff;
-  padding: 13px 20px; border-radius: 12px; font-size: 12.8px; font-weight: 600;
-  box-shadow: var(--shadow-lg); z-index: 300; display: flex; align-items: center; gap: 10px;
-  opacity: 0; transform: translateY(10px); transition: all 0.25s ease; pointer-events: none;
+  padding: 14px 22px; border-radius: 12px; font-size: 13.5px; font-weight: 600;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.28); z-index: 300; display: flex; align-items: center; gap: 10px;
+  opacity: 0; transform: translateY(12px); transition: all 0.22s cubic-bezier(.22,1,.36,1); pointer-events: none;
+  max-width: 380px; min-width: 200px;
 }
-.toast.show { opacity: 1; transform: none; }
-.toast svg { width: 16px; height: 16px; color: var(--success); }
+.toast.show { opacity: 1; transform: none; pointer-events: auto; }
+.toast.toast-error { background: #dc2626; color: #fff; font-size: 14px; padding: 16px 24px; border-left: 4px solid #fca5a5; }
+.toast svg { width: 18px; height: 18px; color: var(--success); flex-shrink: 0; }
+.toast.toast-error svg { color: #fca5a5; }
 
 /* ---------------- Settings ---------------- */
 .settings-item { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--border); }
@@ -695,4 +698,14 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
   body.printing-report .rep-form-card,
   body.printing-report #reportActionsBar { display: none !important; }
   body.printing-report .content { padding: 0 !important; }
+}
+
+/* Impressão do relatório de estado (inline na tela de Estados) */
+@media print {
+  body.printing-estado-report .sidebar,
+  body.printing-estado-report .topbar,
+  body.printing-estado-report .card:not(#estadoReportPanel .card),
+  body.printing-estado-report #estadoReportPanel ~ * { display: none !important; }
+  body.printing-estado-report #estadoReportPanel { display: block !important; }
+  #btnEstadoReportPrint, #btnEstadoReportPdf, #btnEstadoReportVerMun, #btnEstadoReportFechar { display: none !important; }
 }
