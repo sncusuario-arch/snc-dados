@@ -211,10 +211,11 @@
       if (!nome) continue;
       // ignora linhas que representam o próprio Estado (entes estaduais), já que o
       // dashboard trabalha em nível municipal
-      if (/^estado de /i.test(nome) || nome.toLowerCase() === "distrito federal" && false) {
-        // (Distrito Federal é mantido como ente municipal equivalente)
-      }
+      // Ignora linhas que representam o próprio Estado (entes estaduais)
       if (/^estado de /i.test(nome)) continue;
+      // O DF aparece duplicado na planilha como "Brasília" (sem adesão) e "Distrito Federal"
+      // (com adesão) — mantém apenas o Distrito Federal, descarta Brasília/DF duplicado
+      if (ufRaw === "DF" && nome.toLowerCase() === "brasília") continue;
 
       const sitVal = map.sitGeneric ? r[map.sitGeneric] : (map.sis ? r[map.sis] : null);
       const sitStr = (sitVal || "").toString().trim();
