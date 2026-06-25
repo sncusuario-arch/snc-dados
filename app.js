@@ -1090,6 +1090,8 @@
     ` : "";
 
     // Bloco 2: Municípios do estado
+    const aguardandoDOU = municipiosUF.filter((r) => r.sit === "Aguardando publicação no DOU").length;
+
     const compRatesMun = b ? [
       { label: "Sistema Municipal", n: b.sis, pct: b.aderidos ? (b.sis/b.aderidos)*100 : 0, color: "#007aff" },
       { label: "Conselho", n: b.con, pct: b.aderidos ? (b.con/b.aderidos)*100 : 0, color: "#16a34a" },
@@ -1122,6 +1124,7 @@
         ${kpi("Total de municípios", fmtInt(b.total), "blue", "Universo do estado")}
         ${kpi("Com adesão ao SNC", fmtInt(b.aderidos), "green", `${fmtPct(b.pct)} de cobertura`)}
         ${kpi("Sem adesão", fmtInt(b.total - b.aderidos), "red", `${fmtPct(100 - b.pct)} do universo`)}
+        ${kpi("Aguardando publicação no DOU", fmtInt(aguardandoDOU), "amber", "Adesões em processamento")}
         ${kpi("Índice médio de maturidade", `${b.idxMedio.toFixed(1)} / 5`, "amber", "Média dos componentes")}
       </div>
       ${secTitle("Componentes Estruturantes — Municípios Aderidos")}
@@ -1144,15 +1147,6 @@
         ${secTitle(`Municípios Sem Adesão · ${fmtInt(semAdesao.length)}`)}
         <div style="columns:2;column-gap:24px;margin-bottom:8px;">${semAdesaoList}</div>
       ` : ""}
-      ${secTitle("Contatos dos Gestores Municipais (aderidos)")}
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px;margin-bottom:8px;">
-        ${aderidos.filter(r=>r.gestor).sort((a,b_)=>a.m.localeCompare(b_.m,"pt-BR")).map((r) => `
-          <div class="card" style="padding:10px 14px;">
-            <div style="font-weight:700;font-size:12.5px;">${escapeHtml(r.m)}</div>
-            <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">${escapeHtml(r.gestor || "—")}</div>
-            ${r.emailGestor ? `<div style="font-size:11px;"><a href="mailto:${escapeHtml(r.emailGestor)}" style="color:var(--accent);">${escapeHtml(r.emailGestor)}</a></div>` : ""}
-          </div>`).join("")}
-      </div>
     ` : "";
 
     bodyEl.innerHTML = blocoEnte + blocoMunicipios +
@@ -1313,168 +1307,205 @@
   /* ---------------- Modal de detalhe do município ---------------- */
   function openMunicipioModal(r) {
     const backdrop = document.getElementById("modalBackdrop");
-    const content = document.getElementById("modalContent");
-    if (!backdrop || !content || !r) return;
-    const compItems = COMPONENT_KEYS.map((k) => {
-      const done = !!r[k];
-      const dateKey = COMPONENT_DATE_KEYS[k];
-      const dateVal = r[dateKey] ? fmtDate(r[dateKey]) : null;
-      return `
-      <div class="detail-item">
-        <label>${COMPONENT_LABELS[k]}</label>
-        <div style="display:flex;align-items:center;gap:6px;color:${done ? "var(--success)" : "var(--danger)"};font-weight:600;">
-          <svg viewBox="0 0 24 24" fill="none" width="16" height="16">${done
-            ? '<path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
-            : '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>'}</svg>
-          ${done ? "Concluído" : "Pendente"}
-        </div>
-        ${done && dateVal ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;">Lei: ${dateVal}</div>` : ""}
+    const modalContent = document.getElementById("modalContent");
+    if (!backdrop || !modalContent) return;
+
+    const UF = r.uf || "";
+    const regiao = r.reg || "";
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    const aguardandoDOU = r.sit === "Aguardando publicação no DOU";
+
+    // Situação badge
+    function sitBadge(sit) {
+      if (!sit) return "";
+      const s = sit.toLowerCase();
+      const tone = s.includes("publicado no dou") ? "#16a34a"
+        : s.includes("aguardando") ? "#d97706"
+        : s.includes("diligência") ? "#0ea5e9"
+        : "#6e6e73";
+      return `<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:${tone};background:${tone}18;border:1px solid ${tone}40;padding:4px 12px;border-radius:9999px;">${escapeHtml(sit)}</span>`;
+    }
+
+    // Componente row com data
+    function compRowMun(label, done, dt, st) {
+      const icon = done
+        ? `<svg viewBox="0 0 24 24" fill="none" width="17" height="17" style="color:#16a34a;flex-shrink:0;"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" width="17" height="17" style="color:var(--muted);flex-shrink:0;"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+        ${icon}
+        <span style="flex:1;font-weight:600;font-size:13px;">${label}</span>
+        <span style="font-size:11.5px;color:${done ? "#16a34a" : "var(--muted)"};">${st || (done ? "Concluída" : "Pendente")}</span>
+        ${done && dt ? `<span style="font-size:11px;color:var(--muted);margin-left:8px;">${fmtDate(dt)}</span>` : ""}
       </div>`;
-    }).join("");
-    content.innerHTML = `
-      <div class="modal-header">
-        <div>
-          <h2>${escapeHtml(r.m)} <span class="pill gray" style="margin-left:6px;">${r.uf}</span></h2>
-          <span>${UF_NOME[r.uf] || r.uf} · ${r.reg || "—"}${r.ibge ? " · IBGE " + r.ibge : ""}</span>
+    }
+
+    // Card de contato
+    function contactCard(label, name, email, extra) {
+      if (!name) return "";
+      return `<div class="card" style="padding:14px 16px;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">${label}</div>
+        <div style="font-weight:700;font-size:13px;">${escapeHtml(name)}</div>
+        ${email ? `<div style="font-size:11.5px;margin-top:4px;"><a href="mailto:${escapeHtml(email)}" style="color:var(--accent);">${escapeHtml(email)}</a></div>` : ""}
+        ${extra ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;">${extra}</div>` : ""}
+      </div>`;
+    }
+
+    const idxLabel = ["Crítico","Muito Baixo","Baixo","Médio","Alto","Completo"][r.idx] || "—";
+    const idxColor = ["#dc2626","#f08c3a","#f2c94c","#3fae6b","#16a34a","#0a6e3a"][r.idx] || "var(--muted)";
+
+    modalContent.innerHTML = `
+      <!-- HEADER ESCURO -->
+      <div style="background:var(--sidebar-bg,#1c1c1e);color:#fff;padding:24px 28px 20px;border-radius:0;">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:8px;">
+          Ministério da Cultura · SAFCC · DSNC-SNC · Ficha Municipal
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          <button class="btn-icon-sm" id="modalPrintBtn" title="Imprimir" aria-label="Imprimir ficha do município">
-            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        <div style="font-size:1.4rem;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin-bottom:6px;">
+          ${escapeHtml(r.m)} — ${UF_NOME[UF] || UF}
+        </div>
+        <div style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:14px;">
+          ${regiao} · IBGE ${r.ibge || "—"} · Referência ${hoje}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px;">
+          ${sitBadge(r.sit)}
+          ${r.ad ? `<span style="font-size:11px;font-weight:600;color:rgba(255,255,255,.7);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);padding:4px 12px;border-radius:9999px;">${r.idx}/5 componentes · ${idxLabel}</span>` : ""}
+          ${r.porte ? `<span style="font-size:11px;color:rgba(255,255,255,.6);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);padding:4px 12px;border-radius:9999px;">${escapeHtml(String(r.porte))}</span>` : ""}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="munRepPrintBtn" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:9999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">
+            <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            Imprimir
           </button>
-          <button class="btn-icon-sm" id="modalPdfBtn" title="Exportar PDF" aria-label="Exportar PDF da ficha do município">
-            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <button id="munRepPdfBtn" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:9999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:600;cursor:pointer;">
+            <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Exportar PDF
           </button>
-          <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+          <button id="modalCloseBtn" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:9999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);font-size:12px;font-weight:600;cursor:pointer;">
+            ✕ Fechar
+          </button>
         </div>
       </div>
-      <div class="detail-grid">
-        <div class="detail-item"><label>Situação da adesão</label><div>${escapeHtml(r.sit)}${r.ad ? "" : " (sem adesão ao SNC)"}</div></div>
-        <div class="detail-item"><label>Data de adesão</label><div>${fmtDate(r.dtAd)}</div></div>
-        <div class="detail-item"><label>Índice de maturidade</label><div>${r.idx} / 5 — ${classifyMaturity(r.idx).label}</div></div>
-        <div class="detail-item"><label>Última atualização</label><div>${fmtDate(r.upd)}</div></div>
-        <div class="detail-item" style="grid-column:1/-1;"><label style="margin-bottom:8px;display:block;">Checklist de componentes do SNC</label>
-          ${r.ad && r.idx === 0 && r.sit === "Publicado no DOU" ? `
-          <div style="background:var(--warning-light);border:1px solid var(--warning);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:var(--text);display:flex;gap:8px;align-items:flex-start;">
-            <svg viewBox="0 0 24 24" fill="none" width="16" height="16" style="flex-shrink:0;margin-top:1px;color:var(--warning);"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 3.86L1.82 18a1.8 1.8 0 001.54 2.7h17.28A1.8 1.8 0 0022.18 18L13.7 3.86a1.8 1.8 0 00-3.4 0z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-            <span><b>Inconsistência detectada:</b> este município consta como "Publicado no DOU" na plataforma SNC, mas nenhum componente aparece como concluído. Isso pode indicar atraso na atualização dos dados. Verifique diretamente na plataforma SNC.</span>
-          </div>` : ""}
-          <div class="detail-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));padding:0;">${compItems}</div>
-        </div>
-        <div class="detail-item"><label>Plano de Trabalho</label><div>${escapeHtml(r.pt || "Não informado")}</div></div>
-        <div class="detail-item"><label>ACF incluído</label><div>${r.acf ? "Sim" : "Não informado"}</div></div>
-        <div class="detail-item"><label>Vigência do Plano de Cultura</label><div>${r.vig || "—"}${r.venc ? " (vencido)" : ""}</div></div>
-        <div class="detail-item"><label>Plano monitorado</label><div>${r.mon ? "Sim" : "Não"}</div></div>
-        <div class="detail-item"><label>Prefeito(a)</label><div>${escapeHtml(r.pref || "Não informado")}</div></div>
-        <div class="detail-item"><label>Cadastrador</label><div>${escapeHtml(r.cad || "Não informado")}</div></div>
-        <div class="detail-item"><label>Gestor de Cultura</label><div>${escapeHtml(r.gestor || "Não informado")}</div></div>
-        <div class="detail-item"><label>População (2022)</label><div>${r.pop ? fmtInt(r.pop) : "—"}</div></div>
-      </div>`;
-    backdrop.classList.add("open");
-    document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
-    document.getElementById("modalPrintBtn").addEventListener("click", printMunicipioModal);
-    document.getElementById("modalPdfBtn").addEventListener("click", () => exportMunicipioModalPdf(r));
-  }
-  function closeModal() {
-    const backdrop = document.getElementById("modalBackdrop");
-    if (backdrop) backdrop.classList.remove("open");
-  }
 
-  /* ---------------- Imprimir o modal de município ---------------- */
-  function printMunicipioModal() {
-    document.body.classList.add("printing-modal");
-    const cleanup = () => document.body.classList.remove("printing-modal");
-    window.addEventListener("afterprint", cleanup, { once: true });
-    window.print();
-    // Garantia extra caso o navegador não dispare "afterprint" (alguns mobile browsers).
-    setTimeout(cleanup, 2000);
-  }
+      <!-- CORPO DO RELATÓRIO -->
+      <div id="munRepBody" style="padding:24px 28px 28px;">
 
-  /* ---------------- Exportar o modal de município em PDF (independente dos relatórios) ---------------- */
-  function exportMunicipioModalPdf(r) {
-    if (typeof html2pdf === "undefined") {
-      S.showToast("Biblioteca de exportação PDF não carregou — recarregue a página.", true);
-      return;
-    }
-    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-    const compRows = COMPONENT_KEYS.map((k) => `
-      <tr>
-        <td>${COMPONENT_LABELS[k]}</td>
-        <td>${r[k] ? '<span style="color:var(--success);font-weight:700;">✓ Concluído</span>' : '<span style="color:var(--danger);font-weight:700;">✗ Pendente</span>'}</td>
-      </tr>`).join("");
-    const html = `
-      <div class="report-page">
-        <div class="report-header">
-          <div>
-            <div class="rh-title">${escapeHtml(r.m)} — ${r.uf}</div>
-            <div class="rh-sub">Gerado em ${hoje} · ${UF_NOME[r.uf] || r.uf} · ${r.reg || "—"}${r.ibge ? " · IBGE " + r.ibge : ""}</div>
+        <!-- KPIs -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:20px;">
+          <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${r.ad ? "#16a34a" : "#6e6e73"};border-radius:14px 14px 0 0;"></div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Situação da adesão</div>
+            <div style="font-size:13px;font-weight:700;color:${r.ad ? "#16a34a" : "var(--muted)"};">${r.ad ? "Possui adesão" : "Sem adesão"}</div>
+            ${r.dtAd ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Desde ${fmtDate(r.dtAd)}</div>` : ""}
           </div>
-          <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Sistema Nacional de Cultura</div>
+          ${aguardandoDOU ? `
+          <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;border-color:#d97706;">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#d97706;border-radius:14px 14px 0 0;"></div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Publicação no DOU</div>
+            <div style="font-size:13px;font-weight:700;color:#d97706;">Aguardando</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">Adesão em processamento</div>
+          </div>` : ""}
+          <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${idxColor};border-radius:14px 14px 0 0;"></div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Índice de maturidade</div>
+            <div style="font-size:1.5rem;font-weight:800;color:${idxColor};">${r.idx} / 5</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">${idxLabel}</div>
+          </div>
+          <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#007aff;border-radius:14px 14px 0 0;"></div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Última atualização</div>
+            <div style="font-size:13px;font-weight:700;">${r.upd ? fmtDate(r.upd) : "Não informado"}</div>
+          </div>
+          ${r.vig ? `
+          <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${r.vig >= new Date().getFullYear() ? "#16a34a" : "#dc2626"};border-radius:14px 14px 0 0;"></div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Vigência do Plano</div>
+            <div style="font-size:1.3rem;font-weight:800;color:${r.vig >= new Date().getFullYear() ? "#16a34a" : "#dc2626"};">${r.vig}</div>
+            <div style="font-size:11px;color:var(--muted);">${r.vig >= new Date().getFullYear() ? "Em vigor" : "Vencido"}</div>
+          </div>` : ""}
         </div>
-        <div class="report-section">
-          <h3>Situação da Adesão</h3>
-          <table class="report-table">
-            <tbody>
-              <tr><td>Situação</td><td>${escapeHtml(r.sit)}${r.ad ? "" : " (sem adesão ao SNC)"}</td></tr>
-              <tr><td>Data de adesão</td><td>${fmtDate(r.dtAd)}</td></tr>
-              <tr><td>Índice de maturidade</td><td>${r.idx} / 5 — ${classifyMaturity(r.idx).label}</td></tr>
-              <tr><td>Última atualização</td><td>${fmtDate(r.upd)}</td></tr>
-            </tbody>
-          </table>
+
+        <!-- Componentes -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:12px;">
+            Checklist de componentes do SNC
+            <div style="flex:1;height:1px;background:var(--border);"></div>
+          </div>
+          ${compRowMun("Sistema Municipal de Cultura", !!r.sis, r.sisData, r.sisSt)}
+          ${compRowMun("Conselho de Política Cultural", !!r.con, r.conData, r.conSt)}
+          ${compRowMun("Fundo de Cultura", !!r.fun, r.funData, r.funSt)}
+          ${compRowMun("Plano de Cultura", !!r.pla, r.planoData, r.plaSt)}
+          ${compRowMun("Órgão Gestor de Cultura", !!r.org, r.orgData, r.orgSt)}
         </div>
-        <div class="report-section">
-          <h3>Checklist de Componentes do SNC</h3>
-          <table class="report-table">
-            <thead><tr><th>Componente</th><th>Situação</th></tr></thead>
-            <tbody>${compRows}</tbody>
-          </table>
+
+        <!-- Contatos -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+            Contatos
+            <div style="flex:1;height:1px;background:var(--border);"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;">
+            ${contactCard("Prefeito(a)", r.pref, r.emailPref, null)}
+            ${contactCard("Gestor de Cultura", r.gestor, r.emailGestor, null)}
+            ${contactCard("Cadastrador", r.cad, r.emailCad, null)}
+          </div>
         </div>
-        <div class="report-section">
-          <h3>Plano de Cultura e Contatos</h3>
-          <table class="report-table">
-            <tbody>
-              <tr><td>Vigência do Plano de Cultura</td><td>${r.vig || "—"}${r.venc ? " (vencido)" : ""}</td></tr>
-              <tr><td>Plano monitorado</td><td>${r.mon ? "Sim" : "Não"}</td></tr>
-              <tr><td>Prefeito(a)</td><td>${escapeHtml(r.pref || "Não informado")}</td></tr>
-              <tr><td>Cadastrador</td><td>${escapeHtml(r.cad || "Não informado")}</td></tr>
-              <tr><td>Gestor de Cultura</td><td>${escapeHtml(r.gestor || "Não informado")}</td></tr>
-              <tr><td>População (2022)</td><td>${r.pop ? fmtInt(r.pop) : "—"}</td></tr>
-            </tbody>
-          </table>
+
+        <!-- Dados adicionais -->
+        ${(r.pt || r.acf || r.siic) ? `
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+            Informações adicionais
+            <div style="flex:1;height:1px;background:var(--border);"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
+            ${r.pt ? `<div class="card" style="padding:12px 14px;"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px;">Plano de Trabalho</div><div style="font-size:12.5px;font-weight:600;">${escapeHtml(r.pt)}</div></div>` : ""}
+            ${r.acf ? `<div class="card" style="padding:12px 14px;"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px;">ACF Incluído</div><div style="font-size:12.5px;font-weight:600;color:#16a34a;">Sim</div></div>` : ""}
+            ${r.siic ? `<div class="card" style="padding:12px 14px;"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px;">SIIC</div><div style="font-size:12.5px;font-weight:600;color:#16a34a;">Inscrito</div></div>` : ""}
+          </div>
+        </div>` : ""}
+
+        <div style="padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);text-align:center;">
+          Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura
         </div>
-        <div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted);text-align:center;">Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura</div>
       </div>`;
 
-    let container = document.getElementById("modalReportContainer");
-    if (!container) {
-      container = document.createElement("div");
-      container.id = "modalReportContainer";
-      container.style.cssText = "position:fixed;left:-99999px;top:0;width:900px;";
-      document.body.appendChild(container);
+    // Ajustar o modal para ser maior
+    const modalBox = backdrop.querySelector(".modal");
+    if (modalBox) {
+      modalBox.style.maxWidth = "860px";
+      modalBox.style.width = "92vw";
+      modalBox.style.maxHeight = "90vh";
+      modalBox.style.padding = "0";
+      modalBox.style.overflow = "hidden auto";
     }
-    container.innerHTML = html;
-    container.style.display = "block";
 
-    const contentEl = document.getElementById("content");
-    if (contentEl) contentEl.scrollTop = 0;
-    window.scrollTo(0, 0);
+    backdrop.classList.add("open");
 
-    const slug = r.m.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
-    const opt = {
-      margin: [10, 10, 10, 10],
-      filename: `municipio-${slug}-${r.uf.toLowerCase()}.pdf`,
-      image: { type: "jpeg", quality: 0.97 },
-      html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] }
-    };
-    setTimeout(() => {
-      html2pdf().set(opt).from(container.querySelector(".report-page")).save().then(() => {
-        container.style.display = "none";
-        container.innerHTML = "";
-      });
-    }, 60);
+    document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+
+    document.getElementById("munRepPrintBtn").addEventListener("click", () => {
+      document.body.classList.add("printing-modal");
+      const cleanup = () => document.body.classList.remove("printing-modal");
+      window.addEventListener("afterprint", cleanup, { once: true });
+      window.print();
+      setTimeout(cleanup, 2000);
+    });
+
+    document.getElementById("munRepPdfBtn").addEventListener("click", () => {
+      if (typeof html2pdf === "undefined") return;
+      const el = document.getElementById("munRepBody");
+      const slug = (r.m || "municipio").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: `municipio-${slug}-${r.uf ? r.uf.toLowerCase() : "br"}-snc-${new Date().toISOString().slice(0, 10)}.pdf`,
+        image: { type: "jpeg", quality: 0.97 },
+        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"] }
+      };
+      window.scrollTo(0, 0);
+      html2pdf().set(opt).from(el).save();
+    });
   }
-
   S.renderMunicipiosTable = renderMunicipiosTable;
   S.openMunicipioModal = openMunicipioModal;
   S.closeModal = closeModal;
