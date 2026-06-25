@@ -439,7 +439,6 @@
   function destroyChart(id) {
     if (STATE.charts[id]) { STATE.charts[id].destroy(); delete STATE.charts[id]; }
   }
-  // Registra plugin datalabels globalmente (desativado por padrão em todos os charts)
   if (typeof Chart !== "undefined" && typeof ChartDataLabels !== "undefined") {
     Chart.register(ChartDataLabels);
     Chart.defaults.set("plugins.datalabels", { display: false });
@@ -522,7 +521,7 @@
       }),
       kpiCardHtml({
         label: "Aguardando publicação no DOU", value: fmtInt(base.situacaoCount && base.situacaoCount["Aguardando publicação no DOU"] || 0), tone: "amber", icon: ICONS.clock,
-        delta: `Adesões em processamento`, deltaTone: "flat"
+        delta: "Adesões em processamento", deltaTone: "flat"
       })
     ].join("");
   }
@@ -560,17 +559,7 @@
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
-        plugins: {
-          legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, padding: 14 } },
-          datalabels: {
-            display: (ctx) => ctx.datasetIndex === 0,
-            align: "top", anchor: "end",
-            font: { size: 9, weight: "600" },
-            color: "#2f6feb",
-            formatter: (v) => v >= 100 ? v.toLocaleString("pt-BR") : null,
-            padding: 2
-          }
-        },
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, padding: 14 } } },
         scales: {
           x: { grid: { display: false } },
           y: { grid: { color: "#eef2f7" }, beginAtZero: true }
@@ -602,13 +591,7 @@
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: (ctx) => `${fmtInt(ctx.parsed.x)} municípios (${fmtPct(arr[ctx.dataIndex].pct)})` } },
-          datalabels: {
-            display: true, align: "right", anchor: "end",
-            font: { size: 9.5, weight: "700" },
-            color: "#1d1d1f",
-            formatter: (v, ctx) => `${fmtInt(v)} (${fmtPct(arr[ctx.dataIndex].pct)})`,
-            padding: { left: 4 }
-          }
+          datalabels: { display: true, align: "right", anchor: "end", font: { size: 9.5, weight: "700" }, color: "#1d1d1f", formatter: (v, ctx) => `${fmtInt(v)} (${fmtPct(arr[ctx.dataIndex].pct)})`, padding: { left: 4 } }
         },
         scales: { x: { grid: { color: "#eef2f7" } }, y: { grid: { display: false } } }
       }
@@ -636,13 +619,7 @@
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: (ctx) => `${fmtPct(ctx.parsed.y)} concluído (${fmtInt(COMPONENT_KEYS.map(k=>agg.componentRates[k].n)[ctx.dataIndex])} municípios)` } },
-          datalabels: {
-            display: true, align: "top", anchor: "end",
-            font: { size: 10, weight: "700" },
-            color: "#1d1d1f",
-            formatter: (v) => fmtPct(v),
-            padding: { bottom: 2 }
-          }
+          datalabels: { display: true, align: "top", anchor: "end", font: { size: 10, weight: "700" }, color: "#1d1d1f", formatter: (v) => fmtPct(v), padding: { bottom: 2 } }
         },
         scales: {
           y: { beginAtZero: true, max: 105, grid: { color: "#eef2f7" }, ticks: { callback: (v) => v + "%" } },
@@ -1555,18 +1532,18 @@
 
       container.innerHTML = `
         <div style="background:#007aff;color:#fff;padding:24px 28px 20px;">
-          <div style="font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:8px;">
+          <div style="font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:8px;">
             Ministério da Cultura · SAFCC · DSNC-SNC · Ficha Municipal
           </div>
           <div style="font-size:22px;font-weight:800;line-height:1.1;margin-bottom:6px;color:#fff;">
             ${escapeHtml(r.m)} — ${UF_NOME[r.uf] || r.uf || ""}
           </div>
-          <div style="font-size:11px;color:rgba(255,255,255,.85);margin-bottom:12px;">
+          <div style="font-size:11px;color:rgba(255,255,255,.65);margin-bottom:12px;">
             ${r.reg || ""} · IBGE ${r.ibge || "—"} · Referência ${hoje}
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-            <span style="font-size:10px;font-weight:700;color:#fff;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);padding:3px 10px;border-radius:9999px;">${r.sit || "—"}</span>
-            ${r.ad ? `<span style="font-size:10px;font-weight:600;color:#fff;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:3px 10px;border-radius:9999px;">${r.idx}/5 componentes · ${idxLabel}</span>` : ""}
+            <span style="font-size:10px;font-weight:700;color:${r.ad ? "#4ade80" : "#9ca3af"};background:${r.ad ? "rgba(74,222,128,.15)" : "rgba(156,163,175,.1)"};border:1px solid ${r.ad ? "rgba(74,222,128,.3)" : "rgba(156,163,175,.2)"};padding:3px 10px;border-radius:9999px;">${r.sit || "—"}</span>
+            ${r.ad ? `<span style="font-size:10px;font-weight:600;color:rgba(255,255,255,.7);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);padding:3px 10px;border-radius:9999px;">${r.idx}/5 componentes · ${idxLabel}</span>` : ""}
           </div>
         </div>
         <div style="padding:20px 28px 28px;background:#fff;color:#1d1d1f;">
@@ -1744,15 +1721,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          datalabels: {
-            display: true, align: "top", anchor: "end",
-            font: { size: 9, weight: "700" }, color: "#1d1d1f",
-            formatter: (v) => v > 0 ? v.toLocaleString("pt-BR") : null,
-            padding: { bottom: 2 }
-          }
-        },
+        plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
       }
     });
@@ -1822,15 +1791,7 @@
       data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          datalabels: {
-            display: true, align: "top", anchor: "end",
-            font: { size: 9, weight: "700" }, color: "#1d1d1f",
-            formatter: (v) => v > 0 ? v.toLocaleString("pt-BR") : null,
-            padding: { bottom: 2 }
-          }
-        },
+        plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
       }
     });
@@ -1894,15 +1855,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          datalabels: {
-            display: true, align: "top", anchor: "end",
-            font: { size: 9, weight: "700" }, color: "#1d1d1f",
-            formatter: (v) => v > 0 ? v.toLocaleString("pt-BR") : null,
-            padding: { bottom: 2 }
-          }
-        },
+        plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
       }
     });
