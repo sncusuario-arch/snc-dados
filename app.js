@@ -1305,6 +1305,20 @@
   }
 
   /* ---------------- Modal de detalhe do município ---------------- */
+  function closeModal() {
+    const backdrop = document.getElementById("modalBackdrop");
+    if (!backdrop) return;
+    backdrop.classList.remove("open");
+    const modalBox = backdrop.querySelector(".modal");
+    if (modalBox) {
+      modalBox.style.maxWidth = "";
+      modalBox.style.width = "";
+      modalBox.style.maxHeight = "";
+      modalBox.style.padding = "";
+      modalBox.style.overflow = "";
+    }
+  }
+
   function openMunicipioModal(r) {
     const backdrop = document.getElementById("modalBackdrop");
     const modalContent = document.getElementById("modalContent");
