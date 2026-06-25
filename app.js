@@ -1559,11 +1559,19 @@
         pagebreak: { mode: ["css", "legacy"] }
       };
 
+      // Remove overflow do modal para html2canvas capturar tudo
+      const modalEl = document.querySelector(".modal");
+      const prevOverflow = modalEl ? modalEl.style.overflow : "";
+      const prevMaxHeight = modalEl ? modalEl.style.maxHeight : "";
+      if (modalEl) { modalEl.style.overflow = "visible"; modalEl.style.maxHeight = "none"; }
+
       setTimeout(() => {
         html2pdf().set(opt).from(container).save().then(() => {
           container.innerHTML = "";
+          // Restaura overflow do modal
+          if (modalEl) { modalEl.style.overflow = prevOverflow; modalEl.style.maxHeight = prevMaxHeight; }
         });
-      }, 80);
+      }, 150);
     });
   }
   S.renderMunicipiosTable = renderMunicipiosTable;
