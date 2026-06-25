@@ -439,6 +439,12 @@
   function destroyChart(id) {
     if (STATE.charts[id]) { STATE.charts[id].destroy(); delete STATE.charts[id]; }
   }
+  // Registra plugin datalabels globalmente (desativado por padrão em todos os charts)
+  if (typeof Chart !== "undefined" && typeof ChartDataLabels !== "undefined") {
+    Chart.register(ChartDataLabels);
+    Chart.defaults.set("plugins.datalabels", { display: false });
+  }
+
   function mkChart(id, config) {
     if (typeof Chart === "undefined") return null;
     const canvas = document.getElementById(id);
@@ -515,8 +521,8 @@
         delta: `${fmtPct(100 - base.pctAderidos)} ${contexto}`, deltaTone: "down"
       }),
       kpiCardHtml({
-        label: "Índice Nacional de Implementação", value: fmtPct(base.indiceNacional), tone: "amber", icon: ICONS.gauge,
-        delta: `Média dos 5 componentes · calculado sobre todos os municípios (incl. sem adesão)`, deltaTone: "flat"
+        label: "Aguardando publicação no DOU", value: fmtInt(base.situacaoCount && base.situacaoCount["Aguardando publicação no DOU"] || 0), tone: "amber", icon: ICONS.clock,
+        delta: `Adesões em processamento`, deltaTone: "flat"
       })
     ].join("");
   }
@@ -554,7 +560,17 @@
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, padding: 14 } } },
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, padding: 14 } },
+          datalabels: {
+            display: (ctx) => ctx.datasetIndex === 0,
+            align: "top", anchor: "end",
+            font: { size: 9, weight: "600" },
+            color: "#2f6feb",
+            formatter: (v) => v >= 100 ? v.toLocaleString("pt-BR") : null,
+            padding: 2
+          }
+        },
         scales: {
           x: { grid: { display: false } },
           y: { grid: { color: "#eef2f7" }, beginAtZero: true }
@@ -585,7 +601,14 @@
         indexAxis: "y", responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: (ctx) => `${fmtInt(ctx.parsed.x)} municípios (${fmtPct(arr[ctx.dataIndex].pct)})` } }
+          tooltip: { callbacks: { label: (ctx) => `${fmtInt(ctx.parsed.x)} municípios (${fmtPct(arr[ctx.dataIndex].pct)})` } },
+          datalabels: {
+            display: true, align: "right", anchor: "end",
+            font: { size: 9.5, weight: "700" },
+            color: "#1d1d1f",
+            formatter: (v, ctx) => `${fmtInt(v)} (${fmtPct(arr[ctx.dataIndex].pct)})`,
+            padding: { left: 4 }
+          }
         },
         scales: { x: { grid: { color: "#eef2f7" } }, y: { grid: { display: false } } }
       }
@@ -612,10 +635,17 @@
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: (ctx) => `${fmtPct(ctx.parsed.y)} concluído (${fmtInt(COMPONENT_KEYS.map(k=>agg.componentRates[k].n)[ctx.dataIndex])} municípios)` } }
+          tooltip: { callbacks: { label: (ctx) => `${fmtPct(ctx.parsed.y)} concluído (${fmtInt(COMPONENT_KEYS.map(k=>agg.componentRates[k].n)[ctx.dataIndex])} municípios)` } },
+          datalabels: {
+            display: true, align: "top", anchor: "end",
+            font: { size: 10, weight: "700" },
+            color: "#1d1d1f",
+            formatter: (v) => fmtPct(v),
+            padding: { bottom: 2 }
+          }
         },
         scales: {
-          y: { beginAtZero: true, max: 100, grid: { color: "#eef2f7" }, ticks: { callback: (v) => v + "%" } },
+          y: { beginAtZero: true, max: 105, grid: { color: "#eef2f7" }, ticks: { callback: (v) => v + "%" } },
           x: { grid: { display: false } }
         }
       }
@@ -1506,18 +1536,57 @@
 
     document.getElementById("munRepPdfBtn").addEventListener("click", () => {
       if (typeof html2pdf === "undefined") return;
-      const el = document.getElementById("munRepBody");
       const slug = (r.m || "municipio").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+      const idxLabel = ["Crítico","Muito Baixo","Baixo","Médio","Alto","Completo"][r.idx] || "—";
+      const idxColor = ["#dc2626","#f08c3a","#f2c94c","#3fae6b","#16a34a","#0a6e3a"][r.idx] || "#6e6e73";
+
+      // Monta container completo para o PDF com header imprimível
+      let container = document.getElementById("munPdfContainer");
+      if (!container) {
+        container = document.createElement("div");
+        container.id = "munPdfContainer";
+        container.style.cssText = "position:fixed;left:-9999px;top:0;width:800px;font-family:Inter,sans-serif;background:#fff;";
+        document.body.appendChild(container);
+      }
+
+      // Copia o corpo do relatório
+      const bodyHtml = document.getElementById("munRepBody").innerHTML;
+
+      container.innerHTML = `
+        <div style="background:#007aff;color:#fff;padding:24px 28px 20px;">
+          <div style="font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:8px;">
+            Ministério da Cultura · SAFCC · DSNC-SNC · Ficha Municipal
+          </div>
+          <div style="font-size:22px;font-weight:800;line-height:1.1;margin-bottom:6px;color:#fff;">
+            ${escapeHtml(r.m)} — ${UF_NOME[r.uf] || r.uf || ""}
+          </div>
+          <div style="font-size:11px;color:rgba(255,255,255,.85);margin-bottom:12px;">
+            ${r.reg || ""} · IBGE ${r.ibge || "—"} · Referência ${hoje}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+            <span style="font-size:10px;font-weight:700;color:#fff;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.35);padding:3px 10px;border-radius:9999px;">${r.sit || "—"}</span>
+            ${r.ad ? `<span style="font-size:10px;font-weight:600;color:#fff;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:3px 10px;border-radius:9999px;">${r.idx}/5 componentes · ${idxLabel}</span>` : ""}
+          </div>
+        </div>
+        <div style="padding:20px 28px 28px;background:#fff;color:#1d1d1f;">
+          ${bodyHtml}
+        </div>`;
+
       const opt = {
-        margin: [8, 8, 8, 8],
+        margin: [0, 0, 0, 0],
         filename: `municipio-${slug}-${r.uf ? r.uf.toLowerCase() : "br"}-snc-${new Date().toISOString().slice(0, 10)}.pdf`,
         image: { type: "jpeg", quality: 0.97 },
-        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0, backgroundColor: "#ffffff" },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
         pagebreak: { mode: ["css", "legacy"] }
       };
-      window.scrollTo(0, 0);
-      html2pdf().set(opt).from(el).save();
+
+      setTimeout(() => {
+        html2pdf().set(opt).from(container).save().then(() => {
+          container.innerHTML = "";
+        });
+      }, 80);
     });
   }
   S.renderMunicipiosTable = renderMunicipiosTable;
@@ -1675,7 +1744,15 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            display: true, align: "top", anchor: "end",
+            font: { size: 9, weight: "700" }, color: "#1d1d1f",
+            formatter: (v) => v > 0 ? v.toLocaleString("pt-BR") : null,
+            padding: { bottom: 2 }
+          }
+        },
         scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
       }
     });
@@ -1745,7 +1822,15 @@
       data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            display: true, align: "top", anchor: "end",
+            font: { size: 9, weight: "700" }, color: "#1d1d1f",
+            formatter: (v) => v > 0 ? v.toLocaleString("pt-BR") : null,
+            padding: { bottom: 2 }
+          }
+        },
         scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
       }
     });
@@ -1809,7 +1894,15 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            display: true, align: "top", anchor: "end",
+            font: { size: 9, weight: "700" }, color: "#1d1d1f",
+            formatter: (v) => v > 0 ? v.toLocaleString("pt-BR") : null,
+            padding: { bottom: 2 }
+          }
+        },
         scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
       }
     });
