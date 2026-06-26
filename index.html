@@ -189,21 +189,38 @@
           </div>
         </div>
 
-        <div class="card row-block">
+        <div class="card row-block" id="dashMapCard">
           <div class="card-title-row">
-            <div class="card-title">Mapa do Brasil — índice de adesão por estado</div>
-            <div class="card-tag" id="mapClickHint">Clique em um estado para ver resumo</div>
+            <div class="card-title">Mapa do Brasil — adesão ao SNC por estado</div>
+            <div class="card-tag" id="mapClickHint">Clique em um estado para ver o painel</div>
           </div>
-          <div class="map-wrap">
-            <div class="map-svg-holder"><svg id="brazilMap" viewBox="0 0 360 380" width="380"></svg></div>
-            <div class="map-scale">
-              <div style="font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:2px;">Percentual de adesão</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#0a6e3a"></span> Acima de 80%</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#3fae6b"></span> 60% a 80%</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f2c94c"></span> 40% a 60%</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f08c3a"></span> 20% a 40%</div>
-              <div class="map-scale-row"><span class="map-scale-swatch" style="background:#dc2626"></span> Abaixo de 20%</div>
-              <div id="mapStatePanel" style="margin-top:10px;"></div>
+          <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
+            <!-- Mapa com cards posicionados -->
+            <div id="dashMapWrap" style="position:relative;flex:0 0 auto;width:380px;min-height:420px;">
+              <!-- Contorno do Brasil em SVG -->
+              <svg id="brazilMap" viewBox="0 0 380 420" width="380" style="display:block;position:relative;z-index:0;">
+                <path id="brasilBorder" fill="#f0f5f0" stroke="#94a3b8" stroke-width="1.5" stroke-linejoin="round"
+                  d="M185,14 L205,16 L225,22 L243,30 L258,42 L268,56 L275,72 L285,82 L300,86 L315,82 L328,72 L338,82 L344,98 L348,116 L355,128 L368,134 L380,142 L386,158 L382,175 L370,188 L358,200 L354,218 L358,232 L366,244 L370,260 L364,276 L352,286 L338,290 L326,302 L322,318 L328,334 L332,350 L326,366 L314,378 L300,388 L286,398 L276,412 L272,428 L276,442 L282,456 L278,468 L264,476 L250,480 L236,484 L228,498 L220,412 L210,404 L198,398 L182,392 L168,386 L156,376 L148,362 L144,346 L136,332 L122,322 L108,316 L96,304 L88,290 L84,274 L90,258 L102,246 L108,230 L104,214 L92,202 L80,190 L68,176 L62,160 L66,144 L78,130 L90,118 L98,104 L104,88 L112,72 L122,58 L136,46 L152,36 L168,28 L185,22 L185,14Z"/>
+              </svg>
+              <!-- Mini cards dos estados (injetados por JS) -->
+              <div id="dashMapCards" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
+            </div>
+
+            <!-- Legenda + painel lateral -->
+            <div style="flex:1;min-width:220px;">
+              <!-- Legenda -->
+              <div style="margin-bottom:16px;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Percentual de adesão</div>
+                <div class="map-scale">
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#0a6e3a"></span> Acima de 80%</div>
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#3fae6b"></span> 60% a 80%</div>
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f2c94c"></span> 40% a 60%</div>
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f08c3a"></span> 20% a 40%</div>
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#dc2626"></span> Abaixo de 20%</div>
+                </div>
+              </div>
+              <!-- Painel lateral do estado selecionado -->
+              <div id="mapStatePanel" style="display:none;"></div>
             </div>
           </div>
         </div>
