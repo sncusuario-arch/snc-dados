@@ -148,25 +148,25 @@ a { color: inherit; }
   background: rgba(248, 250, 252, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
-  padding: 8px 20px;
+  padding: 16px 28px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .topbar-title { display: flex; align-items: center; gap: 14px; }
 .topbar-title > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.topbar-title h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: -0.2px; white-space: nowrap; }
-.topbar-title span { display: none; }
+.topbar-title h1 { font-size: 19px; margin: 0; font-weight: 700; letter-spacing: -0.2px; }
+.topbar-title span { font-size: 12.5px; color: var(--muted); }
 
 .sidebar-toggle-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 9999px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -179,15 +179,15 @@ a { color: inherit; }
 .sidebar-toggle-btn:hover { background: var(--surface-2); }
 .sidebar-toggle-btn svg { width: 18px; height: 18px; }
 
-.topbar-controls { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+.topbar-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .select-control {
   appearance: none;
   background: var(--surface) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right 10px center;
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
-  padding: 6px 26px 6px 11px;
-  font-size: 12px;
+  padding: 8px 30px 8px 14px;
+  font-size: 12.8px;
   font-weight: 500;
   color: var(--text);
   cursor: pointer;
@@ -209,9 +209,9 @@ a { color: inherit; }
 .search-control input {
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
-  padding: 6px 12px 6px 30px;
-  font-size: 12px;
-  width: 160px;
+  padding: 8px 14px 8px 32px;
+  font-size: 12.8px;
+  width: 200px;
   background: var(--surface);
   box-shadow: var(--shadow-sm);
 }
