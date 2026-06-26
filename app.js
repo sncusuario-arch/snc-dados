@@ -48,14 +48,11 @@
   };
 
   const SCALE_COLORS = [
-    { min: 95, color: "#003d20", label: "Acima de 95%" },
-    { min: 85, color: "#0a6e3a", label: "85% a 95%" },
-    { min: 70, color: "#1d8348", label: "70% a 85%" },
-    { min: 55, color: "#3fae6b", label: "55% a 70%" },
-    { min: 40, color: "#a8d5b5", label: "40% a 55%" },
-    { min: 25, color: "#f2c94c", label: "25% a 40%" },
-    { min: 10, color: "#f08c3a", label: "10% a 25%" },
-    { min: -1, color: "#dc2626", label: "Abaixo de 10%" }
+    { min: 80, color: "#0a6e3a", label: "Acima de 80%" },
+    { min: 60, color: "#3fae6b", label: "60% a 80%" },
+    { min: 40, color: "#f2c94c", label: "40% a 60%" },
+    { min: 20, color: "#f08c3a", label: "20% a 40%" },
+    { min: -1, color: "#dc2626", label: "Abaixo de 20%" }
   ];
 
   const GAUGE_BANDS = [
@@ -845,13 +842,29 @@
         if (!panel) return;
         if (!b) { panel.innerHTML = `<div class="section-sub" style="margin:0;">Sem dados para ${uf}.</div>`; return; }
         panel.innerHTML = `
-          <div class="card" style="padding:14px;">
-            <div style="font-weight:800;font-size:14px;margin-bottom:8px;">${UF_NOME[uf] || uf} <span class="pill gray" style="margin-left:4px;">${uf}</span></div>
-            <div style="display:flex;flex-direction:column;gap:6px;font-size:12.3px;">
-              <div>Municípios: <b>${fmtInt(b.total)}</b></div>
-              <div>Com adesão: <b style="color:var(--success)">${fmtInt(b.aderidos)}</b> (${fmtPct(b.pct)})</div>
-              <div>Sem adesão: <b style="color:var(--danger)">${fmtInt(b.total - b.aderidos)}</b></div>
-              <div>Índice médio de maturidade: <b>${b.idxMedio.toFixed(1)} / 5</b></div>
+          <div class="card" style="padding:20px 24px;min-width:220px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+              <span style="font-weight:800;font-size:16px;">${UF_NOME[uf] || uf}</span>
+              <span class="pill gray" style="font-size:11px;">${uf}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:var(--muted);">Municípios</span>
+                <b>${fmtInt(b.total)}</b>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:var(--muted);">Com adesão</span>
+                <b style="color:var(--success)">${fmtInt(b.aderidos)} (${fmtPct(b.pct)})</b>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:var(--muted);">Sem adesão</span>
+                <b style="color:var(--danger)">${fmtInt(b.total - b.aderidos)}</b>
+              </div>
+              <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;">
+                <span style="color:var(--muted);">Índice médio</span>
+                <b>${b.idxMedio.toFixed(1)} / 5</b>
+              </div>
             </div>
           </div>`;
       });
