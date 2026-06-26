@@ -1648,7 +1648,8 @@
             backgroundColor: "#ffffff",
             scrollX: 0,
             scrollY: 0,
-            windowWidth: 760
+            windowWidth: 760,
+            windowHeight: wrapper.scrollHeight
           },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
           pagebreak: { mode: ["css", "legacy"] }
