@@ -101,9 +101,6 @@
         <button class="sidebar-toggle-btn" id="sidebarToggle" aria-label="Mostrar/recolher menu" title="Mostrar/recolher menu">
           <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
-        <div>
-          <h1 id="topbarTitle">Dashboard Executivo</h1>
-        </div>
       </div>
       <div class="topbar-controls">
         <select class="select-control" id="ufFilter" autocomplete="off" aria-label="Filtrar por estado">
@@ -127,12 +124,9 @@
           <input type="text" id="globalMunicipioFilter" placeholder="Filtrar município..." autocomplete="off" aria-label="Filtrar por município">
           <div id="globalMunicipioSuggest" class="autocomplete-dropdown" style="display:none;"></div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:2px;">
-          <label for="periodFilter" style="font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);line-height:1;padding-left:2px;">Ano de adesão</label>
-          <select class="select-control" id="periodFilter" autocomplete="off" aria-label="Filtrar por ano de adesão">
-            <option value="">Todos</option>
-          </select>
-        </div>
+        <select class="select-control" id="periodFilter" autocomplete="off" aria-label="Ano de adesão" title="Ano de adesão">
+          <option value="">Ano de adesão</option>
+        </select>
         <label class="btn btn-secondary" for="fileUpload" style="white-space:nowrap;flex-shrink:0;">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           Carregar planilha

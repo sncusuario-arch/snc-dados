@@ -146,11 +146,11 @@ a { color: inherit; }
   background: rgba(248, 250, 252, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
-  padding: 10px 28px;
+  padding: 8px 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 8px;
   flex-wrap: nowrap;
 }
 
@@ -163,8 +163,8 @@ a { color: inherit; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 9999px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -177,7 +177,7 @@ a { color: inherit; }
 .sidebar-toggle-btn:hover { background: var(--surface-2); }
 .sidebar-toggle-btn svg { width: 18px; height: 18px; }
 
-.topbar-controls { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
+.topbar-controls { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
 
 .select-control {
   appearance: none;
