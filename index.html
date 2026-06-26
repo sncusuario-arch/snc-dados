@@ -157,6 +157,7 @@
       <section class="view active" id="view-dashboard" aria-label="Dashboard Executivo" role="region">
 
         <div class="grid grid-4 row-block" id="kpiRow"></div>
+        <div class="grid grid-4 row-block" id="kpiRow2"></div>
         <div id="kpiSearchNote" style="display:none;font-size:12px;color:var(--muted);margin-top:-8px;margin-bottom:8px;padding:0 4px;">
           Os cards acima respondem aos filtros de estado, região e ano — mas não ao campo de texto "Filtrar município", que afeta apenas a tabela de municípios.
         </div>
@@ -185,26 +186,6 @@
               <div class="card-tag">Municípios aderidos</div>
             </div>
             <div class="chart-wrap h-220"><canvas id="chartComponentes"></canvas></div>
-          </div>
-          <div class="card">
-            <div class="card-title-row">
-              <div class="card-title">SNC completo</div>
-              <div class="card-tag">Por nº de componentes</div>
-            </div>
-            <div class="chart-wrap h-220"><canvas id="chartDonut"></canvas></div>
-            <div class="legend-row" id="donutLegend"></div>
-          </div>
-          <div class="card">
-            <div class="card-title-row">
-              <div class="card-title">Índice de maturidade</div>
-              <div class="card-tag">Média nacional</div>
-            </div>
-            <div class="gauge-wrap">
-              <svg id="gaugeSvg" viewBox="0 0 220 130" width="100%" style="max-width:220px;"></svg>
-              <div class="gauge-value" id="gaugeValue">–</div>
-              <div class="gauge-caption">de 5 pontos possíveis</div>
-              <div class="gauge-classification" id="gaugeClass">–</div>
-            </div>
           </div>
         </div>
 
