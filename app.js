@@ -444,10 +444,45 @@
     id: "sncDataLabels",
     afterDatasetsDraw(chart) {
       const ctx = chart.ctx;
+      const chartType = chart.config.type;
       chart.data.datasets.forEach((dataset, datasetIndex) => {
         if (!dataset.showLabels) return;
         const meta = chart.getDatasetMeta(datasetIndex);
         if (meta.hidden) return;
+
+        // Donut / Pie: labels externos com linha
+        if (chartType === "doughnut" || chartType === "pie") {
+          const total = dataset.data.reduce((a, b) => a + b, 0);
+          meta.data.forEach((element, index) => {
+            const value = dataset.data[index];
+            if (!value || value === 0) return;
+            const pct = value / total;
+            if (pct < 0.04) return; // ignora fatias muito pequenas
+            const label = dataset.labelFormatter ? dataset.labelFormatter(value, index) : fmtInt(value);
+            const angle = (element.startAngle + element.endAngle) / 2;
+            const outerRadius = element.outerRadius;
+            const cx = element.x, cy = element.y;
+            const lineStart = outerRadius + 6;
+            const lineEnd = outerRadius + 18;
+            const textX = cx + Math.cos(angle) * (lineEnd + 4);
+            const textY = cy + Math.sin(angle) * (lineEnd + 4);
+            ctx.save();
+            ctx.strokeStyle = dataset.labelColor || "#6e6e73";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(angle) * lineStart, cy + Math.sin(angle) * lineStart);
+            ctx.lineTo(cx + Math.cos(angle) * lineEnd, cy + Math.sin(angle) * lineEnd);
+            ctx.stroke();
+            ctx.font = "bold 10px Inter, Arial, sans-serif";
+            ctx.fillStyle = dataset.labelColor || "#1d1d1f";
+            ctx.textAlign = textX > cx ? "left" : "right";
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, textX, textY);
+            ctx.restore();
+          });
+          return;
+        }
+
         meta.data.forEach((element, index) => {
           const value = dataset.data[index];
           if (value == null || value === 0) return;
@@ -459,12 +494,10 @@
           ctx.textBaseline = "bottom";
           const isHorizontal = chart.config.options.indexAxis === "y";
           if (isHorizontal) {
-            // Barra horizontal: label à direita da barra
             ctx.textBaseline = "middle";
             ctx.textAlign = "left";
             ctx.fillText(label, element.x + 4, element.y);
           } else {
-            // Barra vertical ou ponto: label acima
             ctx.fillText(label, element.x, element.y - 4);
           }
           ctx.restore();
@@ -693,10 +726,11 @@
       type: "doughnut",
       data: {
         labels,
-        datasets: [{ data: agg.donut, backgroundColor: colors, borderWidth: 2, borderColor: "#fff" }]
+        datasets: [{ data: agg.donut, backgroundColor: colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }]
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "68%",
+        layout: { padding: 28 },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${labels[ctx.dataIndex]}: ${fmtInt(ctx.parsed)} municípios` } } }
       }
     });
@@ -1877,9 +1911,10 @@
     const dist = statusDistribution(aderidos, "funSt");
     S.mkChart("chartFundoStatus", {
       type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
+        layout: { padding: 28 },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
@@ -1935,9 +1970,10 @@
     const dist = statusDistribution(aderidos, "conSt");
     S.mkChart("chartConselhoStatus", {
       type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
+        layout: { padding: 28 },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
@@ -2848,6 +2884,48 @@
         S.renderBrazilMap("brazilMap2", "mapStatePanel2", STATE.lastAgg);
       });
     }
+
+    // Temas visuais
+    const THEMES = {
+      padrao: {
+        "--sidebar": "#0b1220", "--sidebar-hover": "#161f33",
+        "--accent": "#007aff", "--accent-light": "#e8f1ff", "--accent-2": "#007aff",
+        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#d4a017"
+      },
+      brasil: {
+        "--sidebar": "#1a3a2a", "--sidebar-hover": "#24522e",
+        "--accent": "#d4a017", "--accent-light": "#fdf6e3", "--accent-2": "#003580",
+        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#003580"
+      },
+      governo: {
+        "--sidebar": "#003580", "--sidebar-hover": "#004aab",
+        "--accent": "#1d8348", "--accent-light": "#eaf4ee", "--accent-2": "#d4a017",
+        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#d4a017"
+      }
+    };
+
+    function applyTheme(name) {
+      const theme = THEMES[name];
+      if (!theme) return;
+      const root = document.documentElement;
+      Object.entries(theme).forEach(([k, v]) => root.style.setProperty(k, v));
+      try { localStorage.setItem("snc-theme", name); } catch(e) {}
+      document.querySelectorAll(".theme-btn").forEach(btn => {
+        const isActive = btn.getAttribute("data-theme") === name;
+        btn.style.borderColor = isActive ? "var(--accent)" : "var(--border)";
+        btn.style.fontWeight = isActive ? "700" : "600";
+      });
+    }
+
+    // Restaurar tema salvo
+    try {
+      const savedTheme = localStorage.getItem("snc-theme");
+      if (savedTheme && THEMES[savedTheme]) applyTheme(savedTheme);
+    } catch(e) {}
+
+    document.querySelectorAll(".theme-btn").forEach(btn => {
+      btn.addEventListener("click", () => applyTheme(btn.getAttribute("data-theme")));
+    });
 
     const cfgPageSize = document.getElementById("cfgPageSize");
     if (cfgPageSize) {

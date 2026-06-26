@@ -455,23 +455,7 @@
 
       <!-- ---------- EXPORTACOES ---------- -->
       <section class="view" id="view-exportacoes" aria-label="Exportações" role="region">
-        <div class="grid grid-3">
-          <div class="card">
-            <div class="kpi-icon blue" style="margin-bottom:12px;">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-            </div>
-            <div class="card-title">Relatórios em PDF</div>
-            <div style="font-size:12px;color:var(--muted);margin:8px 0 16px;">Gere relatórios completos (executivo, por município, por estado, checklist ou contatos) na tela de Relatórios.</div>
-            <button class="btn btn-primary" id="btnIrParaRelatorios">Ir para Relatórios</button>
-          </div>
-          <div class="card">
-            <div class="kpi-icon green" style="margin-bottom:12px;">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4V4z" stroke="currentColor" stroke-width="1.8"/><path d="M4 9h16M9 9v11" stroke="currentColor" stroke-width="1.8"/></svg>
-            </div>
-            <div class="card-title">Exportar base em Excel</div>
-            <div style="font-size:12px;color:var(--muted);margin:8px 0 16px;">Exporta a tabela de municípios completa (filtros aplicados) em planilha .xlsx.</div>
-            <button class="btn btn-primary" id="btnExportExcel">Exportar Excel</button>
-          </div>
+        <div class="grid grid-2" style="max-width:640px;">
           <div class="card">
             <div class="kpi-icon amber" style="margin-bottom:12px;">
               <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -507,6 +491,23 @@
               <option value="50">50</option>
               <option value="100">100</option>
             </select>
+          </div>
+          <div class="settings-item" style="flex-direction:column;align-items:flex-start;gap:12px;">
+            <div><div class="si-title">Tema visual</div><div class="si-desc">Escolha o esquema de cores do sistema</div></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;" id="themeSelector">
+              <button class="theme-btn active" data-theme="padrao" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9999px;border:2px solid var(--accent);background:var(--surface);cursor:pointer;font-size:12px;font-weight:600;">
+                <span style="display:flex;gap:3px;"><span style="width:12px;height:12px;border-radius:50%;background:#0b1220;"></span><span style="width:12px;height:12px;border-radius:50%;background:#007aff;"></span></span>
+                Padrão
+              </button>
+              <button class="theme-btn" data-theme="brasil" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9999px;border:2px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;font-weight:600;">
+                <span style="display:flex;gap:3px;"><span style="width:12px;height:12px;border-radius:50%;background:#1a3a2a;"></span><span style="width:12px;height:12px;border-radius:50%;background:#d4a017;"></span><span style="width:12px;height:12px;border-radius:50%;background:#003580;"></span></span>
+                Brasil
+              </button>
+              <button class="theme-btn" data-theme="governo" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9999px;border:2px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;font-weight:600;">
+                <span style="display:flex;gap:3px;"><span style="width:12px;height:12px;border-radius:50%;background:#003580;"></span><span style="width:12px;height:12px;border-radius:50%;background:#1d8348;"></span><span style="width:12px;height:12px;border-radius:50%;background:#d4a017;"></span></span>
+                Governo Federal
+              </button>
+            </div>
           </div>
         </div>
       </section>
