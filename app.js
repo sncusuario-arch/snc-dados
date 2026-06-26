@@ -2060,24 +2060,24 @@
               <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(100 - agg.pctAderidos)} do total</div>
             </div>
             <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #007aff;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Sistema</div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Sistema</div>
               <div style="font-size:24px;font-weight:800;color:#007aff;">${fmtInt(agg.componentRates.sis.n)}</div>
               <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.sis.pct)} dos aderidos</div>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px;">
             <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #9333ea;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Conselho</div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Conselho</div>
               <div style="font-size:24px;font-weight:800;color:#9333ea;">${fmtInt(agg.componentRates.con.n)}</div>
               <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.con.pct)} dos aderidos</div>
             </div>
             <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #1d8348;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Fundo</div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Fundo</div>
               <div style="font-size:24px;font-weight:800;color:#1d8348;">${fmtInt(agg.componentRates.fun.n)}</div>
               <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.fun.pct)} dos aderidos</div>
             </div>
             <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #d4a017;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Plano</div>
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Plano</div>
               <div style="font-size:24px;font-weight:800;color:#d4a017;">${fmtInt(agg.componentRates.pla.n)}</div>
               <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.pla.pct)} dos aderidos</div>
             </div>
