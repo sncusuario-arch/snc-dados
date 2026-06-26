@@ -1813,7 +1813,8 @@
         datasets: [{
           data: recentYears.map((y) => agg.vigenciaCount[y] || 0),
           backgroundColor: recentYears.map((y) => y < new Date().getFullYear() ? "#dc2626" : "#2f6feb"),
-          borderRadius: 6, maxBarThickness: 28
+          borderRadius: 6, maxBarThickness: 28,
+          showLabels: true, labelColor: "#1d1d1f"
         }]
       },
       options: {
@@ -1885,7 +1886,7 @@
     const fundoAnos = Object.keys(fundoAnoCount).sort().slice(-12);
     S.mkChart("chartFundoAno", {
       type: "bar",
-      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
+      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28, showLabels: true, labelColor: "#1d1d1f" }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -1947,7 +1948,8 @@
         datasets: [{
           data: [paritarios, naoParitarios, exclusivos, naoExclusivos],
           backgroundColor: ["#2f6feb", "#d2d2d7", "#16a34a", "#d2d2d7"],
-          borderRadius: 6, maxBarThickness: 36
+          borderRadius: 6, maxBarThickness: 36,
+          showLabels: true, labelColor: "#1d1d1f"
         }]
       },
       options: {
