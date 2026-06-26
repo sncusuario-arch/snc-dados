@@ -2202,8 +2202,10 @@
     document.querySelectorAll(".nav-item").forEach((n) => n.classList.toggle("active", n.getAttribute("data-view") === view));
     document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + view));
     const meta = VIEW_META[view];
-    document.getElementById("topbarTitle").textContent = meta.title;
-    document.getElementById("topbarSub").textContent = meta.sub;
+    const topbarTitleEl = document.getElementById("topbarTitle");
+    const topbarSubEl = document.getElementById("topbarSub");
+    if (topbarTitleEl) topbarTitleEl.textContent = meta.title;
+    if (topbarSubEl) topbarSubEl.textContent = meta.sub;
     const content = document.getElementById("content");
     if (content) content.scrollTop = 0;
     window.scrollTo(0, 0);
