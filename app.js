@@ -599,8 +599,12 @@
             backgroundColor: "rgba(14,165,233,0.0)",
             borderDash: [4, 3],
             tension: 0.35,
-            pointRadius: 0,
-            borderWidth: 1.6
+            pointRadius: 3,
+            pointBackgroundColor: "#0ea5e9",
+            borderWidth: 1.6,
+            showLabels: true,
+            labelColor: "#0ea5e9",
+            labelFormatter: (v) => v > 0 ? fmtInt(v) : null
           }
         ]
       },
@@ -1813,8 +1817,7 @@
         datasets: [{
           data: recentYears.map((y) => agg.vigenciaCount[y] || 0),
           backgroundColor: recentYears.map((y) => y < new Date().getFullYear() ? "#dc2626" : "#2f6feb"),
-          borderRadius: 6, maxBarThickness: 28,
-          showLabels: true, labelColor: "#1d1d1f"
+          borderRadius: 6, maxBarThickness: 28
         }]
       },
       options: {
@@ -1886,7 +1889,7 @@
     const fundoAnos = Object.keys(fundoAnoCount).sort().slice(-12);
     S.mkChart("chartFundoAno", {
       type: "bar",
-      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28, showLabels: true, labelColor: "#1d1d1f" }] },
+      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -1948,8 +1951,7 @@
         datasets: [{
           data: [paritarios, naoParitarios, exclusivos, naoExclusivos],
           backgroundColor: ["#2f6feb", "#d2d2d7", "#16a34a", "#d2d2d7"],
-          borderRadius: 6, maxBarThickness: 36,
-          showLabels: true, labelColor: "#1d1d1f"
+          borderRadius: 6, maxBarThickness: 36
         }]
       },
       options: {
@@ -1985,6 +1987,36 @@
     } catch (e) { return ""; }
   }
 
+  function buildPorteBarras(agg) {
+    const PORTES = [
+      { label: "Porte 1 — até 20 mil", porte: "Porte 1 (Pequeno I)" },
+      { label: "Porte 2 — 20 a 50 mil", porte: "Porte 2 (Pequeno II)" },
+      { label: "Porte 3 — 50 a 100 mil", porte: "Porte 3 (Médio)" },
+      { label: "Porte 4 — 100 a 900 mil", porte: "Porte 4 (Grande I)" },
+      { label: "Porte 5 — acima 900 mil", porte: "Porte 5 (Grande II)" }
+    ];
+    const semAdesao = (STATE.raw || []).filter(r => !r.ad);
+    const rows = PORTES.map(p => {
+      const muns = semAdesao.filter(r => r.porte && r.porte.startsWith(p.porte.split(" (")[0]));
+      const comOficio = muns.filter(r => r.sit === "Aguardando publicação no DOU").length;
+      const semReg = muns.length - comOficio;
+      return { label: p.label, total: muns.length, semReg, comOficio };
+    }).filter(r => r.total > 0);
+    const maxTotal = Math.max(...rows.map(r => r.total), 1);
+    return rows.map(r => `
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+          <span style="font-size:13px;font-weight:700;color:#1d1d1f;">${escapeHtml(r.label)}</span>
+          <span style="font-size:15px;font-weight:800;color:#c0392b;">${fmtInt(r.total)}</span>
+        </div>
+        <div style="height:14px;background:#f5f5f7;border-radius:9999px;overflow:hidden;display:flex;">
+          <div style="width:${(r.semReg/maxTotal*100).toFixed(1)}%;background:#c0392b;border-radius:9999px 0 0 9999px;min-width:${r.semReg>0?2:0}px;"></div>
+          <div style="width:${(r.comOficio/maxTotal*100).toFixed(1)}%;background:#007aff;min-width:${r.comOficio>0?2:0}px;"></div>
+        </div>
+        <div style="font-size:11px;color:#6e6e73;margin-top:4px;">${fmtInt(r.semReg)} sem reg. · ${fmtInt(r.comOficio)} com ofício</div>
+      </div>`).join("");
+  }
+
   function renderReport(agg) {
     const el = document.getElementById("reportContainer");
     if (!el || !agg) return;
@@ -2012,16 +2044,53 @@
 
         <div class="report-section">
           <h3>Resumo Nacional</h3>
-          <table class="report-table">
-            <thead><tr><th>Indicador</th><th>Valor</th></tr></thead>
-            <tbody>
-              <tr><td>Total de municípios</td><td>${fmtInt(agg.total)}</td></tr>
-              <tr><td>Municípios com adesão</td><td>${fmtInt(agg.aderidosCount)} (${fmtPct(agg.pctAderidos)})</td></tr>
-              <tr><td>Municípios sem adesão</td><td>${fmtInt(agg.naoAderidos)} (${fmtPct(100 - agg.pctAderidos)})</td></tr>
-              <tr><td>Índice Nacional de Implementação</td><td>${fmtPct(agg.indiceNacional)}</td></tr>
-              <tr><td>Índice médio de maturidade (aderidos)</td><td>${agg.mediaMaturidadeAderidos.toFixed(1)} / 5</td></tr>
-            </tbody>
-          </table>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px;">
+            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #007aff;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Total de Municípios</div>
+              <div style="font-size:24px;font-weight:800;color:#1d1d1f;">${fmtInt(agg.total)}</div>
+            </div>
+            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #1d8348;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Adesão</div>
+              <div style="font-size:24px;font-weight:800;color:#1d8348;">${fmtInt(agg.aderidosCount)}</div>
+              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.pctAderidos)} do total</div>
+            </div>
+            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #c0392b;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Sem Adesão</div>
+              <div style="font-size:24px;font-weight:800;color:#c0392b;">${fmtInt(agg.naoAderidos)}</div>
+              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(100 - agg.pctAderidos)} do total</div>
+            </div>
+            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #007aff;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Sistema</div>
+              <div style="font-size:24px;font-weight:800;color:#007aff;">${fmtInt(agg.componentRates.sis.n)}</div>
+              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.sis.pct)} dos aderidos</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px;">
+            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #9333ea;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Conselho</div>
+              <div style="font-size:24px;font-weight:800;color:#9333ea;">${fmtInt(agg.componentRates.con.n)}</div>
+              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.con.pct)} dos aderidos</div>
+            </div>
+            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #1d8348;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Fundo</div>
+              <div style="font-size:24px;font-weight:800;color:#1d8348;">${fmtInt(agg.componentRates.fun.n)}</div>
+              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.fun.pct)} dos aderidos</div>
+            </div>
+            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #d4a017;">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Plano</div>
+              <div style="font-size:24px;font-weight:800;color:#d4a017;">${fmtInt(agg.componentRates.pla.n)}</div>
+              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.pla.pct)} dos aderidos</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="report-section">
+          <h3>Municípios Sem Adesão — Por Porte</h3>
+          ${buildPorteBarras(agg)}
+          <div style="display:flex;gap:16px;margin-top:8px;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#6e6e73;"><span style="width:12px;height:12px;border-radius:3px;background:#c0392b;display:inline-block;"></span>Sem registro</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#6e6e73;"><span style="width:12px;height:12px;border-radius:3px;background:#007aff;display:inline-block;"></span>Com ofício</div>
+          </div>
         </div>
 
         <div class="report-section">
@@ -2059,15 +2128,7 @@
           </table>
         </div>
 
-        <div class="report-section">
-          <h3>Análise dos Componentes do SNC</h3>
-          <table class="report-table">
-            <thead><tr><th>Componente</th><th>Concluídos</th><th>% sobre aderidos</th></tr></thead>
-            <tbody>
-              ${COMPONENT_KEYS.map((k) => `<tr><td>${COMPONENT_LABELS[k]}</td><td>${fmtInt(agg.componentRates[k].n)}</td><td>${fmtPct(agg.componentRates[k].pct)}</td></tr>`).join("")}
-            </tbody>
-          </table>
-        </div>
+
 
         <div class="report-section">
           <h3>Alertas de Gestão</h3>
@@ -2672,6 +2733,8 @@
           btnGerar.innerHTML = original;
           const container = document.getElementById("reportContainer");
           if (container) container.scrollIntoView({ behavior: "smooth", block: "start" });
+          const actionsBar = document.getElementById("reportActionsBar");
+          if (actionsBar && container && container.innerHTML.trim()) actionsBar.style.display = "flex";
         }, 30);
       });
     }
