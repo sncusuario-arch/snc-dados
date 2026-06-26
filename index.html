@@ -179,47 +179,66 @@
           </div>
         </div>
 
-        <div class="grid grid-dashboard-row3 row-block">
-          <div class="card">
-            <div class="card-title-row">
-              <div class="card-title">Componentes do SNC</div>
-              <div class="card-tag">Municípios aderidos</div>
-            </div>
-            <div class="chart-wrap h-220"><canvas id="chartComponentes"></canvas></div>
-          </div>
-        </div>
-
         <div class="card row-block" id="dashMapCard">
           <div class="card-title-row">
             <div class="card-title">Mapa do Brasil — adesão ao SNC por estado</div>
             <div class="card-tag" id="mapClickHint">Clique em um estado para ver o painel</div>
           </div>
-          <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
-            <!-- Mapa com cards posicionados -->
-            <div id="dashMapWrap" style="position:relative;flex:0 0 auto;width:380px;min-height:420px;">
-              <!-- Contorno do Brasil em SVG -->
-              <svg id="brazilMap" viewBox="0 0 380 420" width="380" style="display:block;position:relative;z-index:0;">
-                <path id="brasilBorder" fill="#f0f5f0" stroke="#94a3b8" stroke-width="1.5" stroke-linejoin="round"
-                  d="M185,14 L205,16 L225,22 L243,30 L258,42 L268,56 L275,72 L285,82 L300,86 L315,82 L328,72 L338,82 L344,98 L348,116 L355,128 L368,134 L380,142 L386,158 L382,175 L370,188 L358,200 L354,218 L358,232 L366,244 L370,260 L364,276 L352,286 L338,290 L326,302 L322,318 L328,334 L332,350 L326,366 L314,378 L300,388 L286,398 L276,412 L272,428 L276,442 L282,456 L278,468 L264,476 L250,480 L236,484 L228,498 L220,412 L210,404 L198,398 L182,392 L168,386 L156,376 L148,362 L144,346 L136,332 L122,322 L108,316 L96,304 L88,290 L84,274 L90,258 L102,246 L108,230 L104,214 L92,202 L80,190 L68,176 L62,160 L66,144 L78,130 L90,118 L98,104 L104,88 L112,72 L122,58 L136,46 L152,36 L168,28 L185,22 L185,14Z"/>
+          <div id="dashMapOuter" style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;">
+            <!-- Contêiner do mapa responsivo -->
+            <div id="dashMapWrap" style="position:relative;flex:1 1 auto;min-width:260px;max-width:100%;overflow:hidden;">
+              <!-- SVG geográfico real do Brasil -->
+              <svg id="brazilMap" viewBox="0 0 800 860" style="width:100%;height:auto;display:block;" xmlns="http://www.w3.org/2000/svg">
+                <!-- Fundo oceano -->
+                <rect width="800" height="860" fill="#eaf4fb" rx="12"/>
+                <!-- Território brasileiro — path simplificado mas geograficamente proporcional -->
+                <path id="brasilShape" d="
+                  M370,30 L395,32 L420,38 L445,48 L465,62 L480,78 L492,96 L500,116
+                  L510,130 L525,138 L542,142 L558,138 L572,128 L582,118 L592,112
+                  L606,118 L616,132 L622,150 L626,170 L632,186 L644,196 L658,202
+                  L670,210 L678,224 L676,240 L668,254 L656,264 L644,272 L636,284
+                  L632,300 L636,316 L642,330 L646,346 L642,362 L632,376 L618,388
+                  L604,398 L592,410 L584,426 L582,444 L588,460 L594,476 L594,492
+                  L586,506 L572,516 L556,522 L540,526 L526,534 L516,548 L510,564
+                  L506,580 L500,594 L490,606 L476,614 L460,618 L444,618 L428,614
+                  L414,606 L402,594 L392,580 L382,568 L368,558 L352,552 L336,550
+                  L320,552 L304,556 L288,558 L272,556 L258,548 L246,538 L236,526
+                  L228,512 L222,496 L218,480 L214,464 L208,450 L198,438 L186,428
+                  L174,420 L160,414 L146,410 L132,408 L118,402 L106,392 L96,380
+                  L88,366 L82,350 L80,334 L82,318 L88,304 L96,292 L104,280
+                  L108,266 L106,250 L98,238 L88,228 L78,216 L70,202 L66,186
+                  L68,170 L76,156 L88,144 L102,134 L116,124 L128,114 L138,102
+                  L146,90 L152,76 L158,62 L168,50 L182,40 L198,33 L216,28
+                  L236,25 L258,23 L282,22 L308,22 L334,24 L358,27 L370,30Z
+                " fill="#e8f5e8" stroke="#7db89c" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Cards dos estados injetados por JS -->
+                <g id="dashMapCards"></g>
+                <!-- Tooltip -->
+                <g id="dashMapTooltip" style="display:none;pointer-events:none;">
+                  <rect id="ttBg" x="0" y="0" width="180" height="118" rx="8" fill="#1c1c1e"/>
+                  <text id="ttNome" x="12" y="20" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" fill="#ffffff"/>
+                  <line x1="12" y1="28" x2="168" y2="28" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+                  <text id="ttPct" x="12" y="44" font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.75)"/>
+                  <text id="ttAd" x="12" y="60" font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.75)"/>
+                  <text id="ttTotal" x="12" y="76" font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.75)"/>
+                  <text id="ttIdx" x="12" y="92" font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.75)"/>
+                  <text id="ttSit" x="12" y="108" font-family="Inter,Arial,sans-serif" font-size="10" fill="rgba(255,255,255,0.5)"/>
+                </g>
               </svg>
-              <!-- Mini cards dos estados (injetados por JS) -->
-              <div id="dashMapCards" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></div>
             </div>
 
             <!-- Legenda + painel lateral -->
-            <div style="flex:1;min-width:220px;">
-              <!-- Legenda -->
+            <div style="flex:0 0 220px;min-width:180px;">
               <div style="margin-bottom:16px;">
                 <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Percentual de adesão</div>
                 <div class="map-scale">
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#0a6e3a"></span> Acima de 80%</div>
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#3fae6b"></span> 60% a 80%</div>
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f2c94c"></span> 40% a 60%</div>
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f08c3a"></span> 20% a 40%</div>
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#dc2626"></span> Abaixo de 20%</div>
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#0a6e3a"></span>Acima de 80%</div>
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#3fae6b"></span>60% a 80%</div>
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f2c94c"></span>40% a 60%</div>
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f08c3a"></span>20% a 40%</div>
+                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#dc2626"></span>Abaixo de 20%</div>
                 </div>
               </div>
-              <!-- Painel lateral do estado selecionado -->
               <div id="mapStatePanel" style="display:none;"></div>
             </div>
           </div>

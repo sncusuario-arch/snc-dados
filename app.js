@@ -750,84 +750,172 @@
   }
 
   /* ---------------- Mapa do Brasil (tile cartograma) ---------------- */
-  /* Posições geográficas aproximadas dos estados no mapa 380×420 */
+  /* ============================================================
+     MAPA DO BRASIL — coordenadas geográficas reais (viewBox 800×860)
+     Cada estado tem x,y em unidades do viewBox baseadas na
+     longitude/latitude aproximada do centróide do estado.
+     Escala: lon -73.99 a -29.35 → x 60..740  (680px)
+             lat  5.27 a -33.75 → y 40..820  (780px)
+     lon_to_x = (lon - (-73.99)) / ((-29.35)-(-73.99)) * 680 + 60
+     lat_to_y = (5.27  - lat)    / (5.27-(-33.75))     * 780 + 40
+  ============================================================ */
   const UF_MAP_POS = {
-    RR:{x:27,y:9},AP:{x:64,y:11},AM:{x:17,y:25},PA:{x:50,y:22},
-    AC:{x:10,y:42},RO:{x:22,y:46},TO:{x:57,y:40},MA:{x:66,y:30},
-    PI:{x:74,y:39},CE:{x:82,y:29},RN:{x:87,y:36},PB:{x:85,y:42},
-    PE:{x:80,y:48},AL:{x:86,y:52},SE:{x:83,y:57},BA:{x:70,y:57},
-    MT:{x:33,y:52},GO:{x:55,y:62},DF:{x:60,y:66},MS:{x:37,y:70},
-    MG:{x:64,y:70},ES:{x:78,y:70},RJ:{x:72,y:77},SP:{x:55,y:78},
-    PR:{x:49,y:84},SC:{x:50,y:89},RS:{x:44,y:94}
+    RR:{x:215,y:72},   AP:{x:530,y:88},   AM:{x:175,y:195},
+    PA:{x:450,y:200},  AC:{x:110,y:280},  RO:{x:200,y:310},
+    TO:{x:460,y:295},  MA:{x:535,y:215},  PI:{x:585,y:268},
+    CE:{x:638,y:210},  RN:{x:672,y:236},  PB:{x:665,y:265},
+    PE:{x:628,y:292},  AL:{x:665,y:310},  SE:{x:650,y:338},
+    BA:{x:570,y:378},  MT:{x:290,y:358},  GO:{x:432,y:410},
+    DF:{x:468,y:418},  MS:{x:318,y:462},  MG:{x:510,y:440},
+    ES:{x:598,y:432},  RJ:{x:553,y:490},  SP:{x:455,y:500},
+    PR:{x:415,y:548},  SC:{x:415,y:590},  RS:{x:370,y:638}
   };
+
+  function pctColor(pct) {
+    if (pct >= 80) return "#0a6e3a";
+    if (pct >= 60) return "#3fae6b";
+    if (pct >= 40) return "#f2c94c";
+    if (pct >= 20) return "#f08c3a";
+    return "#dc2626";
+  }
 
   function renderBrazilMap(svgId, panelId, agg) {
     if (!agg || !agg.byUF) return;
 
-    // Se for o mapa do Dashboard, renderiza os mini cards posicionados
     if (svgId === "brazilMap") {
-      const cardsWrap = document.getElementById("dashMapCards");
-      if (!cardsWrap) return;
-      cardsWrap.innerHTML = "";
-      cardsWrap.style.pointerEvents = "auto";
+      const cardsG = document.getElementById("dashMapCards");
+      const tooltip = document.getElementById("dashMapTooltip");
+      if (!cardsG) return;
+
+      // Limpa cards anteriores (mantém tooltip)
+      Array.from(cardsG.children).forEach(c => c.tagName !== "g" && cardsG.removeChild(c));
+      cardsG.innerHTML = "";
 
       Object.keys(UF_MAP_POS).forEach((uf) => {
         const b = agg.byUF[uf];
         if (!b) return;
         const pos = UF_MAP_POS[uf];
-        const pct = b.pct;
-        const bgColor = pct >= 80 ? "#0a6e3a" : pct >= 60 ? "#3fae6b" : pct >= 40 ? "#f2c94c" : pct >= 20 ? "#f08c3a" : "#dc2626";
-        const txColor = pct >= 40 ? "#fff" : "#fff";
+        const fill = pctColor(b.pct);
         const isDF = uf === "DF";
+        const w = isDF ? 26 : 36;
+        const h = 22;
+        const rx = 5;
+        const x = pos.x - w/2;
+        const y = pos.y - h/2;
 
-        const card = document.createElement("div");
-        card.style.cssText = `
-          position:absolute;
-          left:${pos.x}%;top:${pos.y}%;
-          transform:translate(-50%,-50%);
-          background:${bgColor};
-          border-radius:5px;
-          padding:${isDF ? "2px 4px" : "4px 6px"};
-          cursor:pointer;
-          text-align:center;
-          min-width:${isDF ? "20px" : "32px"};
-          border:1.5px solid rgba(255,255,255,0.4);
-          transition:transform 0.12s,box-shadow 0.12s;
-          z-index:2;
-          box-shadow:0 1px 4px rgba(0,0,0,0.18);
-        `;
-        card.innerHTML = `
-          <div style="font-size:${isDF ? "7px" : "9px"};font-weight:700;color:${txColor};line-height:1.1;font-family:Inter,sans-serif;">${uf}</div>
-          ${!isDF ? `<div style="font-size:8px;color:${txColor};opacity:.9;font-family:Inter,sans-serif;font-weight:600;">${Math.round(pct)}%</div>` : ""}
-        `;
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        g.setAttribute("class", "map-state-card");
+        g.setAttribute("data-uf", uf);
+        g.style.cursor = "pointer";
 
-        card.addEventListener("mouseenter", () => {
-          card.style.transform = "translate(-50%,-50%) scale(1.15)";
-          card.style.boxShadow = "0 3px 10px rgba(0,0,0,0.28)";
-          card.style.zIndex = "10";
-        });
-        card.addEventListener("mouseleave", () => {
-          card.style.transform = "translate(-50%,-50%) scale(1)";
-          card.style.boxShadow = "0 1px 4px rgba(0,0,0,0.18)";
-          card.style.zIndex = "2";
-        });
-        card.addEventListener("click", () => {
-          // Remove seleção anterior
-          cardsWrap.querySelectorAll("[data-selected]").forEach(el => {
-            el.removeAttribute("data-selected");
-            el.style.outline = "";
+        // Sombra
+        const shadow = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        shadow.setAttribute("x", x+1); shadow.setAttribute("y", y+2);
+        shadow.setAttribute("width", w); shadow.setAttribute("height", h);
+        shadow.setAttribute("rx", rx);
+        shadow.setAttribute("fill", "rgba(0,0,0,0.18)");
+
+        // Card background
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", x); rect.setAttribute("y", y);
+        rect.setAttribute("width", w); rect.setAttribute("height", h);
+        rect.setAttribute("rx", rx);
+        rect.setAttribute("fill", fill);
+        rect.setAttribute("stroke", "rgba(255,255,255,0.5)");
+        rect.setAttribute("stroke-width", "1");
+
+        // Label UF
+        const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        txt.setAttribute("x", pos.x);
+        txt.setAttribute("y", pos.y + 4);
+        txt.setAttribute("text-anchor", "middle");
+        txt.setAttribute("font-family", "Inter,Arial,sans-serif");
+        txt.setAttribute("font-size", isDF ? "7.5" : "9");
+        txt.setAttribute("font-weight", "700");
+        txt.setAttribute("fill", "#ffffff");
+        txt.setAttribute("pointer-events", "none");
+        txt.textContent = uf;
+
+        g.appendChild(shadow);
+        g.appendChild(rect);
+        g.appendChild(txt);
+
+        // Hover / tooltip
+        g.addEventListener("mouseenter", (e) => {
+          rect.setAttribute("stroke-width", "2");
+          rect.setAttribute("stroke", "#ffffff");
+          g.style.filter = "drop-shadow(0 2px 8px rgba(0,0,0,0.35))";
+          g.setAttribute("transform", `translate(0,0) scale(1.12) translate(${-pos.x*0.06},${-pos.y*0.06})`);
+
+          if (!tooltip) return;
+          const ttNome = document.getElementById("ttNome");
+          const ttPct  = document.getElementById("ttPct");
+          const ttAd   = document.getElementById("ttAd");
+          const ttTotal= document.getElementById("ttTotal");
+          const ttIdx  = document.getElementById("ttIdx");
+          const ttSit  = document.getElementById("ttSit");
+          const ttBg   = document.getElementById("ttBg");
+          if (!ttNome) return;
+
+          ttNome.textContent  = UF_NOME[uf] || uf;
+          ttPct.textContent   = "Cobertura: " + fmtPct(b.pct);
+          ttAd.textContent    = "Aderidos: " + fmtInt(b.aderidos);
+          ttTotal.textContent = "Total: " + fmtInt(b.total);
+          ttIdx.textContent   = "Índice médio: " + b.idxMedio.toFixed(1) + " / 5";
+          const ed = (typeof SNC_ESTADOS_DATA !== "undefined" && SNC_ESTADOS_DATA[uf]) ? SNC_ESTADOS_DATA[uf] : null;
+          ttSit.textContent   = ed && ed.sit ? ed.sit : "";
+
+          // Posiciona tooltip
+          let tx = pos.x + 20, ty = pos.y - 60;
+          if (tx + 185 > 800) tx = pos.x - 195;
+          if (ty < 10) ty = pos.y + 20;
+          if (ttBg) { ttBg.setAttribute("x", tx); ttBg.setAttribute("y", ty); }
+          [ttNome, ttPct, ttAd, ttTotal, ttIdx, ttSit].forEach((el, i) => {
+            if (!el) return;
+            const curX = parseFloat(el.getAttribute("x") || 0) - parseFloat(el.parentElement.querySelector("rect")?.getAttribute("x") || 0) + tx + 12;
+            el.setAttribute("x", tx + 12);
+            el.setAttribute("y", ty + 20 + i * 16);
           });
-          card.setAttribute("data-selected", "1");
-          card.style.outline = "2px solid #fff";
+          tooltip.style.display = "";
+          tooltip.style.opacity = "0";
+          setTimeout(() => { tooltip.style.transition = "opacity 0.18s"; tooltip.style.opacity = "1"; }, 10);
+        });
+
+        g.addEventListener("mouseleave", () => {
+          rect.setAttribute("stroke-width", "1");
+          rect.setAttribute("stroke", "rgba(255,255,255,0.5)");
+          g.style.filter = "";
+          g.removeAttribute("transform");
+          if (tooltip) {
+            tooltip.style.opacity = "0";
+            setTimeout(() => { tooltip.style.display = "none"; }, 180);
+          }
+        });
+
+        g.addEventListener("click", () => {
+          // Efeito de seleção
+          cardsG.querySelectorAll("[data-selected]").forEach(el => {
+            el.removeAttribute("data-selected");
+            el.querySelector("rect")?.setAttribute("stroke", "rgba(255,255,255,0.5)");
+            el.querySelector("rect")?.setAttribute("stroke-width", "1");
+          });
+          g.setAttribute("data-selected", "1");
+          rect.setAttribute("stroke", "#ffffff");
+          rect.setAttribute("stroke-width", "2.5");
+
           renderDashMapPanel(uf, b, agg, panelId);
         });
 
-        cardsWrap.appendChild(card);
+        cardsG.appendChild(g);
       });
+
+      // Garante tooltip por cima de tudo
+      const svgEl = document.getElementById("brazilMap");
+      if (svgEl && tooltip) svgEl.appendChild(tooltip);
       return;
     }
 
-    // Para outros mapas (Estados), manter lógica original de tiles
+    // ── Mapa de tiles para outras instâncias (tela de Estados) ──────────────
     const svg = document.getElementById(svgId);
     if (!svg) return;
     const cell = 32, gap = 4, originX = 18, originY = 8;
@@ -837,8 +925,7 @@
       const x = originX + col * (cell + gap);
       const y = originY + row * (cell + gap);
       const b = agg.byUF[uf];
-      const pct = b ? b.pct : 0;
-      const fill = pct >= 80 ? "#0a6e3a" : pct >= 60 ? "#3fae6b" : pct >= 40 ? "#f2c94c" : pct >= 20 ? "#f08c3a" : "#dc2626";
+      const fill = b ? pctColor(b.pct) : "#d1d5db";
       html += `<g class="map-state" data-uf="${uf}" style="cursor:pointer;">
         <rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="5" fill="${fill}" stroke="#fff" stroke-width="1.2"/>
         <text x="${x + cell/2}" y="${y + cell/2 + 5}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fff" font-family="Inter,Arial,sans-serif">${uf}</text>
@@ -861,8 +948,8 @@
           <div class="card" style="padding:14px;">
             <div style="font-weight:800;font-size:14px;margin-bottom:8px;">${UF_NOME[uf] || uf} <span class="pill gray" style="margin-left:4px;">${uf}</span></div>
             <div style="display:flex;flex-direction:column;gap:6px;font-size:12.3px;">
-              <div>Municípios: <b>${fmtInt(b.total)}</b></div>
-              <div>Com adesão: <b style="color:var(--success)">${fmtInt(b.aderidos)}</b> (${fmtPct(b.pct)})</div>
+              <div>Total: <b>${fmtInt(b.total)}</b></div>
+              <div>Aderidos: <b style="color:var(--success)">${fmtInt(b.aderidos)}</b> (${fmtPct(b.pct)})</div>
               <div>Sem adesão: <b style="color:var(--danger)">${fmtInt(b.total - b.aderidos)}</b></div>
               <div>Índice médio: <b>${b.idxMedio.toFixed(1)} / 5</b></div>
             </div>
@@ -874,89 +961,56 @@
   function renderDashMapPanel(uf, b, agg, panelId) {
     const panel = document.getElementById(panelId);
     if (!panel) return;
-
-    // Dados do estado como ente federado
     const ed = (typeof SNC_ESTADOS_DATA !== "undefined" && SNC_ESTADOS_DATA[uf]) ? SNC_ESTADOS_DATA[uf] : null;
-
-    // Dados dos componentes municipais
     const municipiosUF = (STATE.raw || []).filter(r => r.uf === uf);
     const aderidos = municipiosUF.filter(r => r.ad);
     const totalCon = aderidos.filter(r => r.con === 1).length;
     const totalPla = aderidos.filter(r => r.pla === 1).length;
     const totalFun = aderidos.filter(r => r.fun === 1).length;
     const aguardando = municipiosUF.filter(r => r.sit === "Aguardando publicação no DOU").length;
-
-    const pctColor = b.pct >= 80 ? "#0a6e3a" : b.pct >= 60 ? "#3fae6b" : b.pct >= 40 ? "#d97706" : b.pct >= 20 ? "#f08c3a" : "#dc2626";
-
-    function compBar(val, total, color) {
-      const pct = total ? (val/total)*100 : 0;
-      return `<div style="height:5px;background:var(--surface);border-radius:9999px;overflow:hidden;margin-top:3px;border:1px solid var(--border);">
-        <div style="height:100%;width:${pct.toFixed(1)}%;background:${color};border-radius:9999px;"></div>
-      </div>`;
+    const pc = pctColor(b.pct);
+    function bar(val, tot, color) {
+      const p = tot ? (val/tot)*100 : 0;
+      return `<div style="height:5px;background:var(--surface);border-radius:9999px;overflow:hidden;margin-top:3px;border:1px solid var(--border);"><div style="height:100%;width:${p.toFixed(1)}%;background:${color};border-radius:9999px;"></div></div>`;
     }
-
     panel.style.display = "";
-    panel.innerHTML = `
-      <div class="card" style="padding:16px 18px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <div>
-            <div style="font-weight:800;font-size:15px;color:var(--text);">${UF_NOME[uf] || uf}</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:1px;">${ed ? (ed.sit || "") : ""}</div>
-          </div>
-          <div style="font-size:1.6rem;font-weight:800;color:${pctColor};">${Math.round(b.pct)}%</div>
+    panel.innerHTML = `<div class="card" style="padding:16px 18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div>
+          <div style="font-weight:800;font-size:15px;color:var(--text);">${UF_NOME[uf] || uf}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:1px;">${ed ? (ed.sit || "") : ""}</div>
         </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
-          <div style="background:var(--surface);border-radius:8px;padding:10px 12px;border:1px solid var(--border);">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">Total</div>
-            <div style="font-size:1.3rem;font-weight:800;color:var(--text);">${fmtInt(b.total)}</div>
-          </div>
-          <div style="background:var(--surface);border-radius:8px;padding:10px 12px;border:1px solid var(--border);">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">Aderidos</div>
-            <div style="font-size:1.3rem;font-weight:800;color:#16a34a;">${fmtInt(b.aderidos)}</div>
-          </div>
-          <div style="background:var(--surface);border-radius:8px;padding:10px 12px;border:1px solid var(--border);">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">Sem adesão</div>
-            <div style="font-size:1.3rem;font-weight:800;color:#dc2626;">${fmtInt(b.total - b.aderidos)}</div>
-          </div>
-          ${aguardando > 0 ? `<div style="background:#fef3c7;border-radius:8px;padding:10px 12px;border:1px solid #f59e0b;">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#92400e;">Aguardando DOU</div>
-            <div style="font-size:1.3rem;font-weight:800;color:#d97706;">${fmtInt(aguardando)}</div>
-          </div>` : `<div style="background:var(--surface);border-radius:8px;padding:10px 12px;border:1px solid var(--border);">
-            <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);">Índice médio</div>
-            <div style="font-size:1.3rem;font-weight:800;color:var(--text);">${b.idxMedio.toFixed(1)}/5</div>
-          </div>`}
+        <div style="font-size:1.6rem;font-weight:800;color:${pc};">${Math.round(b.pct)}%</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+        <div style="background:var(--surface);border-radius:8px;padding:10px 12px;border:1px solid var(--border);">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);">Total</div>
+          <div style="font-size:1.3rem;font-weight:800;color:var(--text);">${fmtInt(b.total)}</div>
         </div>
-
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Componentes municipais</div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;">
-              <span style="font-weight:600;">Conselho</span>
-              <span style="font-weight:700;color:#007aff;">${fmtInt(totalCon)} <span style="font-weight:400;color:var(--muted);">(${fmtPct(b.aderidos ? (totalCon/b.aderidos)*100 : 0)})</span></span>
-            </div>
-            ${compBar(totalCon, b.aderidos, "#007aff")}
-          </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;">
-              <span style="font-weight:600;">Plano de Cultura</span>
-              <span style="font-weight:700;color:#d97706;">${fmtInt(totalPla)} <span style="font-weight:400;color:var(--muted);">(${fmtPct(b.aderidos ? (totalPla/b.aderidos)*100 : 0)})</span></span>
-            </div>
-            ${compBar(totalPla, b.aderidos, "#d97706")}
-          </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;font-size:12px;">
-              <span style="font-weight:600;">Fundo de Cultura</span>
-              <span style="font-weight:700;color:#16a34a;">${fmtInt(totalFun)} <span style="font-weight:400;color:var(--muted);">(${fmtPct(b.aderidos ? (totalFun/b.aderidos)*100 : 0)})</span></span>
-            </div>
-            ${compBar(totalFun, b.aderidos, "#16a34a")}
-          </div>
+        <div style="background:var(--surface);border-radius:8px;padding:10px 12px;border:1px solid var(--border);">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);">Aderidos</div>
+          <div style="font-size:1.3rem;font-weight:800;color:#16a34a;">${fmtInt(b.aderidos)}</div>
         </div>
-
-        <button onclick="window.__SNC.goToUF('${uf}')" style="width:100%;padding:8px;border-radius:9999px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:var(--text);">
-          Ver municípios de ${UF_NOME[uf] || uf}
-        </button>
-      </div>`;
+        <div style="background:var(--surface);border-radius:8px;padding:10px 12px;border:1px solid var(--border);">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);">Sem adesão</div>
+          <div style="font-size:1.3rem;font-weight:800;color:#dc2626;">${fmtInt(b.total - b.aderidos)}</div>
+        </div>
+        ${aguardando > 0 ? `<div style="background:#fef3c7;border-radius:8px;padding:10px 12px;border:1px solid #f59e0b;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#92400e;">Aguard. DOU</div>
+          <div style="font-size:1.3rem;font-weight:800;color:#d97706;">${fmtInt(aguardando)}</div>
+        </div>` : `<div style="background:var(--surface);border-radius:8px;padding:10px 12px;border:1px solid var(--border);">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;color:var(--muted);">Índice médio</div>
+          <div style="font-size:1.3rem;font-weight:800;color:var(--text);">${b.idxMedio.toFixed(1)}/5</div>
+        </div>`}
+      </div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Componentes municipais</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+        <div><div style="display:flex;justify-content:space-between;font-size:12px;"><span style="font-weight:600;">Conselho</span><span style="font-weight:700;color:#007aff;">${fmtInt(totalCon)} <span style="font-weight:400;color:var(--muted);">(${fmtPct(b.aderidos ? (totalCon/b.aderidos)*100 : 0)})</span></span></div>${bar(totalCon, b.aderidos, "#007aff")}</div>
+        <div><div style="display:flex;justify-content:space-between;font-size:12px;"><span style="font-weight:600;">Plano de Cultura</span><span style="font-weight:700;color:#d97706;">${fmtInt(totalPla)} <span style="font-weight:400;color:var(--muted);">(${fmtPct(b.aderidos ? (totalPla/b.aderidos)*100 : 0)})</span></span></div>${bar(totalPla, b.aderidos, "#d97706")}</div>
+        <div><div style="display:flex;justify-content:space-between;font-size:12px;"><span style="font-weight:600;">Fundo de Cultura</span><span style="font-weight:700;color:#16a34a;">${fmtInt(totalFun)} <span style="font-weight:400;color:var(--muted);">(${fmtPct(b.aderidos ? (totalFun/b.aderidos)*100 : 0)})</span></span></div>${bar(totalFun, b.aderidos, "#16a34a")}</div>
+      </div>
+      <button onclick="window.__SNC.goToUF('${uf}')" style="width:100%;padding:8px;border-radius:9999px;border:1px solid var(--border);background:transparent;cursor:pointer;font-size:12px;font-weight:600;color:var(--text);">Ver municípios de ${UF_NOME[uf] || uf}</button>
+    </div>`;
   }
 
 
