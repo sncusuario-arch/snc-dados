@@ -179,64 +179,13 @@
           </div>
         </div>
 
-        <div class="card row-block" id="dashMapCard">
-          <div class="card-title-row">
-            <div class="card-title">Mapa do Brasil — adesão ao SNC por estado</div>
-            <div class="card-tag" id="mapClickHint">Clique em um estado para ver o painel</div>
-          </div>
-          <div id="dashMapOuter" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
-            <!-- Mapa -->
-            <div id="dashMapWrap" style="position:relative;flex:0 0 auto;width:480px;max-width:100%;">
-              <svg id="brazilMap" viewBox="0 0 500 540" width="480" style="display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
-                <!-- Contorno do Brasil — apenas borda, fundo transparente -->
-                <!-- ViewBox 500x540. Território ocupa ~x:40..470, y:20..520 -->
-                <path d="
-                  M240,22 L262,24 L284,30 L304,40 L320,54 L332,70 L340,88
-                  L348,104 L360,114 L376,118 L392,112 L404,104 L414,96
-                  L424,104 L430,120 L434,138 L440,154 L452,162 L466,168
-                  L476,178 L480,194 L476,210 L466,222 L454,232 L446,246
-                  L444,262 L448,278 L454,292 L456,308 L452,324 L442,336
-                  L430,346 L418,356 L410,370 L408,386 L412,402 L416,418
-                  L412,432 L400,442 L386,450 L372,456 L362,468 L358,484
-                  L354,498 L346,510 L334,518 L318,522 L302,522 L286,518
-                  L274,508 L264,496 L254,486 L240,480 L224,478 L208,480
-                  L192,478 L178,470 L166,458 L158,444 L152,428 L144,414
-                  L132,404 L118,398 L104,392 L92,380 L82,366 L76,350
-                  L74,334 L78,318 L86,306 L94,294 L98,278 L94,262
-                  L84,250 L74,238 L64,224 L58,208 L60,192 L70,178
-                  L84,166 L98,156 L110,144 L118,130 L124,114 L130,98
-                  L140,84 L154,72 L170,62 L188,54 L208,46 L228,38 L240,22Z
-                " fill="none" stroke="#2d6a4f" stroke-width="2" stroke-linejoin="round"/>
-                <!-- Cards dos estados injetados por JS -->
-                <g id="dashMapCards"></g>
-                <!-- Tooltip SVG -->
-                <g id="dashMapTooltip" style="display:none;pointer-events:none;">
-                  <rect id="ttBg" x="0" y="0" width="175" height="120" rx="8" fill="#1c1c1e"/>
-                  <text id="ttNome"  x="12" y="20"  font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" fill="#ffffff"/>
-                  <line x1="12" y1="28" x2="163" y2="28" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
-                  <text id="ttPct"   x="12" y="44"  font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.78)"/>
-                  <text id="ttAd"    x="12" y="60"  font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.78)"/>
-                  <text id="ttTotal" x="12" y="76"  font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.78)"/>
-                  <text id="ttIdx"   x="12" y="92"  font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.78)"/>
-                  <text id="ttSit"   x="12" y="110" font-family="Inter,Arial,sans-serif" font-size="10" fill="rgba(255,255,255,0.5)"/>
-                </g>
-              </svg>
+        <div class="grid grid-dashboard-row3 row-block">
+          <div class="card">
+            <div class="card-title-row">
+              <div class="card-title">Componentes do SNC</div>
+              <div class="card-tag">Municípios aderidos</div>
             </div>
-
-            <!-- Legenda + painel lateral -->
-            <div style="flex:1;min-width:180px;max-width:280px;">
-              <div style="margin-bottom:16px;">
-                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Percentual de adesão</div>
-                <div class="map-scale">
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#0a6e3a"></span>Acima de 80%</div>
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#3fae6b"></span>60% a 80%</div>
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f2c94c"></span>40% a 60%</div>
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#f08c3a"></span>20% a 40%</div>
-                  <div class="map-scale-row"><span class="map-scale-swatch" style="background:#dc2626"></span>Abaixo de 20%</div>
-                </div>
-              </div>
-              <div id="mapStatePanel" style="display:none;"></div>
-            </div>
+            <div class="chart-wrap h-220"><canvas id="chartComponentes"></canvas></div>
           </div>
         </div>
 
