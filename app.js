@@ -1636,31 +1636,37 @@
 
       document.body.appendChild(wrapper);
 
-      // Aguarda renderização do DOM antes de capturar (essencial para não sair branco)
-      setTimeout(() => {
-        const opt = {
-          margin: [0, 0, 0, 0],
-          filename: `municipio-${slug}-${r.uf ? r.uf.toLowerCase() : "br"}-snc-${new Date().toISOString().slice(0, 10)}.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: 760,
-            windowHeight: wrapper.scrollHeight
-          },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["css", "legacy"] }
-        };
-        html2pdf().set(opt).from(wrapper).save().then(() => {
-          if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
-        }).catch(() => {
-          if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
-          showToast("Erro ao gerar PDF. Use o botão Imprimir.", true);
+      // Força reflow real antes de capturar
+      // eslint-disable-next-line no-unused-expressions
+      wrapper.getBoundingClientRect();
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const h = wrapper.scrollHeight || 1100;
+          const opt = {
+            margin: [0, 0, 0, 0],
+            filename: `municipio-${slug}-${r.uf ? r.uf.toLowerCase() : "br"}-snc-${new Date().toISOString().slice(0, 10)}.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              backgroundColor: "#ffffff",
+              scrollX: 0,
+              scrollY: 0,
+              windowWidth: 760,
+              windowHeight: h
+            },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+            pagebreak: { mode: ["css", "legacy"] }
+          };
+          html2pdf().set(opt).from(wrapper).save().then(() => {
+            if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+          }).catch(() => {
+            if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
+            showToast("Erro ao gerar PDF. Use o botão Imprimir.", true);
+          });
         });
-      }, 350);
+      });
     });
 
 
