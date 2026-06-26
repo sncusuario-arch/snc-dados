@@ -186,21 +186,39 @@
           </div>
           <div id="dashMapOuter" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;">
             <!-- Mapa -->
-            <div id="dashMapWrap" style="position:relative;flex:0 0 auto;width:460px;max-width:100%;">
-              <svg id="brazilMap" viewBox="0 0 800 860" width="460" style="display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
-                <rect width="800" height="860" fill="#eaf4fb" rx="12"/>
-                <path d="M370,30 L395,32 L420,38 L445,48 L465,62 L480,78 L492,96 L500,116 L510,130 L525,138 L542,142 L558,138 L572,128 L582,118 L592,112 L606,118 L616,132 L622,150 L626,170 L632,186 L644,196 L658,202 L670,210 L678,224 L676,240 L668,254 L656,264 L644,272 L636,284 L632,300 L636,316 L642,330 L646,346 L642,362 L632,376 L618,388 L604,398 L592,410 L584,426 L582,444 L588,460 L594,476 L594,492 L586,506 L572,516 L556,522 L540,526 L526,534 L516,548 L510,564 L506,580 L500,594 L490,606 L476,614 L460,618 L444,618 L428,614 L414,606 L402,594 L392,580 L382,568 L368,558 L352,552 L336,550 L320,552 L304,556 L288,558 L272,556 L258,548 L246,538 L236,526 L228,512 L222,496 L218,480 L214,464 L208,450 L198,438 L186,428 L174,420 L160,414 L146,410 L132,408 L118,402 L106,392 L96,380 L88,366 L82,350 L80,334 L82,318 L88,304 L96,292 L104,280 L108,266 L106,250 L98,238 L88,228 L78,216 L70,202 L66,186 L68,170 L76,156 L88,144 L102,134 L116,124 L128,114 L138,102 L146,90 L152,76 L158,62 L168,50 L182,40 L198,33 L216,28 L236,25 L258,23 L282,22 L308,22 L334,24 L358,27 L370,30Z"
-                  fill="#e8f5e8" stroke="#7db89c" stroke-width="2" stroke-linejoin="round"/>
+            <div id="dashMapWrap" style="position:relative;flex:0 0 auto;width:480px;max-width:100%;">
+              <svg id="brazilMap" viewBox="0 0 500 540" width="480" style="display:block;overflow:visible;" xmlns="http://www.w3.org/2000/svg">
+                <!-- Contorno do Brasil — apenas borda, fundo transparente -->
+                <!-- ViewBox 500x540. Território ocupa ~x:40..470, y:20..520 -->
+                <path d="
+                  M240,22 L262,24 L284,30 L304,40 L320,54 L332,70 L340,88
+                  L348,104 L360,114 L376,118 L392,112 L404,104 L414,96
+                  L424,104 L430,120 L434,138 L440,154 L452,162 L466,168
+                  L476,178 L480,194 L476,210 L466,222 L454,232 L446,246
+                  L444,262 L448,278 L454,292 L456,308 L452,324 L442,336
+                  L430,346 L418,356 L410,370 L408,386 L412,402 L416,418
+                  L412,432 L400,442 L386,450 L372,456 L362,468 L358,484
+                  L354,498 L346,510 L334,518 L318,522 L302,522 L286,518
+                  L274,508 L264,496 L254,486 L240,480 L224,478 L208,480
+                  L192,478 L178,470 L166,458 L158,444 L152,428 L144,414
+                  L132,404 L118,398 L104,392 L92,380 L82,366 L76,350
+                  L74,334 L78,318 L86,306 L94,294 L98,278 L94,262
+                  L84,250 L74,238 L64,224 L58,208 L60,192 L70,178
+                  L84,166 L98,156 L110,144 L118,130 L124,114 L130,98
+                  L140,84 L154,72 L170,62 L188,54 L208,46 L228,38 L240,22Z
+                " fill="none" stroke="#2d6a4f" stroke-width="2" stroke-linejoin="round"/>
+                <!-- Cards dos estados injetados por JS -->
                 <g id="dashMapCards"></g>
+                <!-- Tooltip SVG -->
                 <g id="dashMapTooltip" style="display:none;pointer-events:none;">
-                  <rect id="ttBg" x="0" y="0" width="180" height="118" rx="8" fill="#1c1c1e"/>
-                  <text id="ttNome" x="12" y="20" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" fill="#ffffff"/>
-                  <line x1="12" y1="28" x2="168" y2="28" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
-                  <text id="ttPct"   x="12" y="44" font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.75)"/>
-                  <text id="ttAd"    x="12" y="60" font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.75)"/>
-                  <text id="ttTotal" x="12" y="76" font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.75)"/>
-                  <text id="ttIdx"   x="12" y="92" font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.75)"/>
-                  <text id="ttSit"   x="12" y="108" font-family="Inter,Arial,sans-serif" font-size="10" fill="rgba(255,255,255,0.5)"/>
+                  <rect id="ttBg" x="0" y="0" width="175" height="120" rx="8" fill="#1c1c1e"/>
+                  <text id="ttNome"  x="12" y="20"  font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700" fill="#ffffff"/>
+                  <line x1="12" y1="28" x2="163" y2="28" stroke="rgba(255,255,255,0.15)" stroke-width="0.8"/>
+                  <text id="ttPct"   x="12" y="44"  font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.78)"/>
+                  <text id="ttAd"    x="12" y="60"  font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.78)"/>
+                  <text id="ttTotal" x="12" y="76"  font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.78)"/>
+                  <text id="ttIdx"   x="12" y="92"  font-family="Inter,Arial,sans-serif" font-size="11" fill="rgba(255,255,255,0.78)"/>
+                  <text id="ttSit"   x="12" y="110" font-family="Inter,Arial,sans-serif" font-size="10" fill="rgba(255,255,255,0.5)"/>
                 </g>
               </svg>
             </div>

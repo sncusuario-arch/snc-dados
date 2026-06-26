@@ -751,24 +751,24 @@
 
   /* ---------------- Mapa do Brasil (tile cartograma) ---------------- */
   /* ============================================================
-     MAPA DO BRASIL — coordenadas geográficas reais (viewBox 800×860)
-     Cada estado tem x,y em unidades do viewBox baseadas na
-     longitude/latitude aproximada do centróide do estado.
-     Escala: lon -73.99 a -29.35 → x 60..740  (680px)
-             lat  5.27 a -33.75 → y 40..820  (780px)
-     lon_to_x = (lon - (-73.99)) / ((-29.35)-(-73.99)) * 680 + 60
-     lat_to_y = (5.27  - lat)    / (5.27-(-33.75))     * 780 + 40
+     MAPA DO BRASIL — coordenadas para viewBox 500×540
+     Recalibradas para ficarem dentro do contorno do país
   ============================================================ */
   const UF_MAP_POS = {
-    RR:{x:215,y:72},   AP:{x:530,y:88},   AM:{x:175,y:195},
-    PA:{x:450,y:200},  AC:{x:110,y:280},  RO:{x:200,y:310},
-    TO:{x:460,y:295},  MA:{x:535,y:215},  PI:{x:585,y:268},
-    CE:{x:638,y:210},  RN:{x:672,y:236},  PB:{x:665,y:265},
-    PE:{x:628,y:292},  AL:{x:665,y:310},  SE:{x:650,y:338},
-    BA:{x:570,y:378},  MT:{x:290,y:358},  GO:{x:432,y:410},
-    DF:{x:468,y:418},  MS:{x:318,y:462},  MG:{x:510,y:440},
-    ES:{x:598,y:432},  RJ:{x:553,y:490},  SP:{x:455,y:500},
-    PR:{x:415,y:548},  SC:{x:415,y:590},  RS:{x:370,y:638}
+    RR:{x:168,y:62},   AP:{x:330,y:58},
+    AM:{x:148,y:160},  PA:{x:300,y:148},
+    AC:{x:98,y:230},   RO:{x:158,y:248},
+    TO:{x:310,y:230},  MA:{x:358,y:160},
+    PI:{x:390,y:200},  CE:{x:426,y:148},
+    RN:{x:448,y:172},  PB:{x:440,y:196},
+    PE:{x:415,y:220},  AL:{x:444,y:238},
+    SE:{x:430,y:258},  BA:{x:376,y:288},
+    MT:{x:218,y:278},  GO:{x:298,y:318},
+    DF:{x:322,y:335},  MS:{x:228,y:362},
+    MG:{x:350,y:350},  ES:{x:408,y:348},
+    RJ:{x:372,y:390},  SP:{x:300,y:398},
+    PR:{x:274,y:432},  SC:{x:272,y:462},
+    RS:{x:248,y:498}
   };
 
   function pctColor(pct) {
@@ -797,8 +797,8 @@
         const pos = UF_MAP_POS[uf];
         const fill = pctColor(b.pct);
         const isDF = uf === "DF";
-        const w = isDF ? 26 : 36;
-        const h = 22;
+        const w = isDF ? 28 : 42;
+        const h = isDF ? 20 : 26;
         const rx = 5;
         const x = pos.x - w/2;
         const y = pos.y - h/2;
@@ -813,7 +813,7 @@
         shadow.setAttribute("x", x+1); shadow.setAttribute("y", y+2);
         shadow.setAttribute("width", w); shadow.setAttribute("height", h);
         shadow.setAttribute("rx", rx);
-        shadow.setAttribute("fill", "rgba(0,0,0,0.18)");
+        shadow.setAttribute("fill", "rgba(0,0,0,0.20)");
 
         // Card background
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -821,17 +821,17 @@
         rect.setAttribute("width", w); rect.setAttribute("height", h);
         rect.setAttribute("rx", rx);
         rect.setAttribute("fill", fill);
-        rect.setAttribute("stroke", "rgba(255,255,255,0.5)");
-        rect.setAttribute("stroke-width", "1");
+        rect.setAttribute("stroke", "rgba(255,255,255,0.6)");
+        rect.setAttribute("stroke-width", "1.2");
 
         // Label UF
         const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
         txt.setAttribute("x", pos.x);
-        txt.setAttribute("y", pos.y + 4);
+        txt.setAttribute("y", pos.y + 4.5);
         txt.setAttribute("text-anchor", "middle");
         txt.setAttribute("font-family", "Inter,Arial,sans-serif");
-        txt.setAttribute("font-size", isDF ? "7.5" : "9");
-        txt.setAttribute("font-weight", "700");
+        txt.setAttribute("font-size", isDF ? "8" : "11");
+        txt.setAttribute("font-weight", "800");
         txt.setAttribute("fill", "#ffffff");
         txt.setAttribute("pointer-events", "none");
         txt.textContent = uf;
