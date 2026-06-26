@@ -48,11 +48,14 @@
   };
 
   const SCALE_COLORS = [
-    { min: 80, color: "#0a6e3a", label: "Acima de 80%" },
-    { min: 60, color: "#3fae6b", label: "60% a 80%" },
-    { min: 40, color: "#f2c94c", label: "40% a 60%" },
-    { min: 20, color: "#f08c3a", label: "20% a 40%" },
-    { min: -1, color: "#dc2626", label: "Abaixo de 20%" }
+    { min: 95, color: "#003d20", label: "Acima de 95%" },
+    { min: 85, color: "#0a6e3a", label: "85% a 95%" },
+    { min: 70, color: "#1d8348", label: "70% a 85%" },
+    { min: 55, color: "#3fae6b", label: "55% a 70%" },
+    { min: 40, color: "#a8d5b5", label: "40% a 55%" },
+    { min: 25, color: "#f2c94c", label: "25% a 40%" },
+    { min: 10, color: "#f08c3a", label: "10% a 25%" },
+    { min: -1, color: "#dc2626", label: "Abaixo de 10%" }
   ];
 
   const GAUGE_BANDS = [
@@ -666,7 +669,7 @@
         datasets: [{
           label: "Municípios aderidos",
           data: arr.map((b) => b.aderidos),
-          backgroundColor: arr.map((b) => colorForPct(b.pct)),
+          backgroundColor: ["#007aff","#1d8348","#9333ea","#d4a017","#c0392b","#0ea5e9","#f08c3a","#16a34a","#7c3aed","#0a6e3a","#2f6feb","#dc2626"].slice(0, arr.length),
           borderRadius: 6,
           maxBarThickness: 16,
           showLabels: true,
@@ -701,7 +704,7 @@
           maxBarThickness: 38,
           showLabels: true,
           labelColor: "#1d1d1f",
-          labelFormatter: (v, i) => `${fmtPct(v)}%\n${fmtInt(COMPONENT_KEYS.map(k=>agg.componentRates[k].n)[i])}`
+          labelFormatter: (v, i) => `${fmtPct(v)} · ${fmtInt(COMPONENT_KEYS.map(k=>agg.componentRates[k].n)[i])}`
         }]
       },
       options: {
@@ -730,7 +733,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "68%",
-        layout: { padding: 28 },
+        layout: { padding: { top: 32, bottom: 32, left: 32, right: 32 } },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${labels[ctx.dataIndex]}: ${fmtInt(ctx.parsed)} municípios` } } }
       }
     });
@@ -1914,7 +1917,7 @@
       data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
-        layout: { padding: 28 },
+        layout: { padding: { top: 32, bottom: 48, left: 32, right: 32 } },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
@@ -1924,7 +1927,7 @@
     const fundoAnos = Object.keys(fundoAnoCount).sort().slice(-12);
     S.mkChart("chartFundoAno", {
       type: "bar",
-      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
+      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#007aff", borderRadius: 6, maxBarThickness: 28, showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => v > 0 ? fmtInt(v) : null }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -1973,7 +1976,7 @@
       data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
-        layout: { padding: 28 },
+        layout: { padding: { top: 32, bottom: 48, left: 32, right: 32 } },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
