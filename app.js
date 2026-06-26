@@ -1564,17 +1564,17 @@
     });
 
     document.getElementById("munRepPdfBtn").addEventListener("click", () => {
-      if (typeof html2pdf === "undefined") { showToast("Biblioteca de PDF não carregou.", true); return; }
       const slug = (r.m || "municipio").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
       const idxLabel = ["Crítico","Muito Baixo","Baixo","Médio","Alto","Completo"][r.idx] || "—";
+      const idxColor = ["#dc2626","#f08c3a","#f2c94c","#3fae6b","#16a34a","#0a6e3a"][r.idx] || "#86868b";
+      const filename = `municipio-${slug}-${r.uf ? r.uf.toLowerCase() : "br"}-snc-${new Date().toISOString().slice(0,10)}.pdf`;
 
-      // Reconstrói o conteúdo do zero com cores literais (sem var(--...)) para o html2canvas renderizar
       function fmt(d) { return d ? fmtDate(d) : "—"; }
       function compLine(label, done, dt, st) {
         return `<tr>
           <td style="padding:8px 0;border-bottom:1px solid #e5e5ea;font-weight:600;color:#1d1d1f;font-size:13px;">${done ? "✓" : "○"} ${label}</td>
-          <td style="padding:8px 0;border-bottom:1px solid #e5e5ea;color:${done ? "#16a34a" : "#86868b"};font-weight:600;font-size:12px;">${st || (done ? "Concluída" : "Pendente")}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #e5e5ea;color:${done ? "#1d8348" : "#86868b"};font-weight:600;font-size:12px;">${st || (done ? "Concluída" : "Pendente")}</td>
           <td style="padding:8px 0;border-bottom:1px solid #e5e5ea;color:#86868b;font-size:11px;text-align:right;">${done && dt ? fmt(dt) : ""}</td>
         </tr>`;
       }
@@ -1588,85 +1588,77 @@
           </div></td>`;
       }
 
-      const idxColor = ["#dc2626","#f08c3a","#f2c94c","#3fae6b","#16a34a","#0a6e3a"][r.idx] || "#86868b";
+      const htmlContent = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>${escapeHtml(r.m)} — Ficha SNC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #1d1d1f; }
+</style>
+</head>
+<body>
+<div id="pdf-content" style="width:760px;margin:0 auto;background:#fff;">
+  <div style="background:#007aff;padding:24px 28px 20px;">
+    <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.8);margin-bottom:8px;">Ministério da Cultura · SAFCC · DSNC-SNC · Ficha Municipal</div>
+    <div style="font-size:22px;font-weight:800;line-height:1.1;margin-bottom:5px;color:#fff;">${escapeHtml(r.m)} — ${UF_NOME[r.uf] || r.uf || ""}</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.85);margin-bottom:12px;">${r.reg || ""} · IBGE ${r.ibge || "—"} · Referência ${hoje}</div>
+    <span style="display:inline-block;font-size:10px;font-weight:700;color:#fff;border:1.5px solid rgba(255,255,255,.5);padding:3px 12px;border-radius:9999px;margin-right:6px;">${r.sit || "—"}</span>
+    ${r.ad ? `<span style="display:inline-block;font-size:10px;font-weight:700;color:#fff;border:1.5px solid rgba(255,255,255,.35);padding:3px 12px;border-radius:9999px;">${r.idx}/5 componentes · ${idxLabel}</span>` : ""}
+  </div>
+  <div style="padding:22px 28px 26px;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#86868b;margin-bottom:12px;border-bottom:1px solid #e5e5ea;padding-bottom:6px;">Situação do Município</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:18px;"><tr>
+      <td style="vertical-align:top;padding:0 6px 0 0;width:25%;"><div style="border:1px solid #e5e5ea;border-top:3px solid ${r.ad ? "#1d8348" : "#86868b"};border-radius:8px;padding:12px 14px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#86868b;margin-bottom:6px;">Adesão</div><div style="font-size:13px;font-weight:800;color:${r.ad ? "#1d8348" : "#86868b"};">${r.ad ? "Possui" : "Sem adesão"}</div>${r.dtAd ? `<div style="font-size:10px;color:#86868b;margin-top:3px;">${fmt(r.dtAd)}</div>` : ""}</div></td>
+      <td style="vertical-align:top;padding:0 6px;width:25%;"><div style="border:1px solid #e5e5ea;border-top:3px solid ${idxColor};border-radius:8px;padding:12px 14px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#86868b;margin-bottom:6px;">Índice</div><div style="font-size:18px;font-weight:800;color:${idxColor};">${r.idx} / 5</div><div style="font-size:10px;color:#86868b;">${idxLabel}</div></div></td>
+      <td style="vertical-align:top;padding:0 6px;width:25%;"><div style="border:1px solid #e5e5ea;border-top:3px solid #007aff;border-radius:8px;padding:12px 14px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#86868b;margin-bottom:6px;">Atualização</div><div style="font-size:13px;font-weight:700;color:#1d1d1f;">${r.upd ? fmt(r.upd) : "—"}</div></div></td>
+      ${r.vig ? `<td style="vertical-align:top;padding:0 0 0 6px;width:25%;"><div style="border:1px solid #e5e5ea;border-top:3px solid ${r.vig >= new Date().getFullYear() ? "#1d8348" : "#c0392b"};border-radius:8px;padding:12px 14px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#86868b;margin-bottom:6px;">Vigência Plano</div><div style="font-size:16px;font-weight:800;color:${r.vig >= new Date().getFullYear() ? "#1d8348" : "#c0392b"};">${r.vig}</div></div></td>` : `<td style="width:25%;"></td>`}
+    </tr></table>
+    ${r.sit === "Aguardando publicação no DOU" ? `<div style="background:#fef3c7;border:1px solid #d4a017;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:#92400e;font-weight:600;">Adesão aguardando publicação no DOU — em processamento</div>` : ""}
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#86868b;margin-bottom:8px;border-bottom:1px solid #e5e5ea;padding-bottom:6px;">Checklist de Componentes do SNC</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:18px;">
+      <tr><td style="font-size:10px;color:#86868b;font-weight:700;padding-bottom:4px;">Componente</td><td style="font-size:10px;color:#86868b;font-weight:700;padding-bottom:4px;">Situação</td><td style="font-size:10px;color:#86868b;font-weight:700;padding-bottom:4px;text-align:right;">Data da Lei</td></tr>
+      ${compLine("Sistema Municipal de Cultura", !!r.sis, r.sisData, r.sisSt)}
+      ${compLine("Conselho de Política Cultural", !!r.con, r.conData, r.conSt)}
+      ${compLine("Fundo de Cultura", !!r.fun, r.funData, r.funSt)}
+      ${compLine("Plano de Cultura", !!r.pla, r.planoData, r.plaSt)}
+      ${compLine("Órgão Gestor de Cultura", !!r.org, r.orgData, r.orgSt)}
+    </table>
+    ${(r.pref || r.gestor || r.cad) ? `
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#86868b;margin-bottom:10px;border-bottom:1px solid #e5e5ea;padding-bottom:6px;">Contatos</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:18px;"><tr>
+      ${contactBlock("Prefeito(a)", r.pref, r.emailPref)}
+      ${contactBlock("Gestor de Cultura", r.gestor, r.emailGestor)}
+      ${contactBlock("Cadastrador", r.cad, r.emailCad)}
+    </tr></table>` : ""}
+    <div style="margin-top:18px;padding-top:12px;border-top:1px solid #e5e5ea;font-size:10px;color:#86868b;text-align:center;">Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura</div>
+  </div>
+</div>
+<script>
+  window.onload = function() {
+    var el = document.getElementById("pdf-content");
+    var opt = {
+      margin: [0,0,0,0],
+      filename: "${filename}",
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css","legacy"] }
+    };
+    html2pdf().set(opt).from(el).save().then(function() {
+      setTimeout(function() { window.close(); }, 1000);
+    });
+  };
+<\/script>
+</body>
+</html>`;
 
-      const wrapper = document.createElement("div");
-      wrapper.id = "munPdfWrapper";
-      // Renderiza por cima de tudo (z-index alto) e visível para o html2canvas capturar corretamente
-      wrapper.style.cssText = "position:fixed;top:0;left:0;width:760px;background:#ffffff;color:#1d1d1f;font-family:Arial,Helvetica,sans-serif;padding:0;z-index:99999;";
-
-      wrapper.innerHTML = `
-        <div style="background:#1c1c1e;padding:24px 28px 20px;">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;margin-bottom:8px;">Ministério da Cultura · SAFCC · DSNC-SNC · Ficha Municipal</div>
-          <div style="font-size:22px;font-weight:800;line-height:1.1;margin-bottom:5px;color:#ffffff;">${escapeHtml(r.m)} — ${UF_NOME[r.uf] || r.uf || ""}</div>
-          <div style="font-size:11px;color:#b8b8bd;margin-bottom:12px;">${r.reg || ""} · IBGE ${r.ibge || "—"} · Referência ${hoje}</div>
-          <span style="display:inline-block;font-size:10px;font-weight:700;color:${r.ad ? "#4ade80" : "#9ca3af"};border:1.5px solid ${r.ad ? "#4ade80" : "#6b7280"};padding:3px 12px;border-radius:9999px;margin-right:6px;">${r.sit || "—"}</span>
-          ${r.ad ? `<span style="display:inline-block;font-size:10px;font-weight:700;color:#e5e5ea;border:1.5px solid #4b5563;padding:3px 12px;border-radius:9999px;">${r.idx}/5 componentes · ${idxLabel}</span>` : ""}
-        </div>
-        <div style="padding:22px 28px 26px;">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#86868b;margin-bottom:12px;border-bottom:1px solid #e5e5ea;padding-bottom:6px;">Situação do Município</div>
-          <table style="width:100%;border-collapse:collapse;margin-bottom:18px;"><tr>
-            <td style="vertical-align:top;padding:0 6px 0 0;width:25%;"><div style="border:1px solid #e5e5ea;border-top:3px solid ${r.ad ? "#16a34a" : "#86868b"};border-radius:8px;padding:12px 14px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#86868b;margin-bottom:6px;">Adesão</div><div style="font-size:13px;font-weight:800;color:${r.ad ? "#16a34a" : "#86868b"};">${r.ad ? "Possui" : "Sem adesão"}</div>${r.dtAd ? `<div style="font-size:10px;color:#86868b;margin-top:3px;">${fmt(r.dtAd)}</div>` : ""}</div></td>
-            <td style="vertical-align:top;padding:0 6px;width:25%;"><div style="border:1px solid #e5e5ea;border-top:3px solid ${idxColor};border-radius:8px;padding:12px 14px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#86868b;margin-bottom:6px;">Índice</div><div style="font-size:18px;font-weight:800;color:${idxColor};">${r.idx} / 5</div><div style="font-size:10px;color:#86868b;">${idxLabel}</div></div></td>
-            <td style="vertical-align:top;padding:0 6px;width:25%;"><div style="border:1px solid #e5e5ea;border-top:3px solid #007aff;border-radius:8px;padding:12px 14px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#86868b;margin-bottom:6px;">Atualização</div><div style="font-size:13px;font-weight:700;color:#1d1d1f;">${r.upd ? fmt(r.upd) : "—"}</div></div></td>
-            ${r.vig ? `<td style="vertical-align:top;padding:0 0 0 6px;width:25%;"><div style="border:1px solid #e5e5ea;border-top:3px solid ${r.vig >= new Date().getFullYear() ? "#16a34a" : "#dc2626"};border-radius:8px;padding:12px 14px;"><div style="font-size:9px;font-weight:700;text-transform:uppercase;color:#86868b;margin-bottom:6px;">Vigência Plano</div><div style="font-size:16px;font-weight:800;color:${r.vig >= new Date().getFullYear() ? "#16a34a" : "#dc2626"};">${r.vig}</div></div></td>` : `<td style="width:25%;"></td>`}
-          </tr></table>
-          ${r.sit === "Aguardando publicação no DOU" ? `<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;margin-bottom:18px;font-size:12px;color:#92400e;font-weight:600;">Adesão aguardando publicação no DOU — em processamento</div>` : ""}
-
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#86868b;margin-bottom:8px;border-bottom:1px solid #e5e5ea;padding-bottom:6px;">Checklist de Componentes do SNC</div>
-          <table style="width:100%;border-collapse:collapse;margin-bottom:18px;">
-            <tr><td style="font-size:10px;color:#86868b;font-weight:700;padding-bottom:4px;">Componente</td><td style="font-size:10px;color:#86868b;font-weight:700;padding-bottom:4px;">Situação</td><td style="font-size:10px;color:#86868b;font-weight:700;padding-bottom:4px;text-align:right;">Data da Lei</td></tr>
-            ${compLine("Sistema Municipal de Cultura", !!r.sis, r.sisData, r.sisSt)}
-            ${compLine("Conselho de Política Cultural", !!r.con, r.conData, r.conSt)}
-            ${compLine("Fundo de Cultura", !!r.fun, r.funData, r.funSt)}
-            ${compLine("Plano de Cultura", !!r.pla, r.planoData, r.plaSt)}
-            ${compLine("Órgão Gestor de Cultura", !!r.org, r.orgData, r.orgSt)}
-          </table>
-
-          ${(r.pref || r.gestor || r.cad) ? `
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#86868b;margin-bottom:10px;border-bottom:1px solid #e5e5ea;padding-bottom:6px;">Contatos</div>
-          <table style="width:100%;border-collapse:collapse;margin-bottom:18px;"><tr>
-            ${contactBlock("Prefeito(a)", r.pref, r.emailPref)}
-            ${contactBlock("Gestor de Cultura", r.gestor, r.emailGestor)}
-            ${contactBlock("Cadastrador", r.cad, r.emailCad)}
-          </tr></table>` : ""}
-
-          <div style="margin-top:18px;padding-top:12px;border-top:1px solid #e5e5ea;font-size:10px;color:#86868b;text-align:center;">Iniciativa coordenada pelo SNC · Emitido pelo Chefe de Divisão Fagner Silva Ribeiro · Divisão SNC · Ministério da Cultura</div>
-        </div>`;
-
-      document.body.appendChild(wrapper);
-
-      // Força reflow real antes de capturar
-      // eslint-disable-next-line no-unused-expressions
-      wrapper.getBoundingClientRect();
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const h = wrapper.scrollHeight || 1100;
-          const opt = {
-            margin: [0, 0, 0, 0],
-            filename: `municipio-${slug}-${r.uf ? r.uf.toLowerCase() : "br"}-snc-${new Date().toISOString().slice(0, 10)}.pdf`,
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: {
-              scale: 2,
-              useCORS: true,
-              backgroundColor: "#ffffff",
-              scrollX: 0,
-              scrollY: 0,
-              windowWidth: 760,
-              windowHeight: h
-            },
-            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-            pagebreak: { mode: ["css", "legacy"] }
-          };
-          html2pdf().set(opt).from(wrapper).save().then(() => {
-            if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
-          }).catch(() => {
-            if (wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
-            showToast("Erro ao gerar PDF. Use o botão Imprimir.", true);
-          });
-        });
-      });
+      const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     });
 
 
