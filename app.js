@@ -600,8 +600,12 @@
             backgroundColor: "rgba(14,165,233,0.0)",
             borderDash: [4, 3],
             tension: 0.35,
-            pointRadius: 0,
-            borderWidth: 1.6
+            pointRadius: 3,
+            pointBackgroundColor: "#0ea5e9",
+            borderWidth: 1.6,
+            showLabels: true,
+            labelColor: "#0ea5e9",
+            labelFormatter: (v) => v > 0 ? fmtInt(v) : null
           }
         ]
       },
@@ -1855,7 +1859,7 @@
       type: "doughnut",
       data: {
         labels: ["Monitorado", "Não monitorado"],
-        datasets: [{ data: [monitorados, naoMonitorados], backgroundColor: ["#16a34a", "#d2d2d7"], borderWidth: 2, borderColor: "#fff" }]
+        datasets: [{ data: [monitorados, naoMonitorados], backgroundColor: ["#16a34a", "#d2d2d7"], borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => fmtInt(v) }]
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
@@ -1872,7 +1876,9 @@
         datasets: [{
           data: recentYears.map((y) => agg.vigenciaCount[y] || 0),
           backgroundColor: recentYears.map((y) => y < new Date().getFullYear() ? "#dc2626" : "#2f6feb"),
-          borderRadius: 6, maxBarThickness: 28
+          borderRadius: 6, maxBarThickness: 28,
+          showLabels: true, labelColor: "#1d1d1f",
+          labelFormatter: (v) => v > 0 ? fmtInt(v) : null
         }]
       },
       options: {
@@ -2008,11 +2014,30 @@
 
     const dist = statusDistribution(aderidos, "conSt");
     S.mkChart("chartConselhoStatus", {
-      type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
+      type: "bar",
+      data: {
+        labels: dist.labels,
+        datasets: [{
+          data: dist.values,
+          backgroundColor: dist.colors,
+          borderRadius: 6,
+          maxBarThickness: 22,
+          showLabels: true,
+          labelColor: "#1d1d1f",
+          labelFormatter: (v) => fmtInt(v)
+        }]
+      },
       options: {
-        responsive: true, maintainAspectRatio: false, cutout: "62%",
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
+        indexAxis: "y",
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => `${fmtInt(ctx.parsed.x)} municípios` } }
+        },
+        scales: {
+          x: { grid: { color: "#eef2f7" }, beginAtZero: true },
+          y: { grid: { display: false } }
+        }
       }
     });
 
@@ -2025,7 +2050,9 @@
         datasets: [{
           data: [paritarios, naoParitarios, exclusivos, naoExclusivos],
           backgroundColor: ["#2f6feb", "#d2d2d7", "#16a34a", "#d2d2d7"],
-          borderRadius: 6, maxBarThickness: 36
+          borderRadius: 6, maxBarThickness: 36,
+          showLabels: true, labelColor: "#1d1d1f",
+          labelFormatter: (v) => v > 0 ? fmtInt(v) : null
         }]
       },
       options: {
