@@ -849,20 +849,27 @@
   /* ---------------- Gráfico: municípios por porte ---------------- */
   function renderPorteChart(agg) {
     const PORTES = [
-      { key: "Porte 1 (Pequeno I)", label: "Porte 1", sub: "até 20 mil" },
-      { key: "Porte 2 (Pequeno II)", label: "Porte 2", sub: "20–50 mil" },
-      { key: "Porte 3 (Médio)", label: "Porte 3", sub: "50–100 mil" },
-      { key: "Porte 4 (Grande I)", label: "Porte 4", sub: "100–900 mil" },
-      { key: "Porte 5 (Grande II)", label: "Porte 5", sub: "> 900 mil" }
+      { label: "Porte 1", sub: "até 20 mil", fn: (r) => (r.pop && r.pop <= 20000) || (r.porte && r.porte.startsWith("Porte 1")) },
+      { label: "Porte 2", sub: "20–50 mil", fn: (r) => (r.pop && r.pop > 20000 && r.pop <= 50000) || (r.porte && r.porte.startsWith("Porte 2")) },
+      { label: "Porte 3", sub: "50–100 mil", fn: (r) => (r.pop && r.pop > 50000 && r.pop <= 100000) || (r.porte && r.porte.startsWith("Porte 3")) },
+      { label: "Porte 4", sub: "100–900 mil", fn: (r) => (r.pop && r.pop > 100000 && r.pop <= 900000) || (r.porte && r.porte.startsWith("Porte 4")) },
+      { label: "Porte 5", sub: "> 900 mil", fn: (r) => (r.pop && r.pop > 900000) || (r.porte && r.porte.startsWith("Porte 5")) }
     ];
     const colors = ["#007aff", "#1d8348", "#9333ea", "#d4a017", "#c0392b"];
-    // Usa dados filtrados vindos do agg
     const filtered = window.__SNC.STATE.lastFiltered || window.__SNC.STATE.raw || [];
-    const counts = PORTES.map(p => filtered.filter(r => r.porte && r.porte.startsWith(p.key.split(" (")[0])).length);
-    const pcts = PORTES.map((p, i) => {
-      const total = (window.__SNC.STATE.raw || []).filter(r => r.porte && r.porte.startsWith(p.key.split(" (")[0])).length;
-      return total ? (counts[i] / total * 100) : 0;
-    });
+    const allData = window.__SNC.STATE.raw || [];
+    // Evita dupla contagem: prioriza porte quando disponível, senão usa pop
+    function getPorteIdx(r) {
+      if (r.porte) return PORTES.findIndex(p => r.porte.startsWith(p.label.replace(" ", " ")));
+      if (r.pop) return PORTES.findIndex((p, i) => {
+        const ranges = [[0,20000],[20001,50000],[50001,100000],[100001,900000],[900001,Infinity]];
+        return r.pop >= ranges[i][0] && r.pop <= ranges[i][1];
+      });
+      return -1;
+    }
+    const counts = PORTES.map((p, i) => filtered.filter(r => getPorteIdx(r) === i).length);
+    const totals = PORTES.map((p, i) => allData.filter(r => getPorteIdx(r) === i).length);
+    const pcts = counts.map((c, i) => totals[i] ? (c / totals[i] * 100) : 0);
 
     mkChart("chartPorte", {
       type: "bar",
