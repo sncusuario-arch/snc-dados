@@ -849,31 +849,34 @@
   /* ---------------- Gráfico: municípios por porte ---------------- */
   function renderPorteChart(agg) {
     const PORTES = [
-      { key: "Porte 1 (Pequeno I)", label: "Porte 1" },
-      { key: "Porte 2 (Pequeno II)", label: "Porte 2" },
-      { key: "Porte 3 (Médio)", label: "Porte 3" },
-      { key: "Porte 4 (Grande I)", label: "Porte 4" },
-      { key: "Porte 5 (Grande II)", label: "Porte 5" }
+      { key: "Porte 1 (Pequeno I)", label: "Porte 1", sub: "até 20 mil" },
+      { key: "Porte 2 (Pequeno II)", label: "Porte 2", sub: "20–50 mil" },
+      { key: "Porte 3 (Médio)", label: "Porte 3", sub: "50–100 mil" },
+      { key: "Porte 4 (Grande I)", label: "Porte 4", sub: "100–900 mil" },
+      { key: "Porte 5 (Grande II)", label: "Porte 5", sub: "> 900 mil" }
     ];
-    const PORTE_SUB = ["até 20 mil", "20–50 mil", "50–100 mil", "100–900 mil", "> 900 mil"];
-    const allData = window.__SNC.STATE.raw || [];
-    const counts = PORTES.map(p => allData.filter(r => r.porte && r.porte.startsWith(p.key.split(" (")[0])).length);
-    const aderidos = PORTES.map(p => allData.filter(r => r.porte && r.porte.startsWith(p.key.split(" (")[0]) && r.ad).length);
     const colors = ["#007aff", "#1d8348", "#9333ea", "#d4a017", "#c0392b"];
+    // Usa dados filtrados vindos do agg
+    const filtered = window.__SNC.STATE.lastFiltered || window.__SNC.STATE.raw || [];
+    const counts = PORTES.map(p => filtered.filter(r => r.porte && r.porte.startsWith(p.key.split(" (")[0])).length);
+    const pcts = PORTES.map((p, i) => {
+      const total = (window.__SNC.STATE.raw || []).filter(r => r.porte && r.porte.startsWith(p.key.split(" (")[0])).length;
+      return total ? (counts[i] / total * 100) : 0;
+    });
 
     mkChart("chartPorte", {
       type: "bar",
       data: {
-        labels: PORTES.map((p, i) => [p.label, PORTE_SUB[i]]),
+        labels: PORTES.map(p => [p.label, p.sub]),
         datasets: [{
-          label: "Total de municípios",
+          label: "Municípios",
           data: counts,
           backgroundColor: colors,
           borderRadius: 7,
           maxBarThickness: 52,
           showLabels: true,
           labelColor: "#1d1d1f",
-          labelFormatter: (v, i) => `${fmtInt(aderidos[i])}/${fmtInt(v)}`
+          labelFormatter: (v, i) => v > 0 ? `${fmtInt(v)} (${fmtPct(pcts[i])})` : null
         }]
       },
       options: {
@@ -881,13 +884,8 @@
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: {
-            title: (ctx) => `${PORTES[ctx[0].dataIndex].label} — ${PORTE_SUB[ctx[0].dataIndex]}`,
-            label: (ctx) => [
-              `Total: ${fmtInt(counts[ctx.dataIndex])}`,
-              `Com adesão: ${fmtInt(aderidos[ctx.dataIndex])}`,
-              `Sem adesão: ${fmtInt(counts[ctx.dataIndex] - aderidos[ctx.dataIndex])}`,
-              `Taxa: ${fmtPct(counts[ctx.dataIndex] ? aderidos[ctx.dataIndex]/counts[ctx.dataIndex]*100 : 0)}`
-            ]
+            title: (ctx) => `${PORTES[ctx[0].dataIndex].label} — ${PORTES[ctx[0].dataIndex].sub}`,
+            label: (ctx) => `${fmtInt(ctx.parsed.y)} municípios (${fmtPct(pcts[ctx.dataIndex])})`
           }}
         },
         scales: {
@@ -1926,11 +1924,30 @@
 
     const dist = statusDistribution(aderidos, "funSt");
     S.mkChart("chartFundoStatus", {
-      type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
+      type: "bar",
+      data: {
+        labels: dist.labels,
+        datasets: [{
+          data: dist.values,
+          backgroundColor: dist.colors,
+          borderRadius: 6,
+          maxBarThickness: 22,
+          showLabels: true,
+          labelColor: "#1d1d1f",
+          labelFormatter: (v) => fmtInt(v)
+        }]
+      },
       options: {
-        responsive: true, maintainAspectRatio: false, cutout: "62%",
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
+        indexAxis: "y",
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => `${fmtInt(ctx.parsed.x)} municípios` } }
+        },
+        scales: {
+          x: { grid: { color: "#eef2f7" }, beginAtZero: true },
+          y: { grid: { display: false } }
+        }
       }
     });
 
