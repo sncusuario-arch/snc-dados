@@ -846,6 +846,61 @@
     return src;
   }
 
+  /* ---------------- Gráfico: municípios por porte ---------------- */
+  function renderPorteChart(agg) {
+    const PORTES = [
+      { key: "Porte 1 (Pequeno I)", label: "Porte 1 (até 20 mil)" },
+      { key: "Porte 2 (Pequeno II)", label: "Porte 2 (20–50 mil)" },
+      { key: "Porte 3 (Médio)", label: "Porte 3 (50–100 mil)" },
+      { key: "Porte 4 (Grande I)", label: "Porte 4 (100–900 mil)" },
+      { key: "Porte 5 (Grande II)", label: "Porte 5 (> 900 mil)" }
+    ];
+    const allData = window.__SNC.STATE.raw || [];
+    const counts = PORTES.map(p => allData.filter(r => r.porte && r.porte.startsWith(p.key.split(" (")[0])).length);
+    const aderidos = PORTES.map(p => allData.filter(r => r.porte && r.porte.startsWith(p.key.split(" (")[0]) && r.ad).length);
+    const semAdesao = counts.map((c, i) => c - aderidos[i]);
+    const colors = ["#007aff", "#1d8348", "#9333ea", "#d4a017", "#c0392b"];
+
+    mkChart("chartPorte", {
+      type: "bar",
+      data: {
+        labels: PORTES.map(p => p.label),
+        datasets: [
+          {
+            label: "Com adesão",
+            data: aderidos,
+            backgroundColor: colors,
+            borderRadius: 6,
+            maxBarThickness: 48,
+            showLabels: true,
+            labelColor: "#1d1d1f",
+            labelFormatter: (v) => v > 0 ? fmtInt(v) : null
+          },
+          {
+            label: "Sem adesão",
+            data: semAdesao,
+            backgroundColor: colors.map(c => c + "44"),
+            borderRadius: 6,
+            maxBarThickness: 48
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, padding: 12 } },
+          tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtInt(ctx.parsed.y)}` } }
+        },
+        scales: {
+          x: { grid: { display: false }, stacked: false },
+          y: { grid: { color: "#eef2f7" }, beginAtZero: true, stacked: false }
+        }
+      }
+    });
+  }
+
+  S.renderPorteChart = renderPorteChart;
   S.renderKPIs = renderKPIs;
   S.renderEvolucaoChart = renderEvolucaoChart;
   S.renderEstadosChart = renderEstadosChart;
@@ -1886,7 +1941,7 @@
     const fundoAnos = Object.keys(fundoAnoCount).sort().slice(-12);
     S.mkChart("chartFundoAno", {
       type: "bar",
-      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
+      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#007aff", borderRadius: 6, maxBarThickness: 28, showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => v > 0 ? fmtInt(v) : null }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -2282,6 +2337,7 @@
     S.renderEvolucaoChart(agg, "chartEvolucao");
     S.renderEstadosChart(agg, "chartEstados");
     S.renderComponentesChart(agg, "chartComponentes");
+    S.renderPorteChart(agg);
     S.renderDonut(agg, "chartDonut", "donutLegend");
     S.renderGauge(agg);
     // Mapa sempre usa aggBase para que os percentuais sejam sobre o total real
@@ -2544,8 +2600,7 @@
         return;
       }
       suggestBox.innerHTML = matches.map((r) => {
-        let tagClass = "no";
-        let tagLabel = "Sem adesão";
+        let tagClass = "no", tagLabel = "Sem adesão";
         if (r.sit === "Publicado no DOU") { tagClass = "ok"; tagLabel = "Publicado no DOU"; }
         else if (r.sit === "Aguardando publicação no DOU") { tagClass = "wait"; tagLabel = "Aguardando DOU"; }
         else if (r.sit === "Diligência Documental") { tagClass = "dil"; tagLabel = "Diligência"; }

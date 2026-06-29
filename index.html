@@ -117,7 +117,6 @@
         <select class="select-control" id="adesaoFilter" autocomplete="off" aria-label="Filtrar por situação de adesão" title="Situação de adesão">
           <option value="">Todos</option>
           <option value="com">Com adesão</option>
-          <option value="aguardando">Aguardando publicação no DOU</option>
           <option value="sem">Sem adesão</option>
         </select>
         <div class="search-control" style="position:relative;">
@@ -173,13 +172,20 @@
           </div>
         </div>
 
-        <div class="grid grid-dashboard-row3 row-block">
+        <div class="grid grid-2 row-block">
           <div class="card">
             <div class="card-title-row">
               <div class="card-title">Componentes do SNC</div>
               <div class="card-tag">Municípios aderidos</div>
             </div>
-            <div class="chart-wrap h-220"><canvas id="chartComponentes"></canvas></div>
+            <div class="chart-wrap h-260"><canvas id="chartComponentes"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title-row">
+              <div class="card-title">Municípios por Porte</div>
+              <div class="card-tag">Faixa populacional</div>
+            </div>
+            <div class="chart-wrap h-260"><canvas id="chartPorte"></canvas></div>
           </div>
         </div>
 
