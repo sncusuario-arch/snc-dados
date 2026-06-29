@@ -304,6 +304,7 @@
       if (f.regiao && r.reg !== f.regiao) return false;
       if (f.adesao === "com" && !r.ad) return false;
       if (f.adesao === "sem" && r.ad) return false;
+      if (f.adesao === "aguardando" && r.sit !== "Aguardando publicação no DOU") return false;
       if (f.periodo && (!r.dtAd || !r.dtAd.startsWith(f.periodo))) return false;
       if (f.search) {
         const s = f.search.toLowerCase();
@@ -444,45 +445,10 @@
     id: "sncDataLabels",
     afterDatasetsDraw(chart) {
       const ctx = chart.ctx;
-      const chartType = chart.config.type;
       chart.data.datasets.forEach((dataset, datasetIndex) => {
         if (!dataset.showLabels) return;
         const meta = chart.getDatasetMeta(datasetIndex);
         if (meta.hidden) return;
-
-        // Donut / Pie: labels externos com linha
-        if (chartType === "doughnut" || chartType === "pie") {
-          const total = dataset.data.reduce((a, b) => a + b, 0);
-          meta.data.forEach((element, index) => {
-            const value = dataset.data[index];
-            if (!value || value === 0) return;
-            const pct = value / total;
-            if (pct < 0.04) return; // ignora fatias muito pequenas
-            const label = dataset.labelFormatter ? dataset.labelFormatter(value, index) : fmtInt(value);
-            const angle = (element.startAngle + element.endAngle) / 2;
-            const outerRadius = element.outerRadius;
-            const cx = element.x, cy = element.y;
-            const lineStart = outerRadius + 6;
-            const lineEnd = outerRadius + 18;
-            const textX = cx + Math.cos(angle) * (lineEnd + 4);
-            const textY = cy + Math.sin(angle) * (lineEnd + 4);
-            ctx.save();
-            ctx.strokeStyle = dataset.labelColor || "#6e6e73";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(cx + Math.cos(angle) * lineStart, cy + Math.sin(angle) * lineStart);
-            ctx.lineTo(cx + Math.cos(angle) * lineEnd, cy + Math.sin(angle) * lineEnd);
-            ctx.stroke();
-            ctx.font = "bold 10px Inter, Arial, sans-serif";
-            ctx.fillStyle = dataset.labelColor || "#1d1d1f";
-            ctx.textAlign = textX > cx ? "left" : "right";
-            ctx.textBaseline = "middle";
-            ctx.fillText(label, textX, textY);
-            ctx.restore();
-          });
-          return;
-        }
-
         meta.data.forEach((element, index) => {
           const value = dataset.data[index];
           if (value == null || value === 0) return;
@@ -494,10 +460,12 @@
           ctx.textBaseline = "bottom";
           const isHorizontal = chart.config.options.indexAxis === "y";
           if (isHorizontal) {
+            // Barra horizontal: label à direita da barra
             ctx.textBaseline = "middle";
             ctx.textAlign = "left";
             ctx.fillText(label, element.x + 4, element.y);
           } else {
+            // Barra vertical ou ponto: label acima
             ctx.fillText(label, element.x, element.y - 4);
           }
           ctx.restore();
@@ -632,12 +600,8 @@
             backgroundColor: "rgba(14,165,233,0.0)",
             borderDash: [4, 3],
             tension: 0.35,
-            pointRadius: 3,
-            pointBackgroundColor: "#0ea5e9",
-            borderWidth: 1.6,
-            showLabels: true,
-            labelColor: "#0ea5e9",
-            labelFormatter: (v) => v > 0 ? fmtInt(v) : null
+            pointRadius: 0,
+            borderWidth: 1.6
           }
         ]
       },
@@ -666,7 +630,7 @@
         datasets: [{
           label: "Municípios aderidos",
           data: arr.map((b) => b.aderidos),
-          backgroundColor: ["#007aff","#1d8348","#9333ea","#d4a017","#c0392b","#0ea5e9","#f08c3a","#16a34a","#7c3aed","#0a6e3a","#2f6feb","#dc2626"].slice(0, arr.length),
+          backgroundColor: arr.map((b) => colorForPct(b.pct)),
           borderRadius: 6,
           maxBarThickness: 16,
           showLabels: true,
@@ -701,7 +665,7 @@
           maxBarThickness: 38,
           showLabels: true,
           labelColor: "#1d1d1f",
-          labelFormatter: (v, i) => `${fmtPct(v)} · ${fmtInt(COMPONENT_KEYS.map(k=>agg.componentRates[k].n)[i])}`
+          labelFormatter: (v, i) => `${fmtPct(v)}%\n${fmtInt(COMPONENT_KEYS.map(k=>agg.componentRates[k].n)[i])}`
         }]
       },
       options: {
@@ -726,11 +690,10 @@
       type: "doughnut",
       data: {
         labels,
-        datasets: [{ data: agg.donut, backgroundColor: colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }]
+        datasets: [{ data: agg.donut, backgroundColor: colors, borderWidth: 2, borderColor: "#fff" }]
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "68%",
-        layout: { padding: { top: 32, bottom: 32, left: 32, right: 32 } },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${labels[ctx.dataIndex]}: ${fmtInt(ctx.parsed)} municípios` } } }
       }
     });
@@ -842,29 +805,13 @@
         if (!panel) return;
         if (!b) { panel.innerHTML = `<div class="section-sub" style="margin:0;">Sem dados para ${uf}.</div>`; return; }
         panel.innerHTML = `
-          <div class="card" style="padding:20px 24px;min-width:220px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-              <span style="font-weight:800;font-size:16px;">${UF_NOME[uf] || uf}</span>
-              <span class="pill gray" style="font-size:11px;">${uf}</span>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              <div style="display:flex;justify-content:space-between;font-size:13px;">
-                <span style="color:var(--muted);">Municípios</span>
-                <b>${fmtInt(b.total)}</b>
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:13px;">
-                <span style="color:var(--muted);">Com adesão</span>
-                <b style="color:var(--success)">${fmtInt(b.aderidos)} (${fmtPct(b.pct)})</b>
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:13px;">
-                <span style="color:var(--muted);">Sem adesão</span>
-                <b style="color:var(--danger)">${fmtInt(b.total - b.aderidos)}</b>
-              </div>
-              <div style="height:1px;background:var(--border);margin:2px 0;"></div>
-              <div style="display:flex;justify-content:space-between;font-size:13px;">
-                <span style="color:var(--muted);">Índice médio</span>
-                <b>${b.idxMedio.toFixed(1)} / 5</b>
-              </div>
+          <div class="card" style="padding:14px;">
+            <div style="font-weight:800;font-size:14px;margin-bottom:8px;">${UF_NOME[uf] || uf} <span class="pill gray" style="margin-left:4px;">${uf}</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-size:12.3px;">
+              <div>Municípios: <b>${fmtInt(b.total)}</b></div>
+              <div>Com adesão: <b style="color:var(--success)">${fmtInt(b.aderidos)}</b> (${fmtPct(b.pct)})</div>
+              <div>Sem adesão: <b style="color:var(--danger)">${fmtInt(b.total - b.aderidos)}</b></div>
+              <div>Índice médio de maturidade: <b>${b.idxMedio.toFixed(1)} / 5</b></div>
             </div>
           </div>`;
       });
@@ -1927,10 +1874,9 @@
     const dist = statusDistribution(aderidos, "funSt");
     S.mkChart("chartFundoStatus", {
       type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
-        layout: { padding: { top: 32, bottom: 48, left: 32, right: 32 } },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
@@ -1940,7 +1886,7 @@
     const fundoAnos = Object.keys(fundoAnoCount).sort().slice(-12);
     S.mkChart("chartFundoAno", {
       type: "bar",
-      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#007aff", borderRadius: 6, maxBarThickness: 28, showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => v > 0 ? fmtInt(v) : null }] },
+      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -1986,10 +1932,9 @@
     const dist = statusDistribution(aderidos, "conSt");
     S.mkChart("chartConselhoStatus", {
       type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
-        layout: { padding: { top: 32, bottom: 48, left: 32, right: 32 } },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
@@ -2039,36 +1984,6 @@
     } catch (e) { return ""; }
   }
 
-  function buildPorteBarras(agg) {
-    const PORTES = [
-      { label: "Porte 1 — até 20 mil", porte: "Porte 1 (Pequeno I)" },
-      { label: "Porte 2 — 20 a 50 mil", porte: "Porte 2 (Pequeno II)" },
-      { label: "Porte 3 — 50 a 100 mil", porte: "Porte 3 (Médio)" },
-      { label: "Porte 4 — 100 a 900 mil", porte: "Porte 4 (Grande I)" },
-      { label: "Porte 5 — acima 900 mil", porte: "Porte 5 (Grande II)" }
-    ];
-    const semAdesao = (STATE.raw || []).filter(r => !r.ad);
-    const rows = PORTES.map(p => {
-      const muns = semAdesao.filter(r => r.porte && r.porte.startsWith(p.porte.split(" (")[0]));
-      const comOficio = muns.filter(r => r.sit === "Aguardando publicação no DOU").length;
-      const semReg = muns.length - comOficio;
-      return { label: p.label, total: muns.length, semReg, comOficio };
-    }).filter(r => r.total > 0);
-    const maxTotal = Math.max(...rows.map(r => r.total), 1);
-    return rows.map(r => `
-      <div style="margin-bottom:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-          <span style="font-size:13px;font-weight:700;color:#1d1d1f;">${escapeHtml(r.label)}</span>
-          <span style="font-size:15px;font-weight:800;color:#c0392b;">${fmtInt(r.total)}</span>
-        </div>
-        <div style="height:14px;background:#f5f5f7;border-radius:9999px;overflow:hidden;display:flex;">
-          <div style="width:${(r.semReg/maxTotal*100).toFixed(1)}%;background:#c0392b;border-radius:9999px 0 0 9999px;min-width:${r.semReg>0?2:0}px;"></div>
-          <div style="width:${(r.comOficio/maxTotal*100).toFixed(1)}%;background:#007aff;min-width:${r.comOficio>0?2:0}px;"></div>
-        </div>
-        <div style="font-size:11px;color:#6e6e73;margin-top:4px;">${fmtInt(r.semReg)} sem reg. · ${fmtInt(r.comOficio)} com ofício</div>
-      </div>`).join("");
-  }
-
   function renderReport(agg) {
     const el = document.getElementById("reportContainer");
     if (!el || !agg) return;
@@ -2096,53 +2011,16 @@
 
         <div class="report-section">
           <h3>Resumo Nacional</h3>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:8px;">
-            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #007aff;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Total de Municípios</div>
-              <div style="font-size:24px;font-weight:800;color:#1d1d1f;">${fmtInt(agg.total)}</div>
-            </div>
-            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #1d8348;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Com Adesão</div>
-              <div style="font-size:24px;font-weight:800;color:#1d8348;">${fmtInt(agg.aderidosCount)}</div>
-              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.pctAderidos)} do total</div>
-            </div>
-            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #c0392b;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Sem Adesão</div>
-              <div style="font-size:24px;font-weight:800;color:#c0392b;">${fmtInt(agg.naoAderidos)}</div>
-              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(100 - agg.pctAderidos)} do total</div>
-            </div>
-            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #007aff;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Sistema</div>
-              <div style="font-size:24px;font-weight:800;color:#007aff;">${fmtInt(agg.componentRates.sis.n)}</div>
-              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.sis.pct)} dos aderidos</div>
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px;">
-            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #9333ea;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Conselho</div>
-              <div style="font-size:24px;font-weight:800;color:#9333ea;">${fmtInt(agg.componentRates.con.n)}</div>
-              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.con.pct)} dos aderidos</div>
-            </div>
-            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #1d8348;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Fundo</div>
-              <div style="font-size:24px;font-weight:800;color:#1d8348;">${fmtInt(agg.componentRates.fun.n)}</div>
-              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.fun.pct)} dos aderidos</div>
-            </div>
-            <div style="border:1px solid #d2d2d7;border-radius:12px;padding:14px 16px;border-top:3px solid #d4a017;">
-              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6e6e73;margin-bottom:6px;">Plano</div>
-              <div style="font-size:24px;font-weight:800;color:#d4a017;">${fmtInt(agg.componentRates.pla.n)}</div>
-              <div style="font-size:11px;color:#6e6e73;margin-top:3px;">${fmtPct(agg.componentRates.pla.pct)} dos aderidos</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="report-section">
-          <h3>Municípios Sem Adesão — Por Porte</h3>
-          ${buildPorteBarras(agg)}
-          <div style="display:flex;gap:16px;margin-top:8px;">
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#6e6e73;"><span style="width:12px;height:12px;border-radius:3px;background:#c0392b;display:inline-block;"></span>Sem registro</div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#6e6e73;"><span style="width:12px;height:12px;border-radius:3px;background:#007aff;display:inline-block;"></span>Com ofício</div>
-          </div>
+          <table class="report-table">
+            <thead><tr><th>Indicador</th><th>Valor</th></tr></thead>
+            <tbody>
+              <tr><td>Total de municípios</td><td>${fmtInt(agg.total)}</td></tr>
+              <tr><td>Municípios com adesão</td><td>${fmtInt(agg.aderidosCount)} (${fmtPct(agg.pctAderidos)})</td></tr>
+              <tr><td>Municípios sem adesão</td><td>${fmtInt(agg.naoAderidos)} (${fmtPct(100 - agg.pctAderidos)})</td></tr>
+              <tr><td>Índice Nacional de Implementação</td><td>${fmtPct(agg.indiceNacional)}</td></tr>
+              <tr><td>Índice médio de maturidade (aderidos)</td><td>${agg.mediaMaturidadeAderidos.toFixed(1)} / 5</td></tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="report-section">
@@ -2180,7 +2058,15 @@
           </table>
         </div>
 
-
+        <div class="report-section">
+          <h3>Análise dos Componentes do SNC</h3>
+          <table class="report-table">
+            <thead><tr><th>Componente</th><th>Concluídos</th><th>% sobre aderidos</th></tr></thead>
+            <tbody>
+              ${COMPONENT_KEYS.map((k) => `<tr><td>${COMPONENT_LABELS[k]}</td><td>${fmtInt(agg.componentRates[k].n)}</td><td>${fmtPct(agg.componentRates[k].pct)}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
 
         <div class="report-section">
           <h3>Alertas de Gestão</h3>
@@ -2657,11 +2543,18 @@
         suggestBox.style.display = "block";
         return;
       }
-      suggestBox.innerHTML = matches.map((r) => `
-        <div class="autocomplete-item" data-m="${escapeHtml(r.m)}">
+      suggestBox.innerHTML = matches.map((r) => {
+        let tagClass = "no";
+        let tagLabel = "Sem adesão";
+        if (r.sit === "Publicado no DOU") { tagClass = "ok"; tagLabel = "Publicado no DOU"; }
+        else if (r.sit === "Aguardando publicação no DOU") { tagClass = "wait"; tagLabel = "Aguardando DOU"; }
+        else if (r.sit === "Diligência Documental") { tagClass = "dil"; tagLabel = "Diligência"; }
+        else if (r.ad) { tagClass = "ok"; tagLabel = "Com adesão"; }
+        return `<div class="autocomplete-item" data-m="${escapeHtml(r.m)}">
           <span>${escapeHtml(r.m)}</span>
-          <span class="autocomplete-tag ${r.ad ? "ok" : "no"}">${r.ad ? "Aderido" : "Sem adesão"}</span>
-        </div>`).join("");
+          <span class="autocomplete-tag ${tagClass}">${tagLabel}</span>
+        </div>`;
+      }).join("");
       suggestBox.style.display = "block";
       suggestBox.querySelectorAll(".autocomplete-item").forEach((item) => {
         item.addEventListener("click", () => {
@@ -2785,8 +2678,6 @@
           btnGerar.innerHTML = original;
           const container = document.getElementById("reportContainer");
           if (container) container.scrollIntoView({ behavior: "smooth", block: "start" });
-          const actionsBar = document.getElementById("reportActionsBar");
-          if (actionsBar && container && container.innerHTML.trim()) actionsBar.style.display = "flex";
         }, 30);
       });
     }
@@ -2900,48 +2791,6 @@
         S.renderBrazilMap("brazilMap2", "mapStatePanel2", STATE.lastAgg);
       });
     }
-
-    // Temas visuais
-    const THEMES = {
-      padrao: {
-        "--sidebar": "#0b1220", "--sidebar-hover": "#161f33",
-        "--accent": "#007aff", "--accent-light": "#e8f1ff", "--accent-2": "#007aff",
-        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#d4a017"
-      },
-      brasil: {
-        "--sidebar": "#1a3a2a", "--sidebar-hover": "#24522e",
-        "--accent": "#d4a017", "--accent-light": "#fdf6e3", "--accent-2": "#003580",
-        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#003580"
-      },
-      governo: {
-        "--sidebar": "#003580", "--sidebar-hover": "#004aab",
-        "--accent": "#1d8348", "--accent-light": "#eaf4ee", "--accent-2": "#d4a017",
-        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#d4a017"
-      }
-    };
-
-    function applyTheme(name) {
-      const theme = THEMES[name];
-      if (!theme) return;
-      const root = document.documentElement;
-      Object.entries(theme).forEach(([k, v]) => root.style.setProperty(k, v));
-      try { localStorage.setItem("snc-theme", name); } catch(e) {}
-      document.querySelectorAll(".theme-btn").forEach(btn => {
-        const isActive = btn.getAttribute("data-theme") === name;
-        btn.style.borderColor = isActive ? "var(--accent)" : "var(--border)";
-        btn.style.fontWeight = isActive ? "700" : "600";
-      });
-    }
-
-    // Restaurar tema salvo
-    try {
-      const savedTheme = localStorage.getItem("snc-theme");
-      if (savedTheme && THEMES[savedTheme]) applyTheme(savedTheme);
-    } catch(e) {}
-
-    document.querySelectorAll(".theme-btn").forEach(btn => {
-      btn.addEventListener("click", () => applyTheme(btn.getAttribute("data-theme")));
-    });
 
     const cfgPageSize = document.getElementById("cfgPageSize");
     if (cfgPageSize) {
