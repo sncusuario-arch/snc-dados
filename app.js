@@ -2533,6 +2533,86 @@
   }
 
   /* ---------------- Upload de planilha ---------------- */
+  /* ---------------- Persistência local (IndexedDB) ---------------- */
+  const DB_NAME = "snc-dashboard";
+  const DB_STORE = "planilha";
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function saveLocalData(rows, fileName) {
+    return openDB().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, "readwrite");
+      const store = tx.objectStore(DB_STORE);
+      store.put({ rows, fileName, savedAt: new Date().toISOString() }, "dados");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    })).catch(() => {});
+  }
+
+  function loadLocalData() {
+    return openDB().then((db) => new Promise((resolve) => {
+      const tx = db.transaction(DB_STORE, "readonly");
+      const req = tx.objectStore(DB_STORE).get("dados");
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    })).catch(() => null);
+  }
+
+  function clearLocalData() {
+    return openDB().then((db) => new Promise((resolve) => {
+      const tx = db.transaction(DB_STORE, "readwrite");
+      tx.objectStore(DB_STORE).delete("dados");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    })).catch(() => {});
+  }
+
+  function updateDataBanner() {
+    let banner = document.getElementById("dataSourceBanner");
+    const container = document.querySelector(".topbar");
+    if (!container) return;
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "dataSourceBanner";
+      banner.style.cssText = "width:100%;font-size:11px;font-weight:600;color:var(--muted);padding:2px 0 0;display:flex;align-items:center;gap:6px;";
+      container.appendChild(banner);
+    }
+    if (STATE.localMeta) {
+      const dt = new Date(STATE.localMeta.savedAt);
+      const dataFmt = dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block;"></span>Dados da planilha <b>&nbsp;${escapeHtml(STATE.localMeta.fileName)}&nbsp;</b> · carregada em ${dataFmt} <button id="btnResetBase" style="margin-left:8px;border:1px solid var(--border);background:var(--surface);border-radius:9999px;padding:1px 10px;font-size:10.5px;font-weight:600;cursor:pointer;color:var(--accent);">Voltar à base oficial</button>`;
+      const btnReset = document.getElementById("btnResetBase");
+      if (btnReset) btnReset.addEventListener("click", () => {
+        clearLocalData().then(() => location.reload());
+      });
+    } else {
+      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;"></span>Base oficial do sistema (data.js)`;
+    }
+  }
+
+  function applyUploadedRows(normalized, fileName, savedAt) {
+    STATE.raw = normalized;
+    STATE.localMeta = { fileName, savedAt: savedAt || new Date().toISOString() };
+    STATE.sourceLabel = `Planilha carregada: ${fileName} (${normalized.length} municípios)`;
+    STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
+    const gmf = document.getElementById("globalMunicipioFilter");
+    if (gmf) gmf.value = "";
+    const regiaoSelReset = document.getElementById("regiaoFilter");
+    if (regiaoSelReset) regiaoSelReset.value = "";
+    const adesaoSelReset = document.getElementById("adesaoFilter");
+    if (adesaoSelReset) adesaoSelReset.value = "";
+    populateFilters();
+    refreshAll();
+    updateDataBanner();
+  }
+
   function handleFileUpload(file) {
     if (!file) return;
     if (typeof XLSX === "undefined") {
@@ -2548,22 +2628,14 @@
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
         const normalized = S.normalizeUploadedRows(rows);
         if (!normalized.length) throw new Error("A planilha não contém municípios reconhecíveis.");
-        STATE.raw = normalized;
-        STATE.sourceLabel = `Planilha carregada: ${file.name} (${normalized.length} municípios)`;
-        STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
-        document.getElementById("globalMunicipioFilter").value = "";
-        const regiaoSelReset = document.getElementById("regiaoFilter");
-        if (regiaoSelReset) regiaoSelReset.value = "";
-        const adesaoSelReset = document.getElementById("adesaoFilter");
-        if (adesaoSelReset) adesaoSelReset.value = "";
-        populateFilters();
-        refreshAll();
-        // Calcula a data mais recente da planilha para exibir no toast de confirmação
+        applyUploadedRows(normalized, file.name);
+        // Persiste no navegador — F5 mantém os dados
+        saveLocalData(normalized, file.name);
         const datasUpd = normalized.filter((r) => r.upd).map((r) => r.upd);
         const dataRef = datasUpd.length
           ? fmtDate(datasUpd.reduce((max, d) => (d > max ? d : max)))
           : "data não identificada";
-        showToast(`Planilha carregada: ${fmtInt(normalized.length)} municípios · dados até ${dataRef}.`);
+        showToast(`Planilha carregada: ${fmtInt(normalized.length)} municípios · dados até ${dataRef}. Salva neste navegador.`);
       } catch (err) {
         showToast("Não foi possível processar a planilha: " + err.message, true);
       }
@@ -2927,6 +2999,14 @@
     initSidebarState();
     refreshAll();
     goTo("dashboard");
+    updateDataBanner();
+    // Verifica se há planilha salva localmente — se sim, usa ela (F5 mantém dados)
+    loadLocalData().then((saved) => {
+      if (saved && saved.rows && saved.rows.length) {
+        applyUploadedRows(saved.rows, saved.fileName, saved.savedAt);
+        showToast(`Dados restaurados: ${saved.fileName} (${fmtInt(saved.rows.length)} municípios).`);
+      }
+    });
   });
 
   S.goTo = goTo;
