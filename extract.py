@@ -229,4 +229,5 @@ with open('data.js', 'w', encoding='utf-8') as f:
 
 import os
 print("data.js gerado:", os.path.getsize('data.js') / 1024, "KB")
+
 print("Estados extraídos:", len(estados_rows))
