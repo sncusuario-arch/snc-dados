@@ -464,10 +464,45 @@
     id: "sncDataLabels",
     afterDatasetsDraw(chart) {
       const ctx = chart.ctx;
+      const chartType = chart.config.type;
       chart.data.datasets.forEach((dataset, datasetIndex) => {
         if (!dataset.showLabels) return;
         const meta = chart.getDatasetMeta(datasetIndex);
         if (meta.hidden) return;
+
+        // Donut / Pie: labels externos com linha de conexão
+        if (chartType === "doughnut" || chartType === "pie") {
+          const total = dataset.data.reduce((a, b) => a + b, 0);
+          meta.data.forEach((element, index) => {
+            const value = dataset.data[index];
+            if (!value || value === 0) return;
+            const pct = total ? value / total : 0;
+            if (pct < 0.03) return; // ignora fatias muito pequenas para não poluir
+            const label = dataset.labelFormatter ? dataset.labelFormatter(value, index) : fmtInt(value);
+            const angle = (element.startAngle + element.endAngle) / 2;
+            const outerRadius = element.outerRadius;
+            const cx = element.x, cy = element.y;
+            const lineStart = outerRadius + 6;
+            const lineEnd = outerRadius + 16;
+            const textX = cx + Math.cos(angle) * (lineEnd + 4);
+            const textY = cy + Math.sin(angle) * (lineEnd + 4);
+            ctx.save();
+            ctx.strokeStyle = dataset.labelLineColor || "#6e6e73";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(angle) * lineStart, cy + Math.sin(angle) * lineStart);
+            ctx.lineTo(cx + Math.cos(angle) * lineEnd, cy + Math.sin(angle) * lineEnd);
+            ctx.stroke();
+            ctx.font = "bold 10px Inter, Arial, sans-serif";
+            ctx.fillStyle = dataset.labelColor || "#1d1d1f";
+            ctx.textAlign = textX > cx ? "left" : "right";
+            ctx.textBaseline = "middle";
+            ctx.fillText(label, textX, textY);
+            ctx.restore();
+          });
+          return;
+        }
+
         meta.data.forEach((element, index) => {
           const value = dataset.data[index];
           if (value == null || value === 0) return;
@@ -636,8 +671,12 @@
             backgroundColor: "rgba(14,165,233,0.0)",
             borderDash: [4, 3],
             tension: 0.35,
-            pointRadius: 0,
-            borderWidth: 1.6
+            pointRadius: 3,
+            pointBackgroundColor: "#0ea5e9",
+            borderWidth: 1.6,
+            showLabels: true,
+            labelColor: "#0ea5e9",
+            labelFormatter: (v) => v > 0 ? fmtInt(v) : null
           }
         ]
       },
@@ -726,10 +765,11 @@
       type: "doughnut",
       data: {
         labels,
-        datasets: [{ data: agg.donut, backgroundColor: colors, borderWidth: 2, borderColor: "#fff" }]
+        datasets: [{ data: agg.donut, backgroundColor: colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }]
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "68%",
+        layout: { padding: 28 },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => `${labels[ctx.dataIndex]}: ${fmtInt(ctx.parsed)} municípios` } } }
       }
     });
@@ -1962,10 +2002,11 @@
       type: "doughnut",
       data: {
         labels: ["Monitorado", "Não monitorado"],
-        datasets: [{ data: [monitorados, naoMonitorados], backgroundColor: ["#16a34a", "#d2d2d7"], borderWidth: 2, borderColor: "#fff" }]
+        datasets: [{ data: [monitorados, naoMonitorados], backgroundColor: ["#16a34a", "#d2d2d7"], borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => fmtInt(v) }]
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
+        layout: { padding: 24 },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true } } }
       }
     });
@@ -1979,7 +2020,9 @@
         datasets: [{
           data: recentYears.map((y) => agg.vigenciaCount[y] || 0),
           backgroundColor: recentYears.map((y) => y < new Date().getFullYear() ? "#dc2626" : "#2f6feb"),
-          borderRadius: 6, maxBarThickness: 28
+          borderRadius: 6, maxBarThickness: 28,
+          showLabels: true, labelColor: "#1d1d1f",
+          labelFormatter: (v) => v > 0 ? fmtInt(v) : null
         }]
       },
       options: {
@@ -2039,9 +2082,10 @@
     const dist = statusDistribution(aderidos, "funSt");
     S.mkChart("chartFundoStatus", {
       type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
+        layout: { padding: 28 },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
@@ -2051,7 +2095,7 @@
     const fundoAnos = Object.keys(fundoAnoCount).sort().slice(-12);
     S.mkChart("chartFundoAno", {
       type: "bar",
-      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
+      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28, showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => v > 0 ? fmtInt(v) : null }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -2097,9 +2141,10 @@
     const dist = statusDistribution(aderidos, "conSt");
     S.mkChart("chartConselhoStatus", {
       type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
+        layout: { padding: 28 },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
@@ -2113,7 +2158,9 @@
         datasets: [{
           data: [paritarios, naoParitarios, exclusivos, naoExclusivos],
           backgroundColor: ["#2f6feb", "#d2d2d7", "#16a34a", "#d2d2d7"],
-          borderRadius: 6, maxBarThickness: 36
+          borderRadius: 6, maxBarThickness: 36,
+          showLabels: true, labelColor: "#1d1d1f",
+          labelFormatter: (v) => v > 0 ? fmtInt(v) : null
         }]
       },
       options: {
@@ -2597,6 +2644,80 @@
     if (tipo === "contatos" || tipo === "municipio") populateRepMunicipioSelect(repEstadoEl ? repEstadoEl.value : "");
   }
 
+  /* ---------------- Persistência local (IndexedDB) — F5 mantém a planilha carregada ---------------- */
+  const DB_NAME = "snc-dashboard";
+  const DB_STORE = "planilha";
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  function saveLocalData(rows, fileName) {
+    return openDB().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, "readwrite");
+      tx.objectStore(DB_STORE).put({ rows, fileName, savedAt: new Date().toISOString() }, "dados");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    })).catch(() => {});
+  }
+  function loadLocalData() {
+    return openDB().then((db) => new Promise((resolve) => {
+      const tx = db.transaction(DB_STORE, "readonly");
+      const req = tx.objectStore(DB_STORE).get("dados");
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    })).catch(() => null);
+  }
+  function clearLocalData() {
+    return openDB().then((db) => new Promise((resolve) => {
+      const tx = db.transaction(DB_STORE, "readwrite");
+      tx.objectStore(DB_STORE).delete("dados");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    })).catch(() => {});
+  }
+
+  function updateDataBanner() {
+    let banner = document.getElementById("dataSourceBanner");
+    const container = document.querySelector(".topbar");
+    if (!container) return;
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "dataSourceBanner";
+      banner.style.cssText = "width:100%;font-size:11px;font-weight:600;color:var(--muted);padding:2px 0 0;display:flex;align-items:center;gap:6px;";
+      container.appendChild(banner);
+    }
+    if (STATE.localMeta) {
+      const dt = new Date(STATE.localMeta.savedAt);
+      const dataFmt = dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block;"></span>Dados da planilha <b>&nbsp;${escapeHtml(STATE.localMeta.fileName)}&nbsp;</b> · carregada em ${dataFmt} <button id="btnResetBase" style="margin-left:8px;border:1px solid var(--border);background:var(--surface);border-radius:9999px;padding:1px 10px;font-size:10.5px;font-weight:600;cursor:pointer;color:var(--accent);">Voltar à base oficial</button>`;
+      const btnReset = document.getElementById("btnResetBase");
+      if (btnReset) btnReset.addEventListener("click", () => { clearLocalData().then(() => location.reload()); });
+    } else {
+      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;"></span>Base oficial do sistema (data.js)`;
+    }
+  }
+
+  function applyUploadedRows(normalized, fileName, savedAt) {
+    STATE.raw = normalized;
+    STATE.localMeta = { fileName, savedAt: savedAt || new Date().toISOString() };
+    STATE.sourceLabel = `Planilha carregada: ${fileName} (${normalized.length} municípios)`;
+    STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
+    const gmf = document.getElementById("globalMunicipioFilter");
+    if (gmf) gmf.value = "";
+    const regiaoSelReset = document.getElementById("regiaoFilter");
+    if (regiaoSelReset) regiaoSelReset.value = "";
+    const adesaoSelReset = document.getElementById("adesaoFilter");
+    if (adesaoSelReset) adesaoSelReset.value = "";
+    populateFilters();
+    refreshAll();
+    updateDataBanner();
+  }
+
   /* ---------------- Upload de planilha ---------------- */
   function handleFileUpload(file) {
     if (!file) return;
@@ -2613,22 +2734,14 @@
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
         const normalized = S.normalizeUploadedRows(rows);
         if (!normalized.length) throw new Error("A planilha não contém municípios reconhecíveis.");
-        STATE.raw = normalized;
-        STATE.sourceLabel = `Planilha carregada: ${file.name} (${normalized.length} municípios)`;
-        STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
-        document.getElementById("globalMunicipioFilter").value = "";
-        const regiaoSelReset = document.getElementById("regiaoFilter");
-        if (regiaoSelReset) regiaoSelReset.value = "";
-        const adesaoSelReset = document.getElementById("adesaoFilter");
-        if (adesaoSelReset) adesaoSelReset.value = "";
-        populateFilters();
-        refreshAll();
+        applyUploadedRows(normalized, file.name);
+        saveLocalData(normalized, file.name);
         // Calcula a data mais recente da planilha para exibir no toast de confirmação
         const datasUpd = normalized.filter((r) => r.upd).map((r) => r.upd);
         const dataRef = datasUpd.length
           ? fmtDate(datasUpd.reduce((max, d) => (d > max ? d : max)))
           : "data não identificada";
-        showToast(`Planilha carregada: ${fmtInt(normalized.length)} municípios · dados até ${dataRef}.`);
+        showToast(`Planilha carregada: ${fmtInt(normalized.length)} municípios · dados até ${dataRef}. Salva neste navegador.`);
       } catch (err) {
         showToast("Não foi possível processar a planilha: " + err.message, true);
       }
@@ -3030,6 +3143,14 @@
     initSidebarState();
     refreshAll();
     goTo("dashboard");
+    updateDataBanner();
+    // Verifica se há planilha salva localmente — se sim, restaura (F5 mantém os dados)
+    loadLocalData().then((saved) => {
+      if (saved && saved.rows && saved.rows.length) {
+        applyUploadedRows(saved.rows, saved.fileName, saved.savedAt);
+        showToast(`Dados restaurados: ${saved.fileName} (${fmtInt(saved.rows.length)} municípios).`);
+      }
+    });
   });
 
   S.goTo = goTo;
