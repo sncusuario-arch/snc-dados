@@ -1783,29 +1783,122 @@
           STATE.filters.adesao = jaAtivo ? "" : tipo;
           const sel = document.getElementById("adesaoFilter");
           if (sel) sel.value = STATE.filters.adesao;
+          const tipoSel = document.getElementById("tipoAdesaoFilter");
+          if (tipoSel) tipoSel.value = STATE.filters.adesao;
           window.__SNC.refreshAll();
-          elTipo.querySelectorAll("[data-tipo-filtro]").forEach((c) => {
-            c.style.outline = (!jaAtivo && c === card) ? "2px solid var(--accent)" : "none";
-            c.style.outlineOffset = "2px";
-          });
+        });
+      });
+      // Reflete o outline de destaque conforme o filtro ativo (independente de como foi definido)
+      elTipo.querySelectorAll("[data-tipo-filtro]").forEach((c) => {
+        const ativo = STATE.filters.adesao === c.getAttribute("data-tipo-filtro");
+        c.style.outline = ativo ? "2px solid var(--accent)" : "none";
+        c.style.outlineOffset = "2px";
+      });
+      const tipoSelSync = document.getElementById("tipoAdesaoFilter");
+      if (tipoSelSync) tipoSelSync.value = STATE.filters.adesao || "";
+    }
+
+    S.renderEvolucaoChart(agg, "chartEvolucaoAdesoes");
+    renderAdesoesMunicipiosTable();
+  }
+
+  /* ---------------- Tabela de municípios da tela Adesões (respeita todos os filtros ativos) ---------------- */
+  if (!STATE.adesoesTable) STATE.adesoesTable = { page: 1, pageSize: 25, expandedM: null };
+
+  function componentChecklistHtml(r) {
+    const items = [
+      { label: "Sistema Municipal de Cultura", done: r.sis === 1, st: r.sisSt, dt: r.sisData },
+      { label: "Conselho de Política Cultural", done: r.con === 1, st: r.conSt, dt: r.conData },
+      { label: "Fundo de Cultura", done: r.fun === 1, st: r.funSt, dt: r.funData },
+      { label: "Plano de Cultura", done: r.pla === 1, st: r.plaSt, dt: r.planoData },
+      { label: "Órgão Gestor de Cultura", done: r.org === 1, st: r.orgSt, dt: r.orgData }
+    ];
+    return items.map((it) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="color:${it.done ? "#1d8348" : "#6e6e73"};flex-shrink:0;">
+          ${it.done
+            ? `<svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+            : `<svg viewBox="0 0 24 24" fill="none" width="16" height="16"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`}
+        </span>
+        <span style="flex:1;font-size:12.8px;font-weight:600;">${it.label}</span>
+        <span style="font-size:11.5px;color:${it.done ? "#1d8348" : "#6e6e73"};">${it.st || (it.done ? "Concluída" : "Pendente")}</span>
+        ${it.done && it.dt ? `<span style="font-size:11px;color:var(--muted);margin-left:8px;">${fmtDate(it.dt)}</span>` : ""}
+      </div>`).join("");
+  }
+
+  function renderAdesoesMunicipiosTable() {
+    const table = document.getElementById("tableRecentes");
+    if (!table) return;
+    const t = STATE.adesoesTable;
+    const rows = (STATE.lastFiltered || []).slice().sort((a, b) => a.m.localeCompare(b.m, "pt-BR"));
+
+    const titleEl = document.getElementById("tableRecentesTitle");
+    const tagEl = document.getElementById("tableRecentesTag");
+    if (titleEl) titleEl.textContent = `Municípios (${fmtInt(rows.length)})`;
+    if (tagEl) {
+      const f = STATE.filters;
+      const tipoLabel = f.adesao === "plena" ? "Adesão Plena" : f.adesao === "provisoria" ? "Adesão Provisória"
+        : f.adesao === "com" ? "Com adesão" : f.adesao === "sem" ? "Sem adesão"
+        : f.adesao === "aguardando" ? "Aguardando DOU" : "Todos os tipos";
+      tagEl.textContent = `${tipoLabel}${f.uf ? " · " + f.uf : ""}${f.regiao ? " · " + f.regiao : ""}`;
+    }
+
+    const totalPages = Math.max(1, Math.ceil(rows.length / t.pageSize));
+    if (t.page > totalPages) t.page = totalPages;
+    const start = (t.page - 1) * t.pageSize;
+    const pageRows = rows.slice(start, start + t.pageSize);
+
+    table.querySelector("thead").innerHTML = `<tr><th>Município</th><th>UF</th><th>Situação</th><th>Índice</th><th>Atualizado em</th></tr>`;
+    const tbody = table.querySelector("tbody");
+    if (!pageRows.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">Nenhum município encontrado para os filtros atuais.</td></tr>`;
+    } else {
+      tbody.innerHTML = pageRows.map((r, i) => {
+        const isExpanded = t.expandedM === (r.uf + "|" + r.m);
+        const rowHtml = `
+        <tr data-row-idx="${i}" style="cursor:pointer;">
+          <td>${escapeHtml(r.m)}</td>
+          <td><b>${r.uf}</b></td>
+          <td><span class="pill ${r.ad ? (r.sit === "Publicado no DOU" ? "green" : "amber") : "red"}"><span class="pill-dot" style="background:currentColor"></span>${escapeHtml(r.sit)}</span></td>
+          <td>${r.idx} / 5</td>
+          <td>${r.upd ? fmtDate(r.upd) : "—"}</td>
+        </tr>`;
+        const expandRow = isExpanded ? `
+        <tr>
+          <td colspan="5" style="padding:0;">
+            <div style="padding:16px 20px;background:var(--surface-2);border-top:1px solid var(--border);">
+              <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Checklist de componentes — ${escapeHtml(r.m)}/${r.uf}</div>
+              ${componentChecklistHtml(r)}
+            </div>
+          </td>
+        </tr>` : "";
+        return rowHtml + expandRow;
+      }).join("");
+
+      tbody.querySelectorAll("tr[data-row-idx]").forEach((tr) => {
+        tr.addEventListener("click", () => {
+          const idx = parseInt(tr.getAttribute("data-row-idx"), 10);
+          const r = pageRows[idx];
+          const key = r.uf + "|" + r.m;
+          STATE.adesoesTable.expandedM = (STATE.adesoesTable.expandedM === key) ? null : key;
+          renderAdesoesMunicipiosTable();
         });
       });
     }
 
-    S.renderEvolucaoChart(agg, "chartEvolucaoAdesoes");
-
-    const table = document.getElementById("tableRecentes");
-    if (table) {
-      const recentes = agg.aderidosArr.filter((r) => r.upd).slice().sort((a, b) => (b.upd > a.upd ? 1 : -1)).slice(0, 15);
-      table.querySelector("thead").innerHTML = `<tr><th>Município</th><th>UF</th><th>Situação</th><th>Índice</th><th>Atualizado em</th></tr>`;
-      table.querySelector("tbody").innerHTML = recentes.map((r) => `
-        <tr>
-          <td>${escapeHtml(r.m)}</td>
-          <td><b>${r.uf}</b></td>
-          <td><span class="pill ${r.sit === "Publicado no DOU" ? "green" : "amber"}"><span class="pill-dot" style="background:currentColor"></span>${escapeHtml(r.sit)}</span></td>
-          <td>${r.idx} / 5</td>
-          <td>${fmtDate(r.upd)}</td>
-        </tr>`).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">Sem registros recentes.</td></tr>`;
+    const pagEl = document.getElementById("paginationAdesoesTable");
+    if (pagEl) {
+      pagEl.innerHTML = `
+        <div>Mostrando ${fmtInt(rows.length ? start + 1 : 0)}–${fmtInt(Math.min(rows.length, start + t.pageSize))} de ${fmtInt(rows.length)} municípios</div>
+        <div class="pagination-controls">
+          <button class="page-btn" id="adesoesPagPrev" ${t.page <= 1 ? "disabled" : ""}>‹ Anterior</button>
+          <span style="padding:0 6px;">Página ${t.page} de ${totalPages}</span>
+          <button class="page-btn" id="adesoesPagNext" ${t.page >= totalPages ? "disabled" : ""}>Próxima ›</button>
+        </div>`;
+      const prev = document.getElementById("adesoesPagPrev");
+      const next = document.getElementById("adesoesPagNext");
+      if (prev) prev.addEventListener("click", () => { if (t.page > 1) { t.page--; t.expandedM = null; renderAdesoesMunicipiosTable(); } });
+      if (next) next.addEventListener("click", () => { t.page++; t.expandedM = null; renderAdesoesMunicipiosTable(); });
     }
   }
 
@@ -2335,7 +2428,10 @@
     const agg = S.computeAggregates(filtered);
     STATE.lastFiltered = filtered;
     STATE.lastAgg = agg;
-    if (resetPage !== false) STATE.table.page = 1;
+    if (resetPage !== false) {
+      STATE.table.page = 1;
+      if (STATE.adesoesTable) { STATE.adesoesTable.page = 1; STATE.adesoesTable.expandedM = null; }
+    }
 
     // BUG#2 / BUG#19: para o card "Total de Municípios" e o mapa, o universo base
     // deve ignorar o filtro de adesão — só aplica UF, região e período.
@@ -2841,6 +2937,17 @@
     }
 
     // Imprimir / Exportar PDF da tela Adesões (KPIs, tipos Plena/Provisória, gráfico e tabela)
+    // Filtro dedicado da tela Adesões: só Plena/Provisória (sincroniza com STATE.filters.adesao)
+    const tipoAdesaoFilter = document.getElementById("tipoAdesaoFilter");
+    if (tipoAdesaoFilter) {
+      tipoAdesaoFilter.addEventListener("change", () => {
+        STATE.filters.adesao = tipoAdesaoFilter.value;
+        const globalSel = document.getElementById("adesaoFilter");
+        if (globalSel) globalSel.value = tipoAdesaoFilter.value;
+        refreshAll();
+      });
+    }
+
     const btnImprimirAdesoes = document.getElementById("btnImprimirAdesoes");
     if (btnImprimirAdesoes) {
       btnImprimirAdesoes.addEventListener("click", () => {

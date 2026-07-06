@@ -289,7 +289,13 @@
 
       <!-- ---------- ADESOES ---------- -->
       <section class="view" id="view-adesoes" aria-label="Adesões — Evolução histórica" role="region">
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <select class="select-control" id="tipoAdesaoFilter" autocomplete="off" aria-label="Filtrar por tipo de adesão" title="Tipo de adesão">
+            <option value="">Todos os tipos</option>
+            <option value="plena">Adesão Plena</option>
+            <option value="provisoria">Adesão Provisória</option>
+          </select>
+          <div style="display:flex;gap:8px;">
           <button class="btn btn-secondary" id="btnImprimirAdesoes">
             <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
             Imprimir
@@ -298,6 +304,7 @@
             <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             Exportar PDF
           </button>
+          </div>
         </div>
         <div id="adesoesPrintArea">
           <div class="grid grid-4 row-block" id="adesoesKpiRow"></div>
@@ -311,8 +318,8 @@
           </div>
           <div class="card">
             <div class="card-title-row">
-              <div class="card-title">Adesões mais recentes</div>
-              <div class="card-tag">Últimas atualizações no sistema</div>
+              <div class="card-title" id="tableRecentesTitle">Municípios</div>
+              <div class="card-tag" id="tableRecentesTag">Conforme os filtros ativos</div>
             </div>
             <div class="table-scroll">
               <table class="data-table" id="tableRecentes">
@@ -320,6 +327,7 @@
                 <tbody></tbody>
               </table>
             </div>
+            <div class="pagination" id="paginationAdesoesTable" style="margin-top:14px;"></div>
           </div>
         </div>
       </section>
