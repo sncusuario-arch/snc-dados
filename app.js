@@ -297,6 +297,15 @@
      4. AGREGAÇÕES
      --------------------------------------------------------------------- */
 
+  // Classificação legal (Lei 14.835/2024, art. 5º §§4º-5º): Plena exige Lei do Sistema + Conselho + Plano + Fundo.
+  // Provisória: possui adesão formalizada mas ainda não atingiu a plena.
+  function isAdesaoPlena(r) {
+    return !!(r.ad && r.sis === 1 && r.con === 1 && r.pla === 1 && r.fun === 1);
+  }
+  function isAdesaoProvisoria(r) {
+    return !!(r.ad && !isAdesaoPlena(r));
+  }
+
   function applyFilters(data) {
     const f = STATE.filters;
     return data.filter((r) => {
@@ -304,6 +313,8 @@
       if (f.regiao && r.reg !== f.regiao) return false;
       if (f.adesao === "com" && !r.ad) return false;
       if (f.adesao === "sem" && r.ad) return false;
+      if (f.adesao === "plena" && !isAdesaoPlena(r)) return false;
+      if (f.adesao === "provisoria" && !isAdesaoProvisoria(r)) return false;
       if (f.adesao === "aguardando" && r.sit !== "Aguardando publicação no DOU") return false;
       if (f.periodo && (!r.dtAd || !r.dtAd.startsWith(f.periodo))) return false;
       if (f.search) {
@@ -395,6 +406,11 @@
     const situacaoCount = {};
     aderidos.forEach((r) => { situacaoCount[r.sit] = (situacaoCount[r.sit] || 0) + 1; });
 
+    // Classificação legal: Adesão Plena (Lei 14.835/2024, art. 5º §4º) vs Adesão Provisória (art. 5º §5º)
+    // Plena: Lei do Sistema + Conselho + Plano + Fundo. Provisória: possui adesão mas não é plena.
+    const adesaoPlena = aderidos.filter((r) => r.sis === 1 && r.con === 1 && r.pla === 1 && r.fun === 1);
+    const adesaoProvisoria = aderidos.filter((r) => !(r.sis === 1 && r.con === 1 && r.pla === 1 && r.fun === 1));
+
     // planos: periodicidade e vigência
     const periodicidadeCount = {};
     const vigenciaCount = {};
@@ -407,7 +423,9 @@
       byUF, byRegiao, evolucao, componentRates, donut,
       alerts: { semPlano, semConselho, semFundo, planosVencidos, semAtualizacao2anos, piorEstado, aderidosSemComponentes },
       situacaoCount, vigenciaCount,
-      aderidosArr: aderidos
+      aderidosArr: aderidos,
+      adesaoPlenaCount: adesaoPlena.length,
+      adesaoProvisoriaCount: adesaoProvisoria.length
     };
   }
 
@@ -416,7 +434,8 @@
     STATE, UF_NOME, UF_TILES, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS,
     SCALE_COLORS, GAUGE_BANDS, classifyMaturity, colorForPct,
     fmtInt, fmtPct, fmtDate, debounce, escapeHtml,
-    normalizeUploadedRows, applyFilters, computeAggregates
+    normalizeUploadedRows, applyFilters, computeAggregates,
+    isAdesaoPlena, isAdesaoProvisoria
   };
 })();
 
@@ -570,6 +589,23 @@
         kpiCardHtml({ label: "Sistemas implementados", value: fmtInt(sis), tone: "blue", icon: ICONS.check, delta: `${fmtPct(base.aderidosCount ? (sis/base.aderidosCount)*100 : 0)} dos municípios aderidos`, deltaTone: "up" }),
       ].join("");
     }
+
+    // Terceira linha: divisão legal Adesão Plena vs Adesão Provisória (Lei 14.835/2024)
+    const el3 = document.getElementById("kpiRow3");
+    if (el3) {
+      const plena = base.adesaoPlenaCount || 0;
+      const provisoria = base.adesaoProvisoriaCount || 0;
+      el3.innerHTML = [
+        kpiCardHtml({
+          label: "Adesão Plena", value: fmtInt(plena), tone: "blue", icon: ICONS.check,
+          delta: `${fmtPct(base.aderidosCount ? (plena/base.aderidosCount)*100 : 0)} das adesões · Lei do Sistema + Conselho + Plano + Fundo`, deltaTone: "up"
+        }),
+        kpiCardHtml({
+          label: "Adesão Provisória", value: fmtInt(provisoria), tone: "amber", icon: ICONS.clock,
+          delta: `${fmtPct(base.aderidosCount ? (provisoria/base.aderidosCount)*100 : 0)} das adesões · em institucionalização`, deltaTone: "flat"
+        })
+      ].join("");
+    }
   }
 
   /* ---------------- Gráfico: evolução das adesões ---------------- */
@@ -600,12 +636,8 @@
             backgroundColor: "rgba(14,165,233,0.0)",
             borderDash: [4, 3],
             tension: 0.35,
-            pointRadius: 3,
-            pointBackgroundColor: "#0ea5e9",
-            borderWidth: 1.6,
-            showLabels: true,
-            labelColor: "#0ea5e9",
-            labelFormatter: (v) => v > 0 ? fmtInt(v) : null
+            pointRadius: 0,
+            borderWidth: 1.6
           }
         ]
       },
@@ -850,64 +882,6 @@
     return src;
   }
 
-  /* ---------------- Gráfico: municípios por porte ---------------- */
-  function renderPorteChart(agg) {
-    const PORTES = [
-      { label: "Porte 1", sub: "até 20 mil", fn: (r) => (r.pop && r.pop <= 20000) || (r.porte && r.porte.startsWith("Porte 1")) },
-      { label: "Porte 2", sub: "20–50 mil", fn: (r) => (r.pop && r.pop > 20000 && r.pop <= 50000) || (r.porte && r.porte.startsWith("Porte 2")) },
-      { label: "Porte 3", sub: "50–100 mil", fn: (r) => (r.pop && r.pop > 50000 && r.pop <= 100000) || (r.porte && r.porte.startsWith("Porte 3")) },
-      { label: "Porte 4", sub: "100–900 mil", fn: (r) => (r.pop && r.pop > 100000 && r.pop <= 900000) || (r.porte && r.porte.startsWith("Porte 4")) },
-      { label: "Porte 5", sub: "> 900 mil", fn: (r) => (r.pop && r.pop > 900000) || (r.porte && r.porte.startsWith("Porte 5")) }
-    ];
-    const colors = ["#007aff", "#1d8348", "#9333ea", "#d4a017", "#c0392b"];
-    const filtered = window.__SNC.STATE.lastFiltered || window.__SNC.STATE.raw || [];
-    const allData = window.__SNC.STATE.raw || [];
-    // Evita dupla contagem: prioriza porte quando disponível, senão usa pop
-    function getPorteIdx(r) {
-      if (r.porte) return PORTES.findIndex(p => r.porte.startsWith(p.label.replace(" ", " ")));
-      if (r.pop) return PORTES.findIndex((p, i) => {
-        const ranges = [[0,20000],[20001,50000],[50001,100000],[100001,900000],[900001,Infinity]];
-        return r.pop >= ranges[i][0] && r.pop <= ranges[i][1];
-      });
-      return -1;
-    }
-    const counts = PORTES.map((p, i) => filtered.filter(r => getPorteIdx(r) === i).length);
-    const totals = PORTES.map((p, i) => allData.filter(r => getPorteIdx(r) === i).length);
-    const pcts = counts.map((c, i) => totals[i] ? (c / totals[i] * 100) : 0);
-
-    mkChart("chartPorte", {
-      type: "bar",
-      data: {
-        labels: PORTES.map(p => [p.label, p.sub]),
-        datasets: [{
-          label: "Municípios",
-          data: counts,
-          backgroundColor: colors,
-          borderRadius: 7,
-          maxBarThickness: 52,
-          showLabels: true,
-          labelColor: "#1d1d1f",
-          labelFormatter: (v, i) => v > 0 ? `${fmtInt(v)} (${fmtPct(pcts[i])})` : null
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: {
-            title: (ctx) => `${PORTES[ctx[0].dataIndex].label} — ${PORTES[ctx[0].dataIndex].sub}`,
-            label: (ctx) => `${fmtInt(ctx.parsed.y)} municípios (${fmtPct(pcts[ctx.dataIndex])})`
-          }}
-        },
-        scales: {
-          x: { grid: { display: false } },
-          y: { grid: { color: "#eef2f7" }, beginAtZero: true }
-        }
-      }
-    });
-  }
-
-  S.renderPorteChart = renderPorteChart;
   S.renderKPIs = renderKPIs;
   S.renderEvolucaoChart = renderEvolucaoChart;
   S.renderEstadosChart = renderEstadosChart;
@@ -1782,6 +1756,37 @@
         </div>`
       ].join("");
     }
+
+    // Divisão legal: Adesão Plena vs Adesão Provisória (Lei 14.835/2024, art. 5º §§4º-5º)
+    const elTipo = document.getElementById("adesoesTipoRow");
+    if (elTipo) {
+      const plena = agg.adesaoPlenaCount || 0;
+      const provisoria = agg.adesaoProvisoriaCount || 0;
+      const pctPlena = agg.aderidosCount ? (plena / agg.aderidosCount * 100) : 0;
+      const pctProvisoria = agg.aderidosCount ? (provisoria / agg.aderidosCount * 100) : 0;
+      elTipo.innerHTML = `
+        <div class="card kpi-card" style="cursor:pointer;" data-tipo-filtro="plena">
+          <div class="kpi-top"><div class="kpi-label">Adesão Plena</div><div class="kpi-icon blue">${ICONS.check}</div></div>
+          <div class="kpi-value">${fmtInt(plena)}</div>
+          <div class="kpi-delta up">${fmtPct(pctPlena)} das adesões · Lei do Sistema + Conselho + Plano + Fundo</div>
+        </div>
+        <div class="card kpi-card" style="cursor:pointer;" data-tipo-filtro="provisoria">
+          <div class="kpi-top"><div class="kpi-label">Adesão Provisória</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
+          <div class="kpi-value">${fmtInt(provisoria)}</div>
+          <div class="kpi-delta flat">${fmtPct(pctProvisoria)} das adesões · em processo de institucionalização</div>
+        </div>`;
+      elTipo.querySelectorAll("[data-tipo-filtro]").forEach((card) => {
+        card.addEventListener("click", () => {
+          const tipo = card.getAttribute("data-tipo-filtro");
+          STATE.filters.adesao = tipo;
+          const sel = document.getElementById("adesaoFilter");
+          if (sel) sel.value = tipo;
+          window.__SNC.refreshAll();
+          window.__SNC.goTo("municipios");
+        });
+      });
+    }
+
     S.renderEvolucaoChart(agg, "chartEvolucaoAdesoes");
 
     const table = document.getElementById("tableRecentes");
@@ -1859,7 +1864,7 @@
       type: "doughnut",
       data: {
         labels: ["Monitorado", "Não monitorado"],
-        datasets: [{ data: [monitorados, naoMonitorados], backgroundColor: ["#16a34a", "#d2d2d7"], borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => fmtInt(v) }]
+        datasets: [{ data: [monitorados, naoMonitorados], backgroundColor: ["#16a34a", "#d2d2d7"], borderWidth: 2, borderColor: "#fff" }]
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
@@ -1876,9 +1881,7 @@
         datasets: [{
           data: recentYears.map((y) => agg.vigenciaCount[y] || 0),
           backgroundColor: recentYears.map((y) => y < new Date().getFullYear() ? "#dc2626" : "#2f6feb"),
-          borderRadius: 6, maxBarThickness: 28,
-          showLabels: true, labelColor: "#1d1d1f",
-          labelFormatter: (v) => v > 0 ? fmtInt(v) : null
+          borderRadius: 6, maxBarThickness: 28
         }]
       },
       options: {
@@ -1937,30 +1940,11 @@
 
     const dist = statusDistribution(aderidos, "funSt");
     S.mkChart("chartFundoStatus", {
-      type: "bar",
-      data: {
-        labels: dist.labels,
-        datasets: [{
-          data: dist.values,
-          backgroundColor: dist.colors,
-          borderRadius: 6,
-          maxBarThickness: 22,
-          showLabels: true,
-          labelColor: "#1d1d1f",
-          labelFormatter: (v) => fmtInt(v)
-        }]
-      },
+      type: "doughnut",
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
       options: {
-        indexAxis: "y",
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: (ctx) => `${fmtInt(ctx.parsed.x)} municípios` } }
-        },
-        scales: {
-          x: { grid: { color: "#eef2f7" }, beginAtZero: true },
-          y: { grid: { display: false } }
-        }
+        responsive: true, maintainAspectRatio: false, cutout: "62%",
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
 
@@ -1969,7 +1953,7 @@
     const fundoAnos = Object.keys(fundoAnoCount).sort().slice(-12);
     S.mkChart("chartFundoAno", {
       type: "bar",
-      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#007aff", borderRadius: 6, maxBarThickness: 28, showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => v > 0 ? fmtInt(v) : null }] },
+      data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
@@ -2014,30 +1998,11 @@
 
     const dist = statusDistribution(aderidos, "conSt");
     S.mkChart("chartConselhoStatus", {
-      type: "bar",
-      data: {
-        labels: dist.labels,
-        datasets: [{
-          data: dist.values,
-          backgroundColor: dist.colors,
-          borderRadius: 6,
-          maxBarThickness: 22,
-          showLabels: true,
-          labelColor: "#1d1d1f",
-          labelFormatter: (v) => fmtInt(v)
-        }]
-      },
+      type: "doughnut",
+      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff" }] },
       options: {
-        indexAxis: "y",
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: (ctx) => `${fmtInt(ctx.parsed.x)} municípios` } }
-        },
-        scales: {
-          x: { grid: { color: "#eef2f7" }, beginAtZero: true },
-          y: { grid: { display: false } }
-        }
+        responsive: true, maintainAspectRatio: false, cutout: "62%",
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
       }
     });
 
@@ -2050,9 +2015,7 @@
         datasets: [{
           data: [paritarios, naoParitarios, exclusivos, naoExclusivos],
           backgroundColor: ["#2f6feb", "#d2d2d7", "#16a34a", "#d2d2d7"],
-          borderRadius: 6, maxBarThickness: 36,
-          showLabels: true, labelColor: "#1d1d1f",
-          labelFormatter: (v) => v > 0 ? fmtInt(v) : null
+          borderRadius: 6, maxBarThickness: 36
         }]
       },
       options: {
@@ -2386,7 +2349,6 @@
     S.renderEvolucaoChart(agg, "chartEvolucao");
     S.renderEstadosChart(agg, "chartEstados");
     S.renderComponentesChart(agg, "chartComponentes");
-    S.renderPorteChart(agg);
     S.renderDonut(agg, "chartDonut", "donutLegend");
     S.renderGauge(agg);
     // Mapa sempre usa aggBase para que os percentuais sejam sobre o total real
@@ -2533,86 +2495,6 @@
   }
 
   /* ---------------- Upload de planilha ---------------- */
-  /* ---------------- Persistência local (IndexedDB) ---------------- */
-  const DB_NAME = "snc-dashboard";
-  const DB_STORE = "planilha";
-
-  function openDB() {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  function saveLocalData(rows, fileName) {
-    return openDB().then((db) => new Promise((resolve, reject) => {
-      const tx = db.transaction(DB_STORE, "readwrite");
-      const store = tx.objectStore(DB_STORE);
-      store.put({ rows, fileName, savedAt: new Date().toISOString() }, "dados");
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    })).catch(() => {});
-  }
-
-  function loadLocalData() {
-    return openDB().then((db) => new Promise((resolve) => {
-      const tx = db.transaction(DB_STORE, "readonly");
-      const req = tx.objectStore(DB_STORE).get("dados");
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
-    })).catch(() => null);
-  }
-
-  function clearLocalData() {
-    return openDB().then((db) => new Promise((resolve) => {
-      const tx = db.transaction(DB_STORE, "readwrite");
-      tx.objectStore(DB_STORE).delete("dados");
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    })).catch(() => {});
-  }
-
-  function updateDataBanner() {
-    let banner = document.getElementById("dataSourceBanner");
-    const container = document.querySelector(".topbar");
-    if (!container) return;
-    if (!banner) {
-      banner = document.createElement("div");
-      banner.id = "dataSourceBanner";
-      banner.style.cssText = "width:100%;font-size:11px;font-weight:600;color:var(--muted);padding:2px 0 0;display:flex;align-items:center;gap:6px;";
-      container.appendChild(banner);
-    }
-    if (STATE.localMeta) {
-      const dt = new Date(STATE.localMeta.savedAt);
-      const dataFmt = dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block;"></span>Dados da planilha <b>&nbsp;${escapeHtml(STATE.localMeta.fileName)}&nbsp;</b> · carregada em ${dataFmt} <button id="btnResetBase" style="margin-left:8px;border:1px solid var(--border);background:var(--surface);border-radius:9999px;padding:1px 10px;font-size:10.5px;font-weight:600;cursor:pointer;color:var(--accent);">Voltar à base oficial</button>`;
-      const btnReset = document.getElementById("btnResetBase");
-      if (btnReset) btnReset.addEventListener("click", () => {
-        clearLocalData().then(() => location.reload());
-      });
-    } else {
-      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;"></span>Base oficial do sistema (data.js)`;
-    }
-  }
-
-  function applyUploadedRows(normalized, fileName, savedAt) {
-    STATE.raw = normalized;
-    STATE.localMeta = { fileName, savedAt: savedAt || new Date().toISOString() };
-    STATE.sourceLabel = `Planilha carregada: ${fileName} (${normalized.length} municípios)`;
-    STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
-    const gmf = document.getElementById("globalMunicipioFilter");
-    if (gmf) gmf.value = "";
-    const regiaoSelReset = document.getElementById("regiaoFilter");
-    if (regiaoSelReset) regiaoSelReset.value = "";
-    const adesaoSelReset = document.getElementById("adesaoFilter");
-    if (adesaoSelReset) adesaoSelReset.value = "";
-    populateFilters();
-    refreshAll();
-    updateDataBanner();
-  }
-
   function handleFileUpload(file) {
     if (!file) return;
     if (typeof XLSX === "undefined") {
@@ -2628,14 +2510,22 @@
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
         const normalized = S.normalizeUploadedRows(rows);
         if (!normalized.length) throw new Error("A planilha não contém municípios reconhecíveis.");
-        applyUploadedRows(normalized, file.name);
-        // Persiste no navegador — F5 mantém os dados
-        saveLocalData(normalized, file.name);
+        STATE.raw = normalized;
+        STATE.sourceLabel = `Planilha carregada: ${file.name} (${normalized.length} municípios)`;
+        STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
+        document.getElementById("globalMunicipioFilter").value = "";
+        const regiaoSelReset = document.getElementById("regiaoFilter");
+        if (regiaoSelReset) regiaoSelReset.value = "";
+        const adesaoSelReset = document.getElementById("adesaoFilter");
+        if (adesaoSelReset) adesaoSelReset.value = "";
+        populateFilters();
+        refreshAll();
+        // Calcula a data mais recente da planilha para exibir no toast de confirmação
         const datasUpd = normalized.filter((r) => r.upd).map((r) => r.upd);
         const dataRef = datasUpd.length
           ? fmtDate(datasUpd.reduce((max, d) => (d > max ? d : max)))
           : "data não identificada";
-        showToast(`Planilha carregada: ${fmtInt(normalized.length)} municípios · dados até ${dataRef}. Salva neste navegador.`);
+        showToast(`Planilha carregada: ${fmtInt(normalized.length)} municípios · dados até ${dataRef}.`);
       } catch (err) {
         showToast("Não foi possível processar a planilha: " + err.message, true);
       }
@@ -2720,17 +2610,11 @@
         suggestBox.style.display = "block";
         return;
       }
-      suggestBox.innerHTML = matches.map((r) => {
-        let tagClass = "no", tagLabel = "Sem adesão";
-        if (r.sit === "Publicado no DOU") { tagClass = "ok"; tagLabel = "Publicado no DOU"; }
-        else if (r.sit === "Aguardando publicação no DOU") { tagClass = "wait"; tagLabel = "Aguardando DOU"; }
-        else if (r.sit === "Diligência Documental") { tagClass = "dil"; tagLabel = "Diligência"; }
-        else if (r.ad) { tagClass = "ok"; tagLabel = "Com adesão"; }
-        return `<div class="autocomplete-item" data-m="${escapeHtml(r.m)}">
+      suggestBox.innerHTML = matches.map((r) => `
+        <div class="autocomplete-item" data-m="${escapeHtml(r.m)}">
           <span>${escapeHtml(r.m)}</span>
-          <span class="autocomplete-tag ${tagClass}">${tagLabel}</span>
-        </div>`;
-      }).join("");
+          <span class="autocomplete-tag ${r.ad ? "ok" : "no"}">${r.ad ? "Aderido" : "Sem adesão"}</span>
+        </div>`).join("");
       suggestBox.style.display = "block";
       suggestBox.querySelectorAll(".autocomplete-item").forEach((item) => {
         item.addEventListener("click", () => {
@@ -2949,6 +2833,39 @@
       });
     }
 
+    // Imprimir / Exportar PDF da tela Adesões (KPIs, tipos Plena/Provisória, gráfico e tabela)
+    const btnImprimirAdesoes = document.getElementById("btnImprimirAdesoes");
+    if (btnImprimirAdesoes) {
+      btnImprimirAdesoes.addEventListener("click", () => {
+        document.body.classList.add("printing-adesoes");
+        const cleanup = () => document.body.classList.remove("printing-adesoes");
+        window.addEventListener("afterprint", cleanup, { once: true });
+        window.print();
+        setTimeout(cleanup, 2000);
+      });
+    }
+    const btnExportarAdesoes = document.getElementById("btnExportarAdesoes");
+    if (btnExportarAdesoes) {
+      btnExportarAdesoes.addEventListener("click", () => {
+        if (typeof html2pdf === "undefined") { showToast("Biblioteca PDF não carregou.", true); return; }
+        const target = document.getElementById("adesoesPrintArea");
+        if (!target) return;
+        const dataStr = new Date().toISOString().slice(0, 10);
+        const opt = {
+          margin: [8, 8, 8, 8],
+          filename: `adesoes-snc-${dataStr}.pdf`,
+          image: { type: "jpeg", quality: 0.97 },
+          html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"] }
+        };
+        const contentEl = document.getElementById("content");
+        if (contentEl) contentEl.scrollTop = 0;
+        window.scrollTo(0, 0);
+        html2pdf().set(opt).from(target).save();
+      });
+    }
+
     const btnIrRelatorios = document.getElementById("btnIrParaRelatorios");
     if (btnIrRelatorios) btnIrRelatorios.addEventListener("click", () => goTo("relatorios"));
 
@@ -2999,14 +2916,6 @@
     initSidebarState();
     refreshAll();
     goTo("dashboard");
-    updateDataBanner();
-    // Verifica se há planilha salva localmente — se sim, usa ela (F5 mantém dados)
-    loadLocalData().then((saved) => {
-      if (saved && saved.rows && saved.rows.length) {
-        applyUploadedRows(saved.rows, saved.fileName, saved.savedAt);
-        showToast(`Dados restaurados: ${saved.fileName} (${fmtInt(saved.rows.length)} municípios).`);
-      }
-    });
   });
 
   S.goTo = goTo;

@@ -117,6 +117,9 @@
         <select class="select-control" id="adesaoFilter" autocomplete="off" aria-label="Filtrar por situação de adesão" title="Situação de adesão">
           <option value="">Todos</option>
           <option value="com">Com adesão</option>
+          <option value="plena">Adesão Plena</option>
+          <option value="provisoria">Adesão Provisória</option>
+          <option value="aguardando">Aguardando publicação no DOU</option>
           <option value="sem">Sem adesão</option>
         </select>
         <div class="search-control" style="position:relative;">
@@ -151,6 +154,7 @@
 
         <div class="grid grid-4 row-block" id="kpiRow"></div>
         <div class="grid grid-4 row-block" id="kpiRow2"></div>
+        <div class="grid grid-2 row-block" id="kpiRow3"></div>
         <div id="kpiSearchNote" style="display:none;font-size:12px;color:var(--muted);margin-top:-8px;margin-bottom:8px;padding:0 4px;">
           Os cards acima respondem aos filtros de estado, região e ano — mas não ao campo de texto "Filtrar município", que afeta apenas a tabela de municípios.
         </div>
@@ -172,20 +176,13 @@
           </div>
         </div>
 
-        <div class="grid grid-2 row-block">
+        <div class="grid grid-dashboard-row3 row-block">
           <div class="card">
             <div class="card-title-row">
               <div class="card-title">Componentes do SNC</div>
               <div class="card-tag">Municípios aderidos</div>
             </div>
-            <div class="chart-wrap h-260"><canvas id="chartComponentes"></canvas></div>
-          </div>
-          <div class="card">
-            <div class="card-title-row">
-              <div class="card-title">Municípios por Porte</div>
-              <div class="card-tag">Faixa populacional</div>
-            </div>
-            <div class="chart-wrap h-260"><canvas id="chartPorte"></canvas></div>
+            <div class="chart-wrap h-220"><canvas id="chartComponentes"></canvas></div>
           </div>
         </div>
 
@@ -292,24 +289,37 @@
 
       <!-- ---------- ADESOES ---------- -->
       <section class="view" id="view-adesoes" aria-label="Adesões — Evolução histórica" role="region">
-        <div class="grid grid-4 row-block" id="adesoesKpiRow"></div>
-        <div class="card row-block">
-          <div class="card-title-row">
-            <div class="card-title">Evolução histórica das adesões</div>
-            <div class="card-tag">Acumulado por ano</div>
-          </div>
-          <div class="chart-wrap h-300"><canvas id="chartEvolucaoAdesoes"></canvas></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px;">
+          <button class="btn btn-secondary" id="btnImprimirAdesoes">
+            <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            Imprimir
+          </button>
+          <button class="btn btn-secondary" id="btnExportarAdesoes">
+            <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            Exportar PDF
+          </button>
         </div>
-        <div class="card">
-          <div class="card-title-row">
-            <div class="card-title">Adesões mais recentes</div>
-            <div class="card-tag">Últimas atualizações no sistema</div>
+        <div id="adesoesPrintArea">
+          <div class="grid grid-4 row-block" id="adesoesKpiRow"></div>
+          <div class="grid grid-2 row-block" id="adesoesTipoRow"></div>
+          <div class="card row-block">
+            <div class="card-title-row">
+              <div class="card-title">Evolução histórica das adesões</div>
+              <div class="card-tag">Acumulado por ano</div>
+            </div>
+            <div class="chart-wrap h-300"><canvas id="chartEvolucaoAdesoes"></canvas></div>
           </div>
-          <div class="table-scroll">
-            <table class="data-table" id="tableRecentes">
-              <thead></thead>
-              <tbody></tbody>
-            </table>
+          <div class="card">
+            <div class="card-title-row">
+              <div class="card-title">Adesões mais recentes</div>
+              <div class="card-tag">Últimas atualizações no sistema</div>
+            </div>
+            <div class="table-scroll">
+              <table class="data-table" id="tableRecentes">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
