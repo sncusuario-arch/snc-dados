@@ -1778,11 +1778,16 @@
       elTipo.querySelectorAll("[data-tipo-filtro]").forEach((card) => {
         card.addEventListener("click", () => {
           const tipo = card.getAttribute("data-tipo-filtro");
-          STATE.filters.adesao = tipo;
+          // Alterna: clicar de novo no mesmo card remove o filtro
+          const jaAtivo = STATE.filters.adesao === tipo;
+          STATE.filters.adesao = jaAtivo ? "" : tipo;
           const sel = document.getElementById("adesaoFilter");
-          if (sel) sel.value = tipo;
+          if (sel) sel.value = STATE.filters.adesao;
           window.__SNC.refreshAll();
-          window.__SNC.goTo("municipios");
+          elTipo.querySelectorAll("[data-tipo-filtro]").forEach((c) => {
+            c.style.outline = (!jaAtivo && c === card) ? "2px solid var(--accent)" : "none";
+            c.style.outlineOffset = "2px";
+          });
         });
       });
     }
@@ -2367,8 +2372,10 @@
     S.renderEstadosTable(STATE.lastAggEstados);
 
     S.renderMunicipiosTable();
-    // Bug #2: Adesões usa aggBase para que o gráfico de evolução nunca seja distorcido pelo filtro de adesão
-    S.renderAdesoesView(aggBase);
+    // Bug #2: para filtros "com"/"sem" adesão, usa aggBase para não distorcer a evolução.
+    // Para os tipos legais (Plena/Provisória), usa o agg filtrado — o usuário quer ver o recorte.
+    const tipoLegal = STATE.filters.adesao === "plena" || STATE.filters.adesao === "provisoria";
+    S.renderAdesoesView(tipoLegal ? agg : aggBase);
     S.renderComponentesView(agg);
     S.renderPlanosView(agg);
     S.renderFundoView(agg);
