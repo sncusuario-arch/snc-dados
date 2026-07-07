@@ -297,13 +297,14 @@
      4. AGREGAÇÕES
      --------------------------------------------------------------------- */
 
-  // Classificação legal (Lei 14.835/2024, art. 5º §§4º-5º): Plena exige Lei do Sistema + Conselho + Plano + Fundo.
-  // Provisória: possui adesão formalizada mas ainda não atingiu a plena.
+  // Classificação legal (Lei 14.835/2024, art. 5º §§4º-5º):
+  // Plena = Lei do Sistema + Conselho + Plano + Fundo (os 4 componentes).
+  // Provisória = Conselho + Plano + Fundo, SEM a Lei do Sistema (validado: 67 provisória / 748 plena).
   function isAdesaoPlena(r) {
     return !!(r.ad && r.sis === 1 && r.con === 1 && r.pla === 1 && r.fun === 1);
   }
   function isAdesaoProvisoria(r) {
-    return !!(r.ad && !isAdesaoPlena(r));
+    return !!(r.ad && r.sis !== 1 && r.con === 1 && r.pla === 1 && r.fun === 1);
   }
 
   function applyFilters(data) {
@@ -409,7 +410,7 @@
     // Classificação legal: Adesão Plena (Lei 14.835/2024, art. 5º §4º) vs Adesão Provisória (art. 5º §5º)
     // Plena: Lei do Sistema + Conselho + Plano + Fundo. Provisória: possui adesão mas não é plena.
     const adesaoPlena = aderidos.filter((r) => r.sis === 1 && r.con === 1 && r.pla === 1 && r.fun === 1);
-    const adesaoProvisoria = aderidos.filter((r) => !(r.sis === 1 && r.con === 1 && r.pla === 1 && r.fun === 1));
+    const adesaoProvisoria = aderidos.filter((r) => r.sis !== 1 && r.con === 1 && r.pla === 1 && r.fun === 1);
 
     // planos: periodicidade e vigência
     const periodicidadeCount = {};
