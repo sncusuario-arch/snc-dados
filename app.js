@@ -1894,6 +1894,100 @@
       </div>`).join("");
   }
 
+  /* ---------------- Tabela genérica de municípios (Planos / Fundo / Conselho) ---------------- */
+  if (!STATE.compTables) STATE.compTables = {};
+
+  function renderCompMunicipiosTable(viewKey, rows, tableId, titleId, tagId, paginationId, tagLabel) {
+    if (!STATE.compTables[viewKey]) STATE.compTables[viewKey] = { page: 1, pageSize: 25, expandedM: null };
+    const t = STATE.compTables[viewKey];
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const sorted = rows.slice().sort((a, b) => a.m.localeCompare(b.m, "pt-BR"));
+
+    const titleEl = document.getElementById(titleId);
+    const tagEl = document.getElementById(tagId);
+    if (titleEl) titleEl.textContent = `Municípios (${fmtInt(sorted.length)})`;
+    if (tagEl) tagEl.textContent = tagLabel || "Clique em um card acima para filtrar";
+
+    const totalPages = Math.max(1, Math.ceil(sorted.length / t.pageSize));
+    if (t.page > totalPages) t.page = totalPages;
+    const start = (t.page - 1) * t.pageSize;
+    const pageRows = sorted.slice(start, start + t.pageSize);
+
+    table.querySelector("thead").innerHTML = `<tr><th>Município</th><th>UF</th><th>Situação</th><th>Índice</th><th>Atualizado em</th></tr>`;
+    const tbody = table.querySelector("tbody");
+    if (!pageRows.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">Nenhum município encontrado para o filtro atual.</td></tr>`;
+    } else {
+      tbody.innerHTML = pageRows.map((r, i) => {
+        const isExpanded = t.expandedM === (r.uf + "|" + r.m);
+        const rowHtml = `
+        <tr data-row-idx="${i}" style="cursor:pointer;">
+          <td>${escapeHtml(r.m)}</td>
+          <td><b>${r.uf}</b></td>
+          <td><span class="pill ${r.ad ? (r.sit === "Publicado no DOU" ? "green" : "amber") : "red"}"><span class="pill-dot" style="background:currentColor"></span>${escapeHtml(r.sit)}</span></td>
+          <td>${r.idx} / 5</td>
+          <td>${r.upd ? fmtDate(r.upd) : "—"}</td>
+        </tr>`;
+        const expandRow = isExpanded ? `
+        <tr>
+          <td colspan="5" style="padding:0;">
+            <div style="padding:16px 20px;background:var(--surface-2);border-top:1px solid var(--border);">
+              <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Checklist de componentes — ${escapeHtml(r.m)}/${r.uf}</div>
+              ${componentChecklistHtml(r)}
+            </div>
+          </td>
+        </tr>` : "";
+        return rowHtml + expandRow;
+      }).join("");
+
+      tbody.querySelectorAll("tr[data-row-idx]").forEach((tr) => {
+        tr.addEventListener("click", () => {
+          const idx = parseInt(tr.getAttribute("data-row-idx"), 10);
+          const r = pageRows[idx];
+          const key = r.uf + "|" + r.m;
+          t.expandedM = (t.expandedM === key) ? null : key;
+          renderCompMunicipiosTable(viewKey, rows, tableId, titleId, tagId, paginationId, tagLabel);
+        });
+      });
+    }
+
+    const pagEl = document.getElementById(paginationId);
+    if (pagEl) {
+      pagEl.innerHTML = `
+        <div>Mostrando ${fmtInt(sorted.length ? start + 1 : 0)}–${fmtInt(Math.min(sorted.length, start + t.pageSize))} de ${fmtInt(sorted.length)} municípios</div>
+        <div class="pagination-controls">
+          <button class="page-btn" id="${paginationId}Prev" ${t.page <= 1 ? "disabled" : ""}>‹ Anterior</button>
+          <span style="padding:0 6px;">Página ${t.page} de ${totalPages}</span>
+          <button class="page-btn" id="${paginationId}Next" ${t.page >= totalPages ? "disabled" : ""}>Próxima ›</button>
+        </div>`;
+      const prev = document.getElementById(`${paginationId}Prev`);
+      const next = document.getElementById(`${paginationId}Next`);
+      if (prev) prev.addEventListener("click", () => { if (t.page > 1) { t.page--; t.expandedM = null; renderCompMunicipiosTable(viewKey, rows, tableId, titleId, tagId, paginationId, tagLabel); } });
+      if (next) next.addEventListener("click", () => { t.page++; t.expandedM = null; renderCompMunicipiosTable(viewKey, rows, tableId, titleId, tagId, paginationId, tagLabel); });
+    }
+  }
+
+  // Wire genérico de cliques nos cards de KPI de uma view de componente (Planos/Fundo/Conselho)
+  function wireCompCardClicks(containerId, viewKey) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.querySelectorAll("[data-comp-filtro]").forEach((card) => {
+      const key = card.getAttribute("data-comp-filtro");
+      if (!STATE.compTables[viewKey]) STATE.compTables[viewKey] = { page: 1, pageSize: 25, expandedM: null, filterKey: null };
+      const ativo = STATE.compTables[viewKey].filterKey === key;
+      card.style.outline = ativo ? "2px solid var(--accent)" : "none";
+      card.style.outlineOffset = "2px";
+      card.addEventListener("click", () => {
+        const jaAtivo = STATE.compTables[viewKey].filterKey === key;
+        STATE.compTables[viewKey].filterKey = jaAtivo ? null : key;
+        STATE.compTables[viewKey].page = 1;
+        STATE.compTables[viewKey].expandedM = null;
+        window.__SNC.refreshAll(false);
+      });
+    });
+  }
+
   function renderAdesoesMunicipiosTable() {
     const table = document.getElementById("tableRecentes");
     if (!table) return;
@@ -2003,28 +2097,46 @@
     const el = document.getElementById("planosKpiRow");
     if (el) {
       el.innerHTML = [
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="concluidos">
           <div class="kpi-top"><div class="kpi-label">Planos de Cultura concluídos</div><div class="kpi-icon green">${ICONS.check}</div></div>
           <div class="kpi-value">${fmtInt(planoData.n)}</div>
           <div class="kpi-delta up">${fmtPct(planoData.pct)} dos municípios aderidos</div>
         </div>`,
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="vencidos">
           <div class="kpi-top"><div class="kpi-label">Planos vencidos</div><div class="kpi-icon red">${ICONS.x}</div></div>
           <div class="kpi-value">${fmtInt(agg.alerts.planosVencidos)}</div>
           <div class="kpi-delta down">Vigência encerrada</div>
         </div>`,
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="monitorados">
           <div class="kpi-top"><div class="kpi-label">Planos monitorados</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
           <div class="kpi-value">${fmtInt(monitorados)}</div>
           <div class="kpi-delta flat">${fmtInt(naoMonitorados)} não monitorados</div>
         </div>`,
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="semVigencia">
           <div class="kpi-top"><div class="kpi-label">Sem ano de vigência informado</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
           <div class="kpi-value">${fmtInt(semVigencia)}</div>
           <div class="kpi-delta flat">Entre planos concluídos</div>
         </div>`
       ].join("");
+      wireCompCardClicks("planosKpiRow", "planos");
     }
+
+    const planosFiltroKey = (STATE.compTables.planos || {}).filterKey;
+    const planosPredicates = {
+      concluidos: (r) => r.pla === 1,
+      vencidos: (r) => r.venc === 1,
+      monitorados: (r) => r.pla === 1 && r.mon === 1,
+      semVigencia: (r) => r.pla === 1 && !r.vig
+    };
+    const planosLabels = {
+      concluidos: "Planos de Cultura concluídos",
+      vencidos: "Planos vencidos",
+      monitorados: "Planos monitorados",
+      semVigencia: "Sem ano de vigência informado"
+    };
+    const planosRows = planosFiltroKey ? agg.aderidosArr.filter(planosPredicates[planosFiltroKey]) : agg.aderidosArr;
+    renderCompMunicipiosTable("planos", planosRows, "tablePlanos", "tablePlanosTitle", "tablePlanosTag", "paginationPlanos",
+      planosFiltroKey ? planosLabels[planosFiltroKey] : "Todos os municípios aderidos");
 
     S.mkChart("chartPeriodicidade", {
       type: "doughnut",
@@ -2084,28 +2196,46 @@
     const el = document.getElementById("fundoKpiRow");
     if (el) {
       el.innerHTML = [
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="concluidos">
           <div class="kpi-top"><div class="kpi-label">Fundos de Cultura concluídos</div><div class="kpi-icon green">${ICONS.check}</div></div>
           <div class="kpi-value">${fmtInt(fundoData.n)}</div>
           <div class="kpi-delta up">${fmtPct(fundoData.pct)} dos municípios aderidos</div>
         </div>`,
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="pendentes">
           <div class="kpi-top"><div class="kpi-label">Fundos pendentes</div><div class="kpi-icon red">${ICONS.x}</div></div>
           <div class="kpi-value">${fmtInt(agg.alerts.semFundo)}</div>
           <div class="kpi-delta down">Sem lei concluída</div>
         </div>`,
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="avaliando">
           <div class="kpi-top"><div class="kpi-label">Avaliando anexo</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
           <div class="kpi-value">${fmtInt(avaliandoAnexo)}</div>
           <div class="kpi-delta flat">Em análise pela equipe SNC</div>
         </div>`,
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="problema">
           <div class="kpi-top"><div class="kpi-label">Arquivo com problema</div><div class="kpi-icon red">${ICONS.x}</div></div>
           <div class="kpi-value">${fmtInt(comProblema)}</div>
           <div class="kpi-delta down">Incorreto, incompleto ou danificado</div>
         </div>`
       ].join("");
+      wireCompCardClicks("fundoKpiRow", "fundo");
     }
+
+    const fundoFiltroKey = (STATE.compTables.fundo || {}).filterKey;
+    const fundoPredicates = {
+      concluidos: (r) => r.fun === 1,
+      pendentes: (r) => r.fun === 0,
+      avaliando: (r) => r.funSt === "Avaliando anexo",
+      problema: (r) => ["Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado"].includes(r.funSt)
+    };
+    const fundoLabels = {
+      concluidos: "Fundos de Cultura concluídos",
+      pendentes: "Fundos pendentes",
+      avaliando: "Avaliando anexo",
+      problema: "Arquivo com problema"
+    };
+    const fundoRows = fundoFiltroKey ? aderidos.filter(fundoPredicates[fundoFiltroKey]) : aderidos;
+    renderCompMunicipiosTable("fundo", fundoRows, "tableFundo", "tableFundoTitle", "tableFundoTag", "paginationFundo",
+      fundoFiltroKey ? fundoLabels[fundoFiltroKey] : "Todos os municípios aderidos");
 
     const dist = statusDistribution(aderidos, "funSt");
     S.mkChart("chartFundoStatus", {
@@ -2161,28 +2291,46 @@
     const el = document.getElementById("conselhoKpiRow");
     if (el) {
       el.innerHTML = [
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="concluidos">
           <div class="kpi-top"><div class="kpi-label">Conselhos concluídos</div><div class="kpi-icon green">${ICONS.check}</div></div>
           <div class="kpi-value">${fmtInt(conData.n)}</div>
           <div class="kpi-delta up">${fmtPct(conData.pct)} dos municípios aderidos</div>
         </div>`,
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="pendentes">
           <div class="kpi-top"><div class="kpi-label">Conselhos pendentes</div><div class="kpi-icon red">${ICONS.x}</div></div>
           <div class="kpi-value">${fmtInt(agg.alerts.semConselho)}</div>
           <div class="kpi-delta down">Sem lei concluída</div>
         </div>`,
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="paritarios">
           <div class="kpi-top"><div class="kpi-label">Paritários</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
           <div class="kpi-value">${fmtInt(paritarios)}</div>
           <div class="kpi-delta flat">Entre os concluídos · atributos não exclusivos</div>
         </div>`,
-        `<div class="card kpi-card">
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="exclusivos">
           <div class="kpi-top"><div class="kpi-label">Exclusivos de cultura</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
           <div class="kpi-value">${fmtInt(exclusivos)}</div>
           <div class="kpi-delta flat">Entre os concluídos · um conselho pode ter ambos</div>
         </div>`
       ].join("");
+      wireCompCardClicks("conselhoKpiRow", "conselho");
     }
+
+    const conselhoFiltroKey = (STATE.compTables.conselho || {}).filterKey;
+    const conselhoPredicates = {
+      concluidos: (r) => r.con === 1,
+      pendentes: (r) => r.con === 0,
+      paritarios: (r) => r.con === 1 && r.conParit === true,
+      exclusivos: (r) => r.con === 1 && r.conExcl === true
+    };
+    const conselhoLabels = {
+      concluidos: "Conselhos concluídos",
+      pendentes: "Conselhos pendentes",
+      paritarios: "Conselhos paritários",
+      exclusivos: "Conselhos exclusivos de cultura"
+    };
+    const conselhoRows = conselhoFiltroKey ? aderidos.filter(conselhoPredicates[conselhoFiltroKey]) : aderidos;
+    renderCompMunicipiosTable("conselho", conselhoRows, "tableConselho", "tableConselhoTitle", "tableConselhoTag", "paginationConselho",
+      conselhoFiltroKey ? conselhoLabels[conselhoFiltroKey] : "Todos os municípios aderidos");
 
     const dist = statusDistribution(aderidos, "conSt");
     S.mkChart("chartConselhoStatus", {
