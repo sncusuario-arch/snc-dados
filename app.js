@@ -2081,12 +2081,30 @@
 
     const dist = statusDistribution(aderidos, "funSt");
     S.mkChart("chartFundoStatus", {
-      type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
+      type: "bar",
+      data: {
+        labels: dist.labels,
+        datasets: [{
+          data: dist.values,
+          backgroundColor: dist.colors,
+          borderRadius: 6,
+          maxBarThickness: 22,
+          showLabels: true,
+          labelColor: "#1d1d1f",
+          labelFormatter: (v) => fmtInt(v)
+        }]
+      },
       options: {
-        responsive: true, maintainAspectRatio: false, cutout: "62%",
-        layout: { padding: { top: 24, left: 24, right: 24, bottom: 40 } },
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 }, padding: 14 } } }
+        indexAxis: "y",
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => `${fmtInt(ctx.parsed.x)} municípios` } }
+        },
+        scales: {
+          x: { grid: { color: "#eef2f7" }, beginAtZero: true },
+          y: { grid: { display: false } }
+        }
       }
     });
 
@@ -2694,9 +2712,7 @@
     if (STATE.localMeta) {
       const dt = new Date(STATE.localMeta.savedAt);
       const dataFmt = dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block;"></span>Dados da planilha <b>&nbsp;${escapeHtml(STATE.localMeta.fileName)}&nbsp;</b> · carregada em ${dataFmt} <button id="btnResetBase" style="margin-left:8px;border:1px solid var(--border);background:var(--surface);border-radius:9999px;padding:1px 10px;font-size:10.5px;font-weight:600;cursor:pointer;color:var(--accent);">Voltar à base oficial</button>`;
-      const btnReset = document.getElementById("btnResetBase");
-      if (btnReset) btnReset.addEventListener("click", () => { clearLocalData().then(() => location.reload()); });
+      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block;"></span>Dados da planilha <b>&nbsp;${escapeHtml(STATE.localMeta.fileName)}&nbsp;</b> · carregada em ${dataFmt}`;
     } else {
       let dataAtualizacao = "";
       if (typeof SNC_DATA_META !== "undefined" && SNC_DATA_META.gerado) {
