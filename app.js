@@ -2563,8 +2563,11 @@
     S.renderMunicipiosTable();
     // Bug #2: para filtros "com"/"sem" adesão, usa aggBase para não distorcer a evolução.
     // Para os tipos legais (Plena/Provisória), usa o agg filtrado — o usuário quer ver o recorte.
-    const tipoLegal = STATE.filters.adesao === "plena" || STATE.filters.adesao === "provisoria";
-    S.renderAdesoesView(tipoLegal ? agg : aggBase);
+    // "sem" continua usando aggBase (evita distorcer a Evolução com conjunto vazio de aderidos).
+    // Todos os demais tipos (com/plena/provisoria/aguardando) usam agg filtrado — os KPIs da tela Adesões
+    // devem refletir visivelmente o filtro clicado.
+    const usaAggFiltrado = STATE.filters.adesao && STATE.filters.adesao !== "sem";
+    S.renderAdesoesView(usaAggFiltrado ? agg : aggBase);
     S.renderComponentesView(agg);
     S.renderPlanosView(agg);
     S.renderFundoView(agg);
