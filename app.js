@@ -1820,7 +1820,7 @@
             if (tipoSel) tipoSel.value = (STATE.filters.adesao === "plena" || STATE.filters.adesao === "provisoria") ? STATE.filters.adesao : "";
           }
           if (filtroTipo === "periodo" && periodSel) periodSel.value = STATE.filters.periodo;
-          refreshAll();
+          window.__SNC.refreshAll();
         });
       });
     }
