@@ -2698,7 +2698,12 @@
       const btnReset = document.getElementById("btnResetBase");
       if (btnReset) btnReset.addEventListener("click", () => { clearLocalData().then(() => location.reload()); });
     } else {
-      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;"></span>Base oficial do sistema (data.js)`;
+      let dataAtualizacao = "";
+      if (typeof SNC_DATA_META !== "undefined" && SNC_DATA_META.gerado) {
+        const parts = SNC_DATA_META.gerado.split("-");
+        dataAtualizacao = parts.length === 3 ? ` · atualizada em ${parts[2]}/${parts[1]}/${parts[0]}` : "";
+      }
+      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--success);display:inline-block;"></span>Base oficial do sistema${dataAtualizacao}`;
     }
   }
 
