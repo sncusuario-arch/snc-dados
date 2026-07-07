@@ -606,7 +606,7 @@
       }),
       kpiCardHtml({
         label: "Aguardando publicação no DOU", value: fmtInt(base.situacaoCount ? (base.situacaoCount["Aguardando publicação no DOU"] || 0) : 0), tone: "amber", icon: ICONS.clock,
-        delta: `Adesões em processamento · planilha SNC`, deltaTone: "flat"
+        delta: `Adesões em trâmite interno`, deltaTone: "flat"
       })
     ].join("");
 
@@ -1260,7 +1260,7 @@
         ${kpi("Total de municípios", fmtInt(b.total), "blue", "Universo do estado")}
         ${kpi("Com adesão ao SNC", fmtInt(b.aderidos), "green", `${fmtPct(b.pct)} de cobertura`)}
         ${kpi("Sem adesão", fmtInt(b.total - b.aderidos), "red", `${fmtPct(100 - b.pct)} do universo`)}
-        ${kpi("Aguardando publicação no DOU", fmtInt(aguardandoDOU), "amber", "Adesões em processamento")}
+        ${kpi("Aguardando publicação no DOU", fmtInt(aguardandoDOU), "amber", "Adesões em trâmite interno")}
         ${kpi("Índice médio de maturidade", `${b.idxMedio.toFixed(1)} / 5`, "amber", "Média dos componentes")}
       </div>
       ${secTitle("Componentes Estruturantes — Municípios Aderidos")}
@@ -1770,7 +1770,7 @@
         </div>`,
         `
         <div class="card kpi-card">
-          <div class="kpi-top"><div class="kpi-label">Novas adesões no último ano</div><div class="kpi-icon blue">${ICONS.flag}</div></div>
+          <div class="kpi-top"><div class="kpi-label">Adesões referentes ao ano atual</div><div class="kpi-icon blue">${ICONS.flag}</div></div>
           <div class="kpi-value">${ultimoAno ? fmtInt(ultimoAno.novo) : "—"}</div>
           <div class="kpi-delta flat">${ultimoAno ? (() => {
             const anoAtual = new Date().getFullYear();
@@ -1786,7 +1786,7 @@
         <div class="card kpi-card">
           <div class="kpi-top"><div class="kpi-label">Aguardando publicação no DOU</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
           <div class="kpi-value">${fmtInt(aguardando)}</div>
-          <div class="kpi-delta flat">Adesões em processamento</div>
+          <div class="kpi-delta flat">Adesões em trâmite interno</div>
         </div>`,
         `
         <div class="card kpi-card">
@@ -2006,8 +2006,8 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
-        layout: { padding: 24 },
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true } } }
+        layout: { padding: { top: 24, left: 24, right: 24, bottom: 40 } },
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, padding: 14 } } }
       }
     });
 
@@ -2085,8 +2085,8 @@
       data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
-        layout: { padding: 28 },
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
+        layout: { padding: { top: 24, left: 24, right: 24, bottom: 40 } },
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 }, padding: 14 } } }
       }
     });
 
@@ -2144,8 +2144,8 @@
       data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
       options: {
         responsive: true, maintainAspectRatio: false, cutout: "62%",
-        layout: { padding: 28 },
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 } } } }
+        layout: { padding: { top: 24, left: 24, right: 24, bottom: 40 } },
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 }, padding: 14 } } }
       }
     });
 
@@ -3116,6 +3116,47 @@
         S.renderBrazilMap("brazilMap2", "mapStatePanel2", STATE.lastAgg);
       });
     }
+
+    // Temas visuais — Padrão / Brasil / Governo Federal
+    const THEMES = {
+      padrao: {
+        "--sidebar": "#0b1220", "--sidebar-hover": "#161f33",
+        "--accent": "#007aff", "--accent-light": "#e8f1ff", "--accent-2": "#007aff",
+        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#d4a017"
+      },
+      brasil: {
+        "--sidebar": "#1a3a2a", "--sidebar-hover": "#24522e",
+        "--accent": "#d4a017", "--accent-light": "#fdf6e3", "--accent-2": "#003580",
+        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#003580"
+      },
+      governo: {
+        "--sidebar": "#003580", "--sidebar-hover": "#004aab",
+        "--accent": "#1d8348", "--accent-light": "#eaf4ee", "--accent-2": "#d4a017",
+        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#d4a017"
+      }
+    };
+
+    function applyTheme(name) {
+      const theme = THEMES[name];
+      if (!theme) return;
+      const root = document.documentElement;
+      Object.entries(theme).forEach(([k, v]) => root.style.setProperty(k, v));
+      try { localStorage.setItem("snc-theme", name); } catch (e) {}
+      document.querySelectorAll(".theme-btn").forEach((btn) => {
+        const isActive = btn.getAttribute("data-theme") === name;
+        btn.style.borderColor = isActive ? "var(--accent)" : "var(--border)";
+        btn.style.fontWeight = isActive ? "700" : "600";
+      });
+    }
+
+    try {
+      const savedTheme = localStorage.getItem("snc-theme") || "padrao";
+      applyTheme(savedTheme);
+    } catch (e) { applyTheme("padrao"); }
+
+    document.querySelectorAll(".theme-btn").forEach((btn) => {
+      btn.addEventListener("click", () => applyTheme(btn.getAttribute("data-theme")));
+    });
 
     const cfgPageSize = document.getElementById("cfgPageSize");
     if (cfgPageSize) {

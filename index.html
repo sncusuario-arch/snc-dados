@@ -291,7 +291,7 @@
       <section class="view" id="view-adesoes" aria-label="Adesões — Evolução histórica" role="region">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
           <select class="select-control" id="tipoAdesaoFilter" autocomplete="off" aria-label="Filtrar por tipo de adesão" title="Tipo de adesão">
-            <option value="">Todos os tipos</option>
+            <option value="">Tipos de adesões</option>
             <option value="plena">Adesão Plena</option>
             <option value="provisoria">Adesão Provisória</option>
           </select>
@@ -532,6 +532,23 @@
               <option value="50">50</option>
               <option value="100">100</option>
             </select>
+          </div>
+          <div class="settings-item" style="flex-direction:column;align-items:flex-start;gap:12px;">
+            <div><div class="si-title">Tema visual</div><div class="si-desc">Escolha o esquema de cores do sistema</div></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;" id="themeSelector">
+              <button class="theme-btn" data-theme="padrao" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9999px;border:2px solid var(--accent);background:var(--surface);cursor:pointer;font-size:12px;font-weight:600;">
+                <span style="display:flex;gap:3px;"><span style="width:12px;height:12px;border-radius:50%;background:#0b1220;"></span><span style="width:12px;height:12px;border-radius:50%;background:#007aff;"></span></span>
+                Padrão
+              </button>
+              <button class="theme-btn" data-theme="brasil" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9999px;border:2px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;font-weight:600;">
+                <span style="display:flex;gap:3px;"><span style="width:12px;height:12px;border-radius:50%;background:#1a3a2a;"></span><span style="width:12px;height:12px;border-radius:50%;background:#d4a017;"></span><span style="width:12px;height:12px;border-radius:50%;background:#003580;"></span></span>
+                Brasil
+              </button>
+              <button class="theme-btn" data-theme="governo" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9999px;border:2px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;font-weight:600;">
+                <span style="display:flex;gap:3px;"><span style="width:12px;height:12px;border-radius:50%;background:#003580;"></span><span style="width:12px;height:12px;border-radius:50%;background:#1d8348;"></span><span style="width:12px;height:12px;border-radius:50%;background:#d4a017;"></span></span>
+                Governo Federal
+              </button>
+            </div>
           </div>
         </div>
       </section>
