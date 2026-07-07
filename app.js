@@ -942,7 +942,7 @@
 (function () {
   "use strict";
   const S = window.__SNC;
-  const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS, classifyMaturity,
+  const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS, classifyMaturity,
     fmtInt, fmtPct, fmtDate, escapeHtml, colorForPct } = S;
   const ICONS = S.ICONS;
 
@@ -1047,8 +1047,8 @@
     if (sortDirBtn) sortDirBtn.style.transform = sort.dir === "asc" ? "scaleY(-1)" : "none";
 
     const compFields = [
-      { key: "sisPct", label: "Sistema" }, { key: "conPct", label: "Conselho" },
-      { key: "funPct", label: "Fundo" }, { key: "plaPct", label: "Plano" }, { key: "orgPct", label: "Órgão Gestor" }
+      { key: "sisPct", label: "Sistema", color: COMPONENT_COLORS.sis }, { key: "conPct", label: "Conselho", color: COMPONENT_COLORS.con },
+      { key: "funPct", label: "Fundo", color: COMPONENT_COLORS.fun }, { key: "plaPct", label: "Plano", color: COMPONENT_COLORS.pla }, { key: "orgPct", label: "Órgão Gestor", color: COMPONENT_COLORS.org }
     ];
 
     if (!rows.length) {
@@ -1057,7 +1057,7 @@
     }
 
     container.innerHTML = rows.map((r) => `
-      <div class="estado-card" data-uf="${r.uf}">
+      <div class="estado-card" data-uf="${r.uf}" style="border-left:4px solid ${colorForPct(r.pct)};">
         <div class="estado-card-header">
           <div class="estado-card-title">
             <span class="pill gray">${r.uf}</span>
@@ -1074,7 +1074,7 @@
           <div class="estado-metric"><span class="estado-metric-label">Índice médio</span><span class="estado-metric-value" aria-label="Índice médio de maturidade: ${r.idxMedio.toFixed(1)} de 5">${r.idxMedio.toFixed(1)} / 5</span></div>
         </div>
         <div class="estado-card-components">
-          ${compFields.map((c) => `<span class="comp-pill">${c.label} <b>${fmtPct(r[c.key], 0)}</b></span>`).join("")}
+          ${compFields.map((c) => `<span class="comp-pill" style="background:${c.color}18;color:${c.color};border:1px solid ${c.color}40;">${c.label} <b>${fmtPct(r[c.key], 0)}</b></span>`).join("")}
         </div>
       </div>`).join("");
 
@@ -1125,10 +1125,13 @@
     function kpi(label, value, tone, sub) {
       const barColors = { blue:"#007aff", green:"#16a34a", red:"#dc2626", amber:"#d97706", purple:"#9333ea", teal:"#0ea5e9" };
       const txtColors = { blue:"color:#007aff", green:"color:#16a34a", red:"color:#dc2626", amber:"color:#d97706", purple:"color:#9333ea", teal:"color:#0ea5e9" };
+      // Datas (formato dd/mm/aaaa) usam fonte menor para não cortar o conteúdo — não afeta outros valores como "Publicado no DOU"
+      const isDateValue = typeof value === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(value);
+      const valueFontSize = isDateValue ? "1.4rem" : "2rem";
       return `<div class="card" style="padding:18px 20px 16px;position:relative;overflow:hidden;">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0;background:${barColors[tone] || "#6e6e73"};"></div>
         <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">${label}</div>
-        <div style="font-size:2rem;font-weight:800;letter-spacing:-.04em;line-height:1;${txtColors[tone] || ""}">${value}</div>
+        <div style="font-size:${valueFontSize};font-weight:800;letter-spacing:-.02em;line-height:1.15;white-space:nowrap;${txtColors[tone] || ""}">${value}</div>
         ${sub ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">${sub}</div>` : ""}
       </div>`;
     }
@@ -1153,13 +1156,13 @@
     // ── HEADER ───────────────────────────────────────────────────────────────
     const pctAd = b ? fmtPct(b.pct) : "—";
     headerEl.innerHTML = `
-      <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:10px;">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6e6e73;margin-bottom:10px;">
         Ministério da Cultura · SAFCC · DSNC-SNC · Relatório Estratégico
       </div>
-      <div style="font-size:1.6rem;font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:6px;">
+      <div style="font-size:1.6rem;font-weight:800;letter-spacing:-.03em;line-height:1.1;margin-bottom:6px;color:#1d1d1f;">
         ${nomeEstado} — Sistema Nacional de Cultura
       </div>
-      <div style="font-size:12px;color:rgba(255,255,255,.65);margin-bottom:16px;">
+      <div style="font-size:12px;color:#6e6e73;margin-bottom:16px;">
         Análise completa · Estado como ente federado e municípios · Referência ${hoje}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
@@ -1170,18 +1173,18 @@
         ${ed && ed.sit ? pill(ed.sit, "blue") : ""}
       </div>
       <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">
-        <button id="btnEstadoReportPrint" style="display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:9999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;">
+        <button id="btnEstadoReportPrint" style="display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:9999px;border:1px solid #d2d2d7;background:#ffffff;color:#1d1d1f;font-size:12.5px;font-weight:600;cursor:pointer;">
           <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M6 14h12v7H6v-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
           Imprimir
         </button>
-        <button id="btnEstadoReportPdf" style="display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:9999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;">
+        <button id="btnEstadoReportPdf" style="display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:9999px;border:1px solid #d2d2d7;background:#ffffff;color:#1d1d1f;font-size:12.5px;font-weight:600;cursor:pointer;">
           <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h4M10 16h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
           Exportar PDF
         </button>
-        <button id="btnEstadoReportVerMun" style="display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:9999px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font-size:12.5px;font-weight:600;cursor:pointer;">
+        <button id="btnEstadoReportVerMun" style="display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:9999px;border:1px solid #d2d2d7;background:#ffffff;color:#1d1d1f;font-size:12.5px;font-weight:600;cursor:pointer;">
           Ver municípios
         </button>
-        <button id="btnEstadoReportFechar" style="display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:9999px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.6);font-size:12.5px;font-weight:600;cursor:pointer;">
+        <button id="btnEstadoReportFechar" style="display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:9999px;border:1px solid #d2d2d7;background:transparent;color:#6e6e73;font-size:12.5px;font-weight:600;cursor:pointer;">
           ✕ Fechar
         </button>
       </div>`;
@@ -3572,8 +3575,8 @@
   /* ---------------- Lista de Contatos (Prefeito, Gestor, Cadastrador) ---------------- */
   function contatoCell(nome, email) {
     const nomeHtml = nome ? `<b>${escapeHtml(nome)}</b>` : `<span style="color:var(--muted);">Não informado</span>`;
-    const emailHtml = email ? `<a href="mailto:${escapeHtml(email)}" style="color:var(--accent);text-decoration:none;">${escapeHtml(email)}</a>` : `<span style="color:var(--muted);">—</span>`;
-    return `<td>${nomeHtml}</td><td>${emailHtml}</td>`;
+    const emailHtml = email ? `<a href="mailto:${escapeHtml(email)}" style="color:var(--accent);text-decoration:none;word-break:break-all;">${escapeHtml(email)}</a>` : `<span style="color:var(--muted);">—</span>`;
+    return `<td style="max-width:160px;white-space:normal;word-break:break-word;">${nomeHtml}</td><td style="max-width:180px;white-space:normal;word-break:break-all;">${emailHtml}</td>`;
   }
 
   function renderContatosReport(uf, municipioNome) {
