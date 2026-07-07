@@ -1762,17 +1762,18 @@
   function renderAdesoesView(agg) {
     const ultimoAno = agg.evolucao.length ? agg.evolucao[agg.evolucao.length - 1] : null;
     const aguardando = agg.situacaoCount["Aguardando publicação no DOU"] || 0;
+    const anoAtualStr = String(new Date().getFullYear());
     const el = document.getElementById("adesoesKpiRow");
     if (el) {
       el.innerHTML = [
         `
-        <div class="card kpi-card">
+        <div class="card kpi-card" style="cursor:pointer;" data-adesoes-filtro="adesao" data-adesoes-valor="com">
           <div class="kpi-top"><div class="kpi-label">Municípios com Adesão</div><div class="kpi-icon green">${ICONS.check}</div></div>
           <div class="kpi-value">${fmtInt(agg.aderidosCount)}</div>
           <div class="kpi-delta up">${fmtPct(agg.pctAderidos)} do total nacional</div>
         </div>`,
         `
-        <div class="card kpi-card">
+        <div class="card kpi-card" style="cursor:pointer;" data-adesoes-filtro="periodo" data-adesoes-valor="${anoAtualStr}">
           <div class="kpi-top"><div class="kpi-label">Adesões referentes ao ano atual</div><div class="kpi-icon blue">${ICONS.flag}</div></div>
           <div class="kpi-value">${ultimoAno ? fmtInt(ultimoAno.novo) : "—"}</div>
           <div class="kpi-delta flat">${ultimoAno ? (() => {
@@ -1786,7 +1787,7 @@
           })() : "Sem dados de período"}</div>
         </div>`,
         `
-        <div class="card kpi-card">
+        <div class="card kpi-card" style="cursor:pointer;" data-adesoes-filtro="adesao" data-adesoes-valor="aguardando">
           <div class="kpi-top"><div class="kpi-label">Aguardando publicação no DOU</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
           <div class="kpi-value">${fmtInt(aguardando)}</div>
           <div class="kpi-delta flat">Adesões em trâmite interno</div>
@@ -1798,6 +1799,29 @@
           <div class="kpi-delta flat">Entre municípios aderidos</div>
         </div>`
       ].join("");
+
+      // Clique nos cards filtra a tabela de municípios da própria tela Adesões (sem navegar)
+      el.querySelectorAll("[data-adesoes-filtro]").forEach((card) => {
+        const filtroTipo = card.getAttribute("data-adesoes-filtro"); // "adesao" ou "periodo"
+        const filtroValor = card.getAttribute("data-adesoes-valor");
+        const jaAtivo = STATE.filters[filtroTipo] === filtroValor;
+        card.style.outline = jaAtivo ? "2px solid var(--accent)" : "none";
+        card.style.outlineOffset = "2px";
+        card.addEventListener("click", () => {
+          const ativoAgora = STATE.filters[filtroTipo] === filtroValor;
+          // Limpa o outro tipo de filtro para não conflitar (adesao x periodo são independentes, mas evita confusão visual)
+          STATE.filters[filtroTipo] = ativoAgora ? "" : filtroValor;
+          const globalSel = document.getElementById("adesaoFilter");
+          const tipoSel = document.getElementById("tipoAdesaoFilter");
+          const periodSel = document.getElementById("periodFilter");
+          if (filtroTipo === "adesao") {
+            if (globalSel) globalSel.value = STATE.filters.adesao;
+            if (tipoSel) tipoSel.value = (STATE.filters.adesao === "plena" || STATE.filters.adesao === "provisoria") ? STATE.filters.adesao : "";
+          }
+          if (filtroTipo === "periodo" && periodSel) periodSel.value = STATE.filters.periodo;
+          refreshAll();
+        });
+      });
     }
 
     // Divisão legal: Adesão Plena vs Adesão Provisória (Lei 14.835/2024, art. 5º §§4º-5º)
