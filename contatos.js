@@ -19,10 +19,31 @@
 
 const SNC_CONTATOS = [
   {
-    nome: "Nome Completo do Servidor",
-    funcao: "Cargo ou função",
-    telefone: "(61) 0000-0000",
-    email: "nome@cultura.gov.br",
+    nome: "Fagner Silva Ribeiro",
+    funcao: "Chefe de Divisão do SNC",
+    telefone: "(61) 2024-2688",
+    email: "fagner.ribeiro@cultura.gov.br",
+    foto: ""
+  },
+  {
+    nome: "Charles William Vieira Vianna",
+    funcao: "Coordenador de Articulação do SNC",
+    telefone: "(61) 2024-2406",
+    email: "charles.vianna@cultura.gov.br",
+    foto: ""
+  },
+  {
+    nome: "Lidia Marcia Anselmo",
+    funcao: "Técnica de Suporte do SNC",
+    telefone: "(61) 2024-2943",
+    email: "lidia.anselmo@cultura.gov.br",
+    foto: ""
+  },
+  {
+    nome: "Leila Calaça",
+    funcao: "Coordenadora de Institucionalização do SNC",
+    telefone: "(61) 2024-2202",
+    email: "Leila.Silva@cultura.gov.br",
     foto: ""
   }
 ];

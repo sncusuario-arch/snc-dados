@@ -79,6 +79,14 @@
     return "#dc2626";
   }
 
+  const CONTATO_COLORS = ["#2f6feb", "#16a34a", "#7c3aed", "#f59e0b", "#0ea5e9", "#dc2626", "#0d9488", "#ea580c"];
+  function colorForContato(nome) {
+    const s = String(nome || "");
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+    return CONTATO_COLORS[hash % CONTATO_COLORS.length];
+  }
+
   function fmtInt(n) {
     return (n || 0).toLocaleString("pt-BR");
   }
@@ -437,7 +445,7 @@
   // expõe para o restante do script (parte 2)
   window.__SNC = {
     STATE, UF_NOME, UF_TILES, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS,
-    SCALE_COLORS, GAUGE_BANDS, classifyMaturity, colorForPct,
+    SCALE_COLORS, GAUGE_BANDS, classifyMaturity, colorForPct, colorForContato,
     fmtInt, fmtPct, fmtDate, debounce, escapeHtml,
     normalizeUploadedRows, applyFilters, computeAggregates,
     isAdesaoPlena, isAdesaoProvisoria
@@ -1362,7 +1370,7 @@
   "use strict";
   const S = window.__SNC;
   const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS, classifyMaturity,
-    fmtInt, fmtPct, fmtDate, escapeHtml } = S;
+    fmtInt, fmtPct, fmtDate, escapeHtml, colorForContato } = S;
 
   const MUNICIPIOS_COLUMNS = [
     { key: "uf", label: "UF" },
@@ -1772,10 +1780,11 @@
     const modalContent = document.getElementById("modalContent");
     if (!backdrop || !modalContent) return;
 
+    const cor = colorForContato(c.nome);
     const iniciais = (c.nome || "").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
     const avatar = c.foto
       ? `<img src="${escapeHtml(c.foto)}" alt="${escapeHtml(c.nome)}" style="width:88px;height:88px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
-      : `<div style="width:88px;height:88px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;flex-shrink:0;">${iniciais}</div>`;
+      : `<div style="width:88px;height:88px;border-radius:50%;background:${cor}22;color:${cor};display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;flex-shrink:0;">${iniciais}</div>`;
 
     function infoRow(label, value, href) {
       if (!value) return "";
@@ -1822,7 +1831,7 @@
   "use strict";
   const S = window.__SNC;
   const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS,
-    fmtInt, fmtPct, fmtDate, escapeHtml } = S;
+    fmtInt, fmtPct, fmtDate, escapeHtml, colorForContato } = S;
   const ICONS = S.ICONS;
 
   /* ---------------- Adesões ---------------- */
@@ -2444,12 +2453,13 @@
       return;
     }
     el.innerHTML = contatos.map((c, i) => {
+      const cor = colorForContato(c.nome);
       const iniciais = (c.nome || "").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
       const avatar = c.foto
         ? `<img src="${escapeHtml(c.foto)}" alt="${escapeHtml(c.nome)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
-        : `<div style="width:56px;height:56px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;">${iniciais}</div>`;
+        : `<div style="width:56px;height:56px;border-radius:50%;background:${cor}22;color:${cor};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;">${iniciais}</div>`;
       return `
-        <div class="card contato-card" data-idx="${i}" style="cursor:pointer;display:flex;align-items:center;gap:12px;">
+        <div class="card contato-card" data-idx="${i}" style="cursor:pointer;display:flex;align-items:center;gap:12px;border-left:4px solid ${cor};">
           ${avatar}
           <div style="min-width:0;">
             <div style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.nome || "")}</div>
