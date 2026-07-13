@@ -1766,8 +1766,52 @@
 
 
   }
+  /* ---------------- Modal de detalhe do contato ---------------- */
+  function openContatoModal(c) {
+    const backdrop = document.getElementById("modalBackdrop");
+    const modalContent = document.getElementById("modalContent");
+    if (!backdrop || !modalContent) return;
+
+    const iniciais = (c.nome || "").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+    const avatar = c.foto
+      ? `<img src="${escapeHtml(c.foto)}" alt="${escapeHtml(c.nome)}" style="width:88px;height:88px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+      : `<div style="width:88px;height:88px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;flex-shrink:0;">${iniciais}</div>`;
+
+    function infoRow(label, value, href) {
+      if (!value) return "";
+      const content = href ? `<a href="${href}" style="color:var(--accent);">${escapeHtml(value)}</a>` : escapeHtml(value);
+      return `<div style="padding:12px 14px;background:var(--surface-2);border-radius:12px;margin-bottom:10px;">
+        <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-bottom:4px;">${label}</div>
+        <div style="font-size:13px;font-weight:600;">${content}</div>
+      </div>`;
+    }
+
+    modalContent.innerHTML = `
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:16px;">
+          ${avatar}
+          <div>
+            <h2 style="margin-bottom:2px;">${escapeHtml(c.nome || "")}</h2>
+            <span>${escapeHtml(c.funcao || "")}</span>
+          </div>
+        </div>
+        <button class="modal-close" id="modalCloseBtn" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      ${infoRow("Telefone", c.telefone, c.telefone ? `tel:${c.telefone.replace(/\D/g, "")}` : null)}
+      ${infoRow("E-mail", c.email, c.email ? `mailto:${c.email}` : null)}
+    `;
+
+    const modalBox = backdrop.querySelector(".modal");
+    if (modalBox) modalBox.style.maxWidth = "420px";
+    backdrop.classList.add("open");
+    document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+  }
+
   S.renderMunicipiosTable = renderMunicipiosTable;
   S.openMunicipioModal = openMunicipioModal;
+  S.openContatoModal = openContatoModal;
   S.closeModal = closeModal;
 })();
 
@@ -2390,11 +2434,43 @@
     });
   }
 
+  /* ---------------- Contatos (equipe MinC/DSNC de apoio aos municípios) ---------------- */
+  function renderContatosView() {
+    const el = document.getElementById("contatosGrid");
+    if (!el) return;
+    const contatos = (typeof SNC_CONTATOS !== "undefined" && Array.isArray(SNC_CONTATOS)) ? SNC_CONTATOS : [];
+    if (!contatos.length) {
+      el.innerHTML = `<div class="section-sub" style="text-align:center;padding:24px;margin:0;grid-column:1/-1;">Nenhum contato cadastrado ainda.</div>`;
+      return;
+    }
+    el.innerHTML = contatos.map((c, i) => {
+      const iniciais = (c.nome || "").trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+      const avatar = c.foto
+        ? `<img src="${escapeHtml(c.foto)}" alt="${escapeHtml(c.nome)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        : `<div style="width:56px;height:56px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;">${iniciais}</div>`;
+      return `
+        <div class="card contato-card" data-idx="${i}" style="cursor:pointer;display:flex;align-items:center;gap:12px;">
+          ${avatar}
+          <div style="min-width:0;">
+            <div style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.nome || "")}</div>
+            <div style="font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">${escapeHtml(c.funcao || "")}</div>
+          </div>
+        </div>`;
+    }).join("");
+    el.querySelectorAll(".contato-card").forEach((card) => {
+      card.addEventListener("click", () => {
+        const idx = parseInt(card.getAttribute("data-idx"), 10);
+        S.openContatoModal(contatos[idx]);
+      });
+    });
+  }
+
   S.renderAdesoesView = renderAdesoesView;
   S.renderComponentesView = renderComponentesView;
   S.renderPlanosView = renderPlanosView;
   S.renderFundoView = renderFundoView;
   S.renderConselhoView = renderConselhoView;
+  S.renderContatosView = renderContatosView;
 })();
 
 /* ============================================================================
@@ -2569,6 +2645,7 @@
     fundo: { title: "Fundo de Cultura", sub: "Situação da Lei do Fundo Municipal de Cultura" },
     conselho: { title: "Conselho", sub: "Situação da Lei do Conselho de Política Cultural" },
     relatorios: { title: "Relatórios", sub: "Relatório executivo consolidado, pronto para exportação" },
+    contatos: { title: "Contatos", sub: "Equipe do MinC / DSNC de apoio aos municípios" },
     config: { title: "Configurações", sub: "Preferências de exibição e fonte de dados" }
   };
 
@@ -3373,6 +3450,7 @@
     refreshAll();
     goTo("dashboard");
     updateDataBanner();
+    window.__SNC.renderContatosView();
     // Verifica se há planilha salva localmente — se sim, restaura (F5 mantém os dados)
     loadLocalData().then((saved) => {
       if (saved && saved.rows && saved.rows.length) {

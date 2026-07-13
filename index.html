@@ -83,6 +83,10 @@
         <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 12h5M10 16h5M10 8h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         Relatórios
       </li>
+      <li class="nav-item" data-view="contatos">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.3" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M16 4.3c1.5.4 2.6 1.8 2.6 3.4s-1.1 3-2.6 3.4M19 13.4c1.7.6 3 2.2 3 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        Contatos
+      </li>
       <li class="nav-item" data-view="config">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 13.5a1.7 1.7 0 00.3 1.9l.06.07a2 2 0 11-2.9 2.9l-.07-.06a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.55V20a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.9.3l-.07.06a2 2 0 11-2.9-2.9l.06-.07a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.55-1H4a2 2 0 110-4h.1a1.7 1.7 0 001.55-1 1.7 1.7 0 00-.3-1.9l-.06-.07a2 2 0 112.9-2.9l.07.06a1.7 1.7 0 001.9.3H10A1.7 1.7 0 0011 4.6V4.5a2 2 0 114 0v.1a1.7 1.7 0 001 1.55 1.7 1.7 0 001.9-.3l.07-.06a2 2 0 112.9 2.9l-.06.07a1.7 1.7 0 00-.3 1.9V10a1.7 1.7 0 001.55 1H20a2 2 0 110 4h-.1a1.7 1.7 0 00-1.55 1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
         Configurações
@@ -521,6 +525,15 @@
         <div id="reportContainer"></div>
       </section>
 
+      <!-- ---------- CONTATOS ---------- -->
+      <section class="view" id="view-contatos" aria-label="Contatos" role="region">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title" style="margin-bottom:4px;">Equipe de apoio aos municípios</div>
+          <div style="font-size:12px;color:var(--muted);">Servidores do MinC / DSNC responsáveis por dar suporte aos municípios no processo de adesão ao SNC. Clique em alguém para ver os dados completos.</div>
+        </div>
+        <div id="contatosGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;"></div>
+      </section>
+
       <!-- ---------- CONFIG ---------- -->
       <section class="view" id="view-config" aria-label="Configurações" role="region">
         <div class="card" style="max-width:640px;">
@@ -573,6 +586,7 @@
 <script src="xlsx.full.min.js"></script>
 <script src="html2pdf.bundle.min.js"></script>
 <script src="data.js"></script>
+<script src="contatos.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
