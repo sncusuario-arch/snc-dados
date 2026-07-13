@@ -2703,6 +2703,10 @@
     if (content) content.scrollTop = 0;
     window.scrollTo(0, 0);
 
+    // Tela de Contatos não usa nenhum filtro de município/estado/adesão.
+    const topbarControls = document.getElementById("topbarControls");
+    if (topbarControls) topbarControls.style.display = view === "contatos" ? "none" : "";
+
     // A busca por nome de município não se aplica à tela de Estados.
     const searchControl = document.getElementById("globalMunicipioFilter")
       ? document.getElementById("globalMunicipioFilter").closest(".search-control")
