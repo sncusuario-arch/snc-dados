@@ -83,10 +83,6 @@
         <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 12h5M10 16h5M10 8h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         Relatórios
       </li>
-      <li class="nav-item" data-view="exportacoes">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17v3a1 1 0 001 1h14a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        Exportações
-      </li>
       <li class="nav-item" data-view="config">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 13.5a1.7 1.7 0 00.3 1.9l.06.07a2 2 0 11-2.9 2.9l-.07-.06a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.55V20a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.9.3l-.07.06a2 2 0 11-2.9-2.9l.06-.07a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.55-1H4a2 2 0 110-4h.1a1.7 1.7 0 001.55-1 1.7 1.7 0 00-.3-1.9l-.06-.07a2 2 0 112.9-2.9l.07.06a1.7 1.7 0 001.9.3H10A1.7 1.7 0 0011 4.6V4.5a2 2 0 114 0v.1a1.7 1.7 0 001 1.55 1.7 1.7 0 001.9-.3l.07-.06a2 2 0 112.9 2.9l-.06.07a1.7 1.7 0 00-.3 1.9V10a1.7 1.7 0 001.55 1H20a2 2 0 110 4h-.1a1.7 1.7 0 00-1.55 1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
         Configurações
@@ -523,37 +519,6 @@
           </button>
         </div>
         <div id="reportContainer"></div>
-      </section>
-
-      <!-- ---------- EXPORTACOES ---------- -->
-      <section class="view" id="view-exportacoes" aria-label="Exportações" role="region">
-        <div class="grid grid-3">
-          <div class="card">
-            <div class="kpi-icon blue" style="margin-bottom:12px;">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l5 5v13H7V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-            </div>
-            <div class="card-title">Relatórios em PDF</div>
-            <div style="font-size:12px;color:var(--muted);margin:8px 0 16px;">Gere relatórios completos (executivo, por município, por estado, checklist ou contatos) na tela de Relatórios.</div>
-            <button class="btn btn-primary" id="btnIrParaRelatorios">Ir para Relatórios</button>
-          </div>
-          <div class="card">
-            <div class="kpi-icon green" style="margin-bottom:12px;">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4V4z" stroke="currentColor" stroke-width="1.8"/><path d="M4 9h16M9 9v11" stroke="currentColor" stroke-width="1.8"/></svg>
-            </div>
-            <div class="card-title">Exportar base em Excel</div>
-            <div style="font-size:12px;color:var(--muted);margin:8px 0 16px;">Exporta a tabela de municípios completa (filtros aplicados) em planilha .xlsx.</div>
-            <button class="btn btn-primary" id="btnExportExcel">Exportar Excel</button>
-          </div>
-          <div class="card">
-            <div class="kpi-icon amber" style="margin-bottom:12px;">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4m0 0L7 9m5-5l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-            </div>
-            <div class="card-title">Atualizar base de dados</div>
-            <div style="font-size:12px;color:var(--muted);margin:8px 0 16px;">Carregue uma nova planilha do SNC para recalcular todos os indicadores.</div>
-            <label class="btn btn-secondary" for="fileUpload2" style="width:100%;justify-content:center;">Carregar planilha</label>
-            <input type="file" id="fileUpload2" accept=".xls,.xlsx,.csv">
-          </div>
-        </div>
       </section>
 
       <!-- ---------- CONFIG ---------- -->

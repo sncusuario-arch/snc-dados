@@ -2515,30 +2515,6 @@
       </div>`;
   }
 
-  /* ---------------- Exportação Excel ---------------- */
-  function exportExcel() {
-    if (typeof XLSX === "undefined") {
-      S.showToast("Biblioteca de planilhas não carregou — recarregue a página e tente novamente.", true);
-      return;
-    }
-    const rows = STATE.lastFiltered || STATE.raw;
-    const data = rows.map((r) => ({
-      "Ente Federado": r.m, "UF": r.uf, "Região": r.reg,
-      "Situação": r.sit, "Data Adesão": r.dtAd ? fmtDate(r.dtAd) : "Não possui adesão",
-      "Sistema": r.sis ? "Concluída" : "Pendente", "Conselho": r.con ? "Concluída" : "Pendente",
-      "Fundo": r.fun ? "Concluída" : "Pendente", "Plano": r.pla ? "Concluída" : "Pendente",
-      "Órgão Gestor": r.org ? "Concluída" : "Pendente", "Índice (0-5)": r.idx,
-      "Última atualização": r.upd ? fmtDate(r.upd) : "—",
-      "Prefeito(a)": r.pref || "Não informado", "Cadastrador": r.cad || "Não informado",
-      "Gestor de Cultura": r.gestor || "Não informado", "População (2022)": r.pop || ""
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    ws["!cols"] = [{ wch: 28 }, { wch: 5 }, { wch: 14 }, { wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 11 }, { wch: 16 }, { wch: 26 }, { wch: 26 }, { wch: 26 }, { wch: 14 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Municípios SNC");
-    const dataStr = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `snc-municipios-${dataStr}.xlsx`);
-  }
 
   /* ---------------- Exportação PDF ---------------- */
   function exportPdfReport() {
@@ -2572,7 +2548,6 @@
   }
 
   S.renderReport = renderReport;
-  S.exportExcel = exportExcel;
   S.exportPdfReport = exportPdfReport;
 })();
 
@@ -2594,7 +2569,6 @@
     fundo: { title: "Fundo de Cultura", sub: "Situação da Lei do Fundo Municipal de Cultura" },
     conselho: { title: "Conselho", sub: "Situação da Lei do Conselho de Política Cultural" },
     relatorios: { title: "Relatórios", sub: "Relatório executivo consolidado, pronto para exportação" },
-    exportacoes: { title: "Exportações", sub: "Exportação de dados e atualização da base" },
     config: { title: "Configurações", sub: "Preferências de exibição e fonte de dados" }
   };
 
@@ -3162,8 +3136,6 @@
 
     const fileUpload = document.getElementById("fileUpload");
     if (fileUpload) fileUpload.addEventListener("change", (e) => { handleFileUpload(e.target.files[0]); e.target.value = ""; });
-    const fileUpload2 = document.getElementById("fileUpload2");
-    if (fileUpload2) fileUpload2.addEventListener("change", (e) => { handleFileUpload(e.target.files[0]); e.target.value = ""; });
 
     const btnGerar = document.getElementById("btnGerarRelatorio");
     if (btnGerar) {
@@ -3317,15 +3289,6 @@
         html2pdf().set(opt).from(target).save();
       });
     }
-
-    const btnIrRelatorios = document.getElementById("btnIrParaRelatorios");
-    if (btnIrRelatorios) btnIrRelatorios.addEventListener("click", () => goTo("relatorios"));
-
-    const btnExcel = document.getElementById("btnExportExcel");
-    if (btnExcel) btnExcel.addEventListener("click", () => {
-      showToast("Gerando planilha Excel, aguarde...");
-      setTimeout(() => S.exportExcel(), 80);
-    });
 
     const toggleLabels = document.getElementById("toggleMapLabels");
     if (toggleLabels) {
