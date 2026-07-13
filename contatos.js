@@ -23,7 +23,7 @@ const SNC_CONTATOS = [
     funcao: "Chefe de Divisão do SNC",
     telefone: "(61) 2024-2688",
     email: "fagner.ribeiro@cultura.gov.br",
-    foto: ""
+    foto: "fotosfagner-ribeiro.jpg.png"
   },
   {
     nome: "Charles William Vieira Vianna",
