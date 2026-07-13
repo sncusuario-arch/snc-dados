@@ -112,7 +112,7 @@
     raw: [],                 // dataset canônico completo
     sourceLabel: "Base padrão SNC (planilha oficial carregada)",
     currentView: "dashboard",
-    filters: { uf: "", regiao: "", adesao: "", periodo: "", search: "" },
+    filters: { uf: "", regiao: "", adesao: "", periodo: "", search: "", desatualizado: false },
     table: { sortKey: "idx", sortDir: "desc", page: 1, pageSize: 25, search: "" },
     mapLabels: true,
     charts: {},
@@ -309,6 +309,8 @@
 
   function applyFilters(data) {
     const f = STATE.filters;
+    const hoje = new Date();
+    const doisAnosAtras = new Date(hoje.getFullYear() - 2, hoje.getMonth(), hoje.getDate());
     return data.filter((r) => {
       if (f.uf && r.uf !== f.uf) return false;
       if (f.regiao && r.reg !== f.regiao) return false;
@@ -317,6 +319,8 @@
       if (f.adesao === "plena" && !isAdesaoPlena(r)) return false;
       if (f.adesao === "provisoria" && !isAdesaoProvisoria(r)) return false;
       if (f.adesao === "aguardando" && r.sit !== "Aguardando publicação no DOU") return false;
+      if (f.adesao === "semComponente" && !(r.ad && r.idx === 0)) return false;
+      if (f.desatualizado && (!r.ad || !r.upd || new Date(r.upd) >= doisAnosAtras)) return false;
       if (f.periodo && (!r.dtAd || !r.dtAd.startsWith(f.periodo))) return false;
       if (f.search) {
         const s = f.search.toLowerCase();
@@ -951,7 +955,7 @@
   function alertCardHtml(opts) {
     const accent = opts.tone === "red" ? "var(--danger)" : "var(--warning)";
     return `
-      <div class="card alert-card" style="cursor:pointer;" data-goto="${opts.goto || ""}" data-goto-uf="${opts.gotoUf || ""}">
+      <div class="card alert-card" style="cursor:pointer;" data-goto="${opts.goto || ""}" data-goto-uf="${opts.gotoUf || ""}" data-goto-filter="${opts.gotoFilter || ""}" data-goto-comp-filter="${opts.gotoCompFilter || ""}">
         <div class="alert-icon ${opts.tone}">${opts.icon}</div>
         <div style="flex:1;min-width:0;">
           <div style="font-weight:700;font-size:13px;">${opts.label}</div>
@@ -967,32 +971,32 @@
     const a = agg.alerts;
     const cards = [];
     cards.push(alertCardHtml({
-      tone: "red", icon: ICONS.doc, goto: "municipios",
+      tone: "red", icon: ICONS.doc, goto: "municipios", gotoFilter: "semComponente",
       label: "Aderidos sem nenhum componente", sub: "Municípios com adesão mas sem implementação",
       value: fmtInt(a.aderidosSemComponentes || 0)
     }));
     cards.push(alertCardHtml({
-      tone: "red", icon: ICONS.doc, goto: "componentes",
+      tone: "red", icon: ICONS.doc, goto: "planos", gotoCompFilter: "pendentes",
       label: "Municípios sem Plano de Cultura", sub: "Entre os municípios aderidos ao SNC",
       value: fmtInt(a.semPlano)
     }));
     cards.push(alertCardHtml({
-      tone: "red", icon: ICONS.bank, goto: "componentes",
+      tone: "red", icon: ICONS.bank, goto: "conselho", gotoCompFilter: "pendentes",
       label: "Municípios sem Conselho de Política Cultural", sub: "Entre os municípios aderidos ao SNC",
       value: fmtInt(a.semConselho)
     }));
     cards.push(alertCardHtml({
-      tone: "amber", icon: ICONS.bank, goto: "componentes",
+      tone: "amber", icon: ICONS.bank, goto: "fundo", gotoCompFilter: "pendentes",
       label: "Municípios sem Fundo de Cultura", sub: "Entre os municípios aderidos ao SNC",
       value: fmtInt(a.semFundo)
     }));
     cards.push(alertCardHtml({
-      tone: "red", icon: ICONS.clock, goto: "planos",
+      tone: "red", icon: ICONS.clock, goto: "planos", gotoCompFilter: "vencidos",
       label: "Planos de Cultura vencidos", sub: "Vigência encerrada e ainda não renovada",
       value: fmtInt(a.planosVencidos)
     }));
     cards.push(alertCardHtml({
-      tone: "amber", icon: ICONS.clock, goto: "municipios",
+      tone: "amber", icon: ICONS.clock, goto: "municipios", gotoFilter: "desatualizado",
       label: "Sem atualização há mais de 2 anos", sub: "Cadastro desatualizado na plataforma SNC",
       value: fmtInt(a.semAtualizacao2anos)
     }));
@@ -1009,6 +1013,24 @@
       card.addEventListener("click", () => {
         const uf = card.getAttribute("data-goto-uf");
         const view = card.getAttribute("data-goto");
+        const filtro = card.getAttribute("data-goto-filter");
+        const compFiltro = card.getAttribute("data-goto-comp-filter");
+        if (filtro === "desatualizado") {
+          STATE.filters.desatualizado = true;
+          window.__SNC.refreshAll();
+        } else if (filtro) {
+          STATE.filters.adesao = filtro;
+          const sel = document.getElementById("adesaoFilter");
+          if (sel) sel.value = filtro;
+          window.__SNC.refreshAll();
+        }
+        if (compFiltro && view) {
+          if (!STATE.compTables[view]) STATE.compTables[view] = { page: 1, pageSize: 25, expandedM: null };
+          STATE.compTables[view].filterKey = compFiltro;
+          STATE.compTables[view].page = 1;
+          STATE.compTables[view].expandedM = null;
+          window.__SNC.refreshAll(false);
+        }
         if (uf) window.__SNC.goToUF(uf);
         else if (view) window.__SNC.goTo(view);
       });
@@ -2001,7 +2023,8 @@
       const f = STATE.filters;
       const tipoLabel = f.adesao === "plena" ? "Adesão Plena" : f.adesao === "provisoria" ? "Adesão Provisória"
         : f.adesao === "com" ? "Com adesão" : f.adesao === "sem" ? "Sem adesão"
-        : f.adesao === "aguardando" ? "Aguardando DOU" : "Todos os tipos";
+        : f.adesao === "aguardando" ? "Aguardando DOU" : f.adesao === "semComponente" ? "Aderidos sem componente"
+        : "Todos os tipos";
       tagEl.textContent = `${tipoLabel}${f.uf ? " · " + f.uf : ""}${f.regiao ? " · " + f.regiao : ""}`;
     }
 
@@ -2124,12 +2147,14 @@
     const planosFiltroKey = (STATE.compTables.planos || {}).filterKey;
     const planosPredicates = {
       concluidos: (r) => r.pla === 1,
+      pendentes: (r) => r.pla === 0,
       vencidos: (r) => r.venc === 1,
       monitorados: (r) => r.pla === 1 && r.mon === 1,
       semVigencia: (r) => r.pla === 1 && !r.vig
     };
     const planosLabels = {
       concluidos: "Planos de Cultura concluídos",
+      pendentes: "Planos pendentes",
       vencidos: "Planos vencidos",
       monitorados: "Planos monitorados",
       semVigencia: "Sem ano de vigência informado"
@@ -2906,7 +2931,7 @@
     STATE.raw = normalized;
     STATE.localMeta = { fileName, savedAt: savedAt || new Date().toISOString() };
     STATE.sourceLabel = `Planilha carregada: ${fileName} (${normalized.length} municípios)`;
-    STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
+    STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "", desatualizado: false };
     const gmf = document.getElementById("globalMunicipioFilter");
     if (gmf) gmf.value = "";
     const regiaoSelReset = document.getElementById("regiaoFilter");
@@ -3111,7 +3136,7 @@
       const btn = document.getElementById("btnLimparFiltros");
       if (!btn) return;
       const f = STATE.filters;
-      const hasFilter = f.uf || f.regiao || f.adesao || f.periodo || f.search;
+      const hasFilter = f.uf || f.regiao || f.adesao || f.periodo || f.search || f.desatualizado;
       btn.style.display = hasFilter ? "" : "none";
       // Bug #6: quando só a busca de município está ativa, adicionar nota que KPIs não mudam
       const kpiNote = document.getElementById("kpiSearchNote");
@@ -3122,7 +3147,7 @@
     const btnLimpar = document.getElementById("btnLimparFiltros");
     if (btnLimpar) {
       btnLimpar.addEventListener("click", () => {
-        STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "" };
+        STATE.filters = { uf: "", regiao: "", adesao: "", periodo: "", search: "", desatualizado: false };
         document.getElementById("globalMunicipioFilter").value = "";
         document.getElementById("ufFilter").value = "";
         document.getElementById("regiaoFilter").value = "";
