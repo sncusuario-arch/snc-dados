@@ -1156,13 +1156,16 @@
     function kpi(label, value, tone, sub) {
       const barColors = { blue:"#007aff", green:"#16a34a", red:"#dc2626", amber:"#d97706", purple:"#9333ea", teal:"#0ea5e9" };
       const txtColors = { blue:"color:#007aff", green:"color:#16a34a", red:"color:#dc2626", amber:"color:#d97706", purple:"color:#9333ea", teal:"color:#0ea5e9" };
-      // Datas (formato dd/mm/aaaa) usam fonte menor para não cortar o conteúdo — não afeta outros valores como "Publicado no DOU"
+      // Datas (formato dd/mm/aaaa) e textos longos (ex: "Publicado no DOU") usam fonte
+      // menor para não estourar o card — a fonte grande (2rem) fica só para valores
+      // curtos (números, "4/5", anos).
       const isDateValue = typeof value === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(value);
-      const valueFontSize = isDateValue ? "1.4rem" : "2rem";
-      return `<div class="card" style="padding:18px 20px 16px;position:relative;overflow:hidden;">
+      const isLongText = typeof value === "string" && value.length > 10;
+      const valueFontSize = (isDateValue || isLongText) ? "1.4rem" : "2rem";
+      return `<div class="card" style="padding:18px 20px 16px;position:relative;overflow:hidden;min-width:0;">
         <div style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0;background:${barColors[tone] || "#6e6e73"};"></div>
         <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">${label}</div>
-        <div style="font-size:${valueFontSize};font-weight:800;letter-spacing:-.02em;line-height:1.15;white-space:nowrap;${txtColors[tone] || ""}">${value}</div>
+        <div style="font-size:${valueFontSize};font-weight:800;letter-spacing:-.02em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${txtColors[tone] || ""}">${value}</div>
         ${sub ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">${sub}</div>` : ""}
       </div>`;
     }
@@ -1417,7 +1420,9 @@
   function renderMunicipiosTable() {
     const table = document.getElementById("tableMunicipios");
     if (!table) return;
-    let rows = STATE.lastFiltered || [];
+    // Distrito Federal não é um município (não é dividido em municípios) — some só
+    // desta tabela, mas continua entrando nas contagens/gráficos gerais do sistema.
+    let rows = (STATE.lastFiltered || []).filter((r) => r.uf !== "DF");
     if (STATE.table.search) {
       const s = STATE.table.search.toLowerCase();
       rows = rows.filter((r) => r.m.toLowerCase().includes(s) || r.uf.toLowerCase().includes(s));
