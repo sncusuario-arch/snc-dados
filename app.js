@@ -1602,11 +1602,6 @@
             <div style="font-size:1.5rem;font-weight:800;color:${idxColor};">${r.idx} / 5</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px;">${idxLabel}</div>
           </div>
-          <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;">
-            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#007aff;border-radius:14px 14px 0 0;"></div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Última atualização</div>
-            <div style="font-size:13px;font-weight:700;">${r.upd ? fmtDate(r.upd) : "Não informado"}</div>
-          </div>
           ${r.vig ? `
           <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;">
             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${r.vig >= new Date().getFullYear() ? "#16a34a" : "#dc2626"};border-radius:14px 14px 0 0;"></div>
