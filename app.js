@@ -2696,6 +2696,11 @@
     window.addEventListener("resize", debounce(() => {
       if (!isMobileLayout()) document.body.classList.remove("sidebar-mobile-open");
     }, 150));
+    // Guarda o nome de cada item do menu num atributo, para exibir como tooltip
+    // (CSS) quando o menu está recolhido e o usuário passa o mouse por cima.
+    document.querySelectorAll(".nav-item").forEach((el) => {
+      el.setAttribute("data-label", el.textContent.trim());
+    });
   }
 
   function goTo(view) {
