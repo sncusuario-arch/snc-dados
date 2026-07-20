@@ -2696,10 +2696,25 @@
     window.addEventListener("resize", debounce(() => {
       if (!isMobileLayout()) document.body.classList.remove("sidebar-mobile-open");
     }, 150));
-    // Guarda o nome de cada item do menu num atributo, para exibir como tooltip
-    // (CSS) quando o menu está recolhido e o usuário passa o mouse por cima.
+    // Tooltip do menu recolhido: um elemento fixo (fora da .sidebar) mostrando o
+    // nome da opção ao passar o mouse. Não dá pra usar só CSS (::after) aqui porque
+    // a .sidebar tem overflow-y:auto, e isso corta qualquer conteúdo que "vaze"
+    // para fora dela no eixo X — inclusive um tooltip posicionado à direita do ícone.
+    const sidebarTooltip = document.getElementById("sidebarTooltip");
     document.querySelectorAll(".nav-item").forEach((el) => {
-      el.setAttribute("data-label", el.textContent.trim());
+      const label = el.textContent.trim();
+      el.setAttribute("data-label", label);
+      if (!sidebarTooltip) return;
+      el.addEventListener("mouseenter", () => {
+        if (isMobileLayout() || !document.body.classList.contains("sidebar-collapsed")) return;
+        const r = el.getBoundingClientRect();
+        sidebarTooltip.textContent = label;
+        sidebarTooltip.style.top = (r.top + r.height / 2) + "px";
+        sidebarTooltip.style.left = (r.right + 12) + "px";
+        sidebarTooltip.style.transform = "translateY(-50%)";
+        sidebarTooltip.style.display = "block";
+      });
+      el.addEventListener("mouseleave", () => { sidebarTooltip.style.display = "none"; });
     });
   }
 
