@@ -90,6 +90,10 @@
   function fmtInt(n) {
     return (n || 0).toLocaleString("pt-BR");
   }
+  function fmtMoeda(n) {
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
   function fmtPct(n, digits) {
     if (n === null || n === undefined || isNaN(n)) return "—";
     return n.toLocaleString("pt-BR", { minimumFractionDigits: digits || 1, maximumFractionDigits: digits || 1 }) + "%";
@@ -446,7 +450,7 @@
   window.__SNC = {
     STATE, UF_NOME, UF_TILES, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS,
     SCALE_COLORS, GAUGE_BANDS, classifyMaturity, colorForPct, colorForContato,
-    fmtInt, fmtPct, fmtDate, debounce, escapeHtml,
+    fmtInt, fmtPct, fmtDate, fmtMoeda, debounce, escapeHtml,
     normalizeUploadedRows, applyFilters, computeAggregates,
     isAdesaoPlena, isAdesaoProvisoria
   };
@@ -1377,7 +1381,7 @@
   "use strict";
   const S = window.__SNC;
   const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS, classifyMaturity,
-    fmtInt, fmtPct, fmtDate, escapeHtml, colorForContato } = S;
+    fmtInt, fmtPct, fmtDate, fmtMoeda, escapeHtml, colorForContato } = S;
 
   const MUNICIPIOS_COLUMNS = [
     { key: "uf", label: "UF" },
@@ -1607,6 +1611,20 @@
             <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Última atualização</div>
             <div style="font-size:13px;font-weight:700;">${r.upd ? fmtDate(r.upd) : "Não informado"}</div>
           </div>
+          ${(typeof SNC_PNAB_CICLO2 !== "undefined" && r.ibge && SNC_PNAB_CICLO2[r.ibge] !== undefined) ? `
+          <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#16a34a;border-radius:14px 14px 0 0;"></div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">PNAB · Ciclo 2</div>
+            <div style="font-size:1.1rem;font-weight:800;color:#16a34a;">${fmtMoeda(SNC_PNAB_CICLO2[r.ibge])}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Total recebido</div>
+          </div>` : ""}
+          ${(typeof SNC_LPG !== "undefined" && r.ibge && SNC_LPG[r.ibge] !== undefined) ? `
+          <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;">
+            <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#7c3aed;border-radius:14px 14px 0 0;"></div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Lei Paulo Gustavo</div>
+            <div style="font-size:1.1rem;font-weight:800;color:#7c3aed;">${fmtMoeda(SNC_LPG[r.ibge])}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Total repassado</div>
+          </div>` : ""}
           ${r.vig ? `
           <div class="card" style="padding:14px 16px;position:relative;overflow:hidden;">
             <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${r.vig >= new Date().getFullYear() ? "#16a34a" : "#dc2626"};border-radius:14px 14px 0 0;"></div>
