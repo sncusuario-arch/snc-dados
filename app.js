@@ -960,7 +960,7 @@
   "use strict";
   const S = window.__SNC;
   const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS, classifyMaturity,
-    fmtInt, fmtPct, fmtDate, escapeHtml, colorForPct } = S;
+    fmtInt, fmtPct, fmtDate, fmtMoeda, escapeHtml, colorForPct } = S;
   const ICONS = S.ICONS;
 
   /* ---------------- Alertas automáticos ---------------- */
@@ -1166,7 +1166,7 @@
       // captura essa mesma área da tela).
       const isDateValue = typeof value === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(value);
       const isLongText = typeof value === "string" && value.length > 10;
-      const valueFontSize = isDateValue ? "1.4rem" : isLongText ? "1.15rem" : "2rem";
+      const valueFontSize = isDateValue ? "1.2rem" : isLongText ? "1.15rem" : "2rem";
       const valueWrapStyle = isLongText
         ? "white-space:normal;overflow-wrap:break-word;"
         : "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
@@ -1240,6 +1240,7 @@
         ${kpi("Vigência do Plano", ed.vig ? String(ed.vig) : "—", ed.vig && ed.vig >= new Date().getFullYear() ? "green" : "red", ed.plaPeriodicidade || null)}
         ${kpi("Componentes concluídos", `${[ed.sis,ed.org,ed.con,ed.fun,ed.pla].filter(x=>x===1).length} / 5`, "blue", "Estado como ente federado")}
         ${kpi("Última atualização", ed.upd ? fmtDate(ed.upd) : "—", "gray", null)}
+        ${(typeof SNC_LPG_ESTADOS !== "undefined" && SNC_LPG_ESTADOS[uf] !== undefined) ? kpi("Lei Paulo Gustavo", fmtMoeda(SNC_LPG_ESTADOS[uf]), "purple", "Total recebido pelo estado") : ""}
       </div>
       <div style="margin-bottom:20px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Componentes do Estado</div>
