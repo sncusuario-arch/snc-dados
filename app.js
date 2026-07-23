@@ -79,6 +79,19 @@
     return "#dc2626";
   }
 
+  // O campo "porte" só vem preenchido na planilha oficial para municípios que
+  // aderiram ao SNC. Como é só uma faixa de população, dá pra calcular pra
+  // qualquer município (aderido ou não) a partir do campo "pop" — mesmas faixas
+  // usadas pelo extract.py (Lei 14.835/2024 não define isso, é convenção do SNC).
+  function calcPorte(pop) {
+    if (!pop) return null;
+    if (pop <= 20000) return "Porte 1 (Pequeno I)";
+    if (pop <= 50000) return "Porte 2 (Pequeno II)";
+    if (pop <= 100000) return "Porte 3 (Médio)";
+    if (pop <= 900000) return "Porte 4 (Grande I)";
+    return "Porte 5 (Grande II)";
+  }
+
   const CONTATO_COLORS = ["#2f6feb", "#16a34a", "#7c3aed", "#f59e0b", "#0ea5e9", "#dc2626", "#0d9488", "#ea580c"];
   function colorForContato(nome) {
     const s = String(nome || "");
@@ -449,7 +462,7 @@
   // expõe para o restante do script (parte 2)
   window.__SNC = {
     STATE, UF_NOME, UF_TILES, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS,
-    SCALE_COLORS, GAUGE_BANDS, classifyMaturity, colorForPct, colorForContato,
+    SCALE_COLORS, GAUGE_BANDS, classifyMaturity, colorForPct, colorForContato, calcPorte,
     fmtInt, fmtPct, fmtDate, fmtMoeda, debounce, escapeHtml,
     normalizeUploadedRows, applyFilters, computeAggregates,
     isAdesaoPlena, isAdesaoProvisoria
@@ -960,7 +973,7 @@
   "use strict";
   const S = window.__SNC;
   const { STATE, UF_NOME, COMPONENT_KEYS, COMPONENT_LABELS, COMPONENT_COLORS, classifyMaturity,
-    fmtInt, fmtPct, fmtDate, fmtMoeda, escapeHtml, colorForPct } = S;
+    fmtInt, fmtPct, fmtDate, fmtMoeda, escapeHtml, colorForPct, calcPorte } = S;
   const ICONS = S.ICONS;
 
   /* ---------------- Alertas automáticos ---------------- */
@@ -1294,6 +1307,55 @@
         <div style="font-size:10.5px;color:var(--muted);margin-top:3px;">de ${fmtInt(b.aderidos)} municípios aderidos</div>
       </div>`).join("");
 
+    // Distribuição de TODOS os municípios do estado por porte (faixa de população).
+    // O campo oficial "porte" só vem preenchido para quem aderiu ao SNC; para os
+    // demais, calculamos a faixa a partir da população (calcPorte), já que é
+    // só uma classificação por tamanho populacional.
+    const PORTE_ORDER = ["Porte 1 (Pequeno I)", "Porte 2 (Pequeno II)", "Porte 3 (Médio)", "Porte 4 (Grande I)", "Porte 5 (Grande II)"];
+    const aderidosUF = municipiosUF.filter((r) => r.ad);
+    const municipiosComPorte = municipiosUF.map((r) => ({ r, _porte: r.porte || calcPorte(r.pop) }));
+    const porteGroups = {};
+    municipiosComPorte.forEach(({ r, _porte }) => {
+      const p = _porte || "Não informado";
+      if (!porteGroups[p]) porteGroups[p] = { total: 0, aderidos: 0, somaIdxAderidos: 0 };
+      porteGroups[p].total++;
+      if (r.ad) { porteGroups[p].aderidos++; porteGroups[p].somaIdxAderidos += r.idx; }
+    });
+    const porteRows = PORTE_ORDER.filter((p) => porteGroups[p]).map((p, i) => {
+      const g = porteGroups[p];
+      const municipios = municipiosComPorte.filter(({ _porte }) => (_porte || "Não informado") === p).map(({ r }) => r).sort((a, c) => a.m.localeCompare(c.m, "pt-BR"));
+      return {
+        idx: i, label: p, total: g.total, aderidos: g.aderidos,
+        pctAdesao: g.total ? (g.aderidos / g.total) * 100 : 0,
+        idxMedio: g.aderidos ? g.somaIdxAderidos / g.aderidos : 0,
+        municipios
+      };
+    });
+    const barrasPorte = porteRows.map((pr) => `
+      <div style="margin-bottom:14px;">
+        <div class="porte-row" data-porte-idx="${pr.idx}" style="display:flex;justify-content:space-between;margin-bottom:5px;cursor:pointer;">
+          <span style="font-size:12.5px;font-weight:600;">${pr.label} <span style="color:var(--muted);font-weight:400;">(clique para ver municípios)</span></span>
+          <span style="font-size:12px;font-weight:700;color:var(--accent);">${fmtInt(pr.aderidos)}/${fmtInt(pr.total)} aderidos (${fmtPct(pr.pctAdesao)}) · índice médio ${pr.idxMedio.toFixed(1)}</span>
+        </div>
+        <div class="porte-row" data-porte-idx="${pr.idx}" style="height:8px;background:var(--surface);border-radius:9999px;overflow:hidden;border:1px solid var(--border);cursor:pointer;">
+          <div style="height:100%;width:${Math.min(pr.pctAdesao,100).toFixed(1)}%;background:var(--accent);border-radius:9999px;transition:width .4s;"></div>
+        </div>
+        <div id="porteList-${pr.idx}" style="display:none;columns:2;column-gap:24px;margin-top:8px;">
+          ${pr.municipios.map((r) => `
+            <div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;gap:8px;">
+              <span style="font-weight:600;">${escapeHtml(r.m)}</span>
+              <span style="color:${r.ad ? "var(--muted)" : "var(--danger)"};flex-shrink:0;">${r.ad ? r.idx + "/5" : "sem adesão"}</span>
+            </div>`).join("")}
+        </div>
+      </div>`).join("");
+    const blocoPorte = porteRows.length ? `
+      ${secTitle("Municípios por Porte")}
+      <div style="margin-bottom:8px;">
+        ${barrasPorte}
+        <div style="font-size:10.5px;color:var(--muted);margin-top:4px;">Distribuição entre os ${fmtInt(municipiosUF.length)} municípios do estado · para quem não aderiu, a faixa é estimada a partir da população (IBGE), já que o campo oficial só é registrado após a adesão</div>
+      </div>
+    ` : "";
+
     const semAdesaoList = semAdesao.slice().sort((a,b_)=>a.m.localeCompare(b_.m,"pt-BR")).map((r) =>
       `<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px;display:flex;align-items:center;gap:8px;">
         <span style="font-weight:600;">${escapeHtml(r.m)}</span>
@@ -1325,6 +1387,7 @@
           }).join("")}
         </div>
       </div>
+      ${blocoPorte}
       ${semAdesao.length ? `
         ${secTitle(`Municípios Sem Adesão · ${fmtInt(semAdesao.length)}`)}
         <div style="columns:2;column-gap:24px;margin-bottom:8px;">${semAdesaoList}</div>
@@ -1338,6 +1401,15 @@
 
     panel.style.display = "";
     panel.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    // Clique num porte mostra/esconde só a lista de municípios daquele porte,
+    // sem afetar os demais.
+    bodyEl.querySelectorAll(".porte-row").forEach((row) => {
+      row.addEventListener("click", () => {
+        const list = document.getElementById("porteList-" + row.getAttribute("data-porte-idx"));
+        if (list) list.style.display = list.style.display === "none" ? "block" : "none";
+      });
+    });
 
     // ── Botões ────────────────────────────────────────────────────────────────
     document.getElementById("btnEstadoReportFechar").addEventListener("click", () => {
