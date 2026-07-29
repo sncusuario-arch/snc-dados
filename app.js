@@ -344,7 +344,7 @@
       if (f.adesao === "plena" && !isAdesaoPlena(r)) return false;
       if (f.adesao === "provisoria" && !isAdesaoProvisoria(r)) return false;
       if (f.adesao === "aguardando" && r.sit !== "Aguardando publicação no DOU") return false;
-      if (f.adesao === "semComponente" && !(r.ad && r.idx === 0)) return false;
+      if (f.adesao === "semComponente" && !(r.ad && r.semInfo)) return false;
       if (f.desatualizado && (!r.ad || !r.upd || new Date(r.upd) >= doisAnosAtras)) return false;
       if (f.periodo && (!r.dtAd || !r.dtAd.startsWith(f.periodo))) return false;
       if (f.search) {
@@ -419,8 +419,9 @@
     const semConselho = aderidos.filter((r) => r.con === 0).length;
     const semFundo = aderidos.filter((r) => r.fun === 0).length;
     const planosVencidos = aderidos.filter((r) => r.venc === 1).length;
-    // Bug #10: aderidos com 0 componentes implementados
-    const aderidosSemComponentes = aderidos.filter((r) => r.idx === 0).length;
+    // Aderidos que não informaram NENHUM dado em nenhum componente (exclui quem tem
+    // algo pendente/incorreto em análise — esses têm dado, só não está concluído).
+    const aderidosSemComponentes = aderidos.filter((r) => r.semInfo).length;
     const hoje = new Date();
     const doisAnosAtras = new Date(hoje.getFullYear() - 2, hoje.getMonth(), hoje.getDate());
     const semAtualizacao2anos = aderidos.filter((r) => {
