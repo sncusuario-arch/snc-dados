@@ -2279,11 +2279,6 @@
           <div class="kpi-value">${fmtInt(planoData.n)}</div>
           <div class="kpi-delta up">${fmtPct(planoData.pct)} dos municípios aderidos</div>
         </div>`,
-        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="vencidos">
-          <div class="kpi-top"><div class="kpi-label">Planos vencidos</div><div class="kpi-icon red">${ICONS.x}</div></div>
-          <div class="kpi-value">${fmtInt(agg.alerts.planosVencidos)}</div>
-          <div class="kpi-delta down">Vigência encerrada</div>
-        </div>`,
         `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="monitorados">
           <div class="kpi-top"><div class="kpi-label">Planos monitorados</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
           <div class="kpi-value">${fmtInt(monitorados)}</div>
@@ -2380,7 +2375,6 @@
     const fundoData = agg.componentRates.fun;
     const aderidos = agg.aderidosArr;
     const avaliandoAnexo = aderidos.filter((r) => r.funSt === "Avaliando anexo").length;
-    const comProblema = aderidos.filter((r) => ["Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado"].includes(r.funSt)).length;
 
     const el = document.getElementById("fundoKpiRow");
     if (el) {
@@ -2399,11 +2393,6 @@
           <div class="kpi-top"><div class="kpi-label">Avaliando anexo</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
           <div class="kpi-value">${fmtInt(avaliandoAnexo)}</div>
           <div class="kpi-delta flat">Em análise pela equipe SNC</div>
-        </div>`,
-        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="problema">
-          <div class="kpi-top"><div class="kpi-label">Arquivo com problema</div><div class="kpi-icon red">${ICONS.x}</div></div>
-          <div class="kpi-value">${fmtInt(comProblema)}</div>
-          <div class="kpi-delta down">Incorreto, incompleto ou danificado</div>
         </div>`
       ].join("");
       wireCompCardClicks("fundoKpiRow", "fundo");
@@ -2521,17 +2510,6 @@
     const conselhoRows = conselhoFiltroKey ? aderidos.filter(conselhoPredicates[conselhoFiltroKey]) : aderidos;
     renderCompMunicipiosTable("conselho", conselhoRows, "tableConselho", "tableConselhoTitle", "tableConselhoTag", "paginationConselho",
       conselhoFiltroKey ? conselhoLabels[conselhoFiltroKey] : "Todos os municípios aderidos");
-
-    const dist = statusDistribution(aderidos, "conSt");
-    S.mkChart("chartConselhoStatus", {
-      type: "doughnut",
-      data: { labels: dist.labels, datasets: [{ data: dist.values, backgroundColor: dist.colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
-      options: {
-        responsive: true, maintainAspectRatio: false, cutout: "62%",
-        layout: { padding: { top: 24, left: 24, right: 24, bottom: 40 } },
-        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, font: { size: 10.5 }, padding: 14 } } }
-      }
-    });
 
     const naoParitarios = concluidos.length - paritarios;
     const naoExclusivos = concluidos.length - exclusivos;
@@ -3252,7 +3230,23 @@
     if (STATE.localMeta) {
       const dt = new Date(STATE.localMeta.savedAt);
       const dataFmt = dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block;"></span>Dados da planilha <b>&nbsp;${escapeHtml(STATE.localMeta.fileName)}&nbsp;</b> · carregada em ${dataFmt}`;
+      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block;"></span>Dados da planilha <b>&nbsp;${escapeHtml(STATE.localMeta.fileName)}&nbsp;</b> · carregada em ${dataFmt}
+        <button id="btnVoltarBaseOficial" style="margin-left:8px;font-size:11px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">Voltar para base oficial</button>`;
+      const btnVoltar = document.getElementById("btnVoltarBaseOficial");
+      if (btnVoltar) {
+        btnVoltar.addEventListener("click", () => {
+          clearLocalData().then(() => {
+            STATE.localMeta = null;
+            STATE.raw = (typeof SNC_DEFAULT_DATA !== "undefined") ? SNC_DEFAULT_DATA : [];
+            STATE.sourceLabel = (typeof SNC_DATA_META !== "undefined" && SNC_DATA_META.total)
+              ? `Base oficial SNC (carregada automaticamente · ${fmtInt(SNC_DATA_META.total)} municípios)`
+              : "Base oficial do sistema";
+            refreshAll();
+            updateDataBanner();
+            showToast("Base oficial restaurada — dados da planilha local removidos.");
+          });
+        });
+      }
     } else {
       let dataAtualizacao = "";
       if (typeof SNC_DATA_META !== "undefined" && SNC_DATA_META.gerado) {
@@ -3739,11 +3733,22 @@
     goTo("dashboard");
     updateDataBanner();
     window.__SNC.renderContatosView();
-    // Verifica se há planilha salva localmente — se sim, restaura (F5 mantém os dados)
+    // Verifica se há planilha salva localmente — se sim, restaura (F5 mantém os dados).
+    // Mas se a base oficial (data.js) foi atualizada DEPOIS que essa planilha local foi
+    // carregada, a base oficial vence automaticamente — assim, quando sobe um data.js
+    // novo, todo mundo passa a ver os dados novos sem precisar limpar nada manualmente.
     loadLocalData().then((saved) => {
       if (saved && saved.rows && saved.rows.length) {
-        applyUploadedRows(saved.rows, saved.fileName, saved.savedAt);
-        showToast(`Dados restaurados: ${saved.fileName} (${fmtInt(saved.rows.length)} municípios).`);
+        const officialDate = (typeof SNC_DATA_META !== "undefined" && SNC_DATA_META.gerado) ? new Date(SNC_DATA_META.gerado + "T00:00:00") : null;
+        const savedDate = saved.savedAt ? new Date(saved.savedAt) : null;
+        const localIsStale = officialDate && savedDate && savedDate < officialDate;
+        if (localIsStale) {
+          clearLocalData();
+          showToast("Base oficial atualizada — a planilha local salva neste navegador estava desatualizada e foi substituída.");
+        } else {
+          applyUploadedRows(saved.rows, saved.fileName, saved.savedAt);
+          showToast(`Dados restaurados: ${saved.fileName} (${fmtInt(saved.rows.length)} municípios).`);
+        }
       }
     });
   });
