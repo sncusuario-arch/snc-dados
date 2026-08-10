@@ -2329,15 +2329,24 @@
       }
     });
 
-    const years = Object.keys(agg.vigenciaCount).map((y) => parseInt(y, 10)).filter((y) => !isNaN(y)).sort((a, b) => a - b);
-    const recentYears = years.slice(-12);
+    // Planos criados por ano — usa a data de conclusão do plano (planoData), não a
+    // vigência (que é o ano final, muitos anos no futuro para planos decenais e
+    // deixava o gráfico anterior praticamente vazio). Limita até o ano atual.
+    const anoAtualPlanos = new Date().getFullYear();
+    const criacaoCount = {};
+    agg.aderidosArr.forEach((r) => {
+      if (r.pla !== 1 || !r.planoData) return;
+      const y = parseInt(r.planoData.slice(0, 4), 10);
+      if (!isNaN(y) && y >= 2000 && y <= anoAtualPlanos) criacaoCount[y] = (criacaoCount[y] || 0) + 1;
+    });
+    const anosCriacao = Object.keys(criacaoCount).map((y) => parseInt(y, 10)).sort((a, b) => a - b);
     S.mkChart("chartVigencia", {
       type: "bar",
       data: {
-        labels: recentYears.map(String),
+        labels: anosCriacao.map(String),
         datasets: [{
-          data: recentYears.map((y) => agg.vigenciaCount[y] || 0),
-          backgroundColor: recentYears.map((y) => y < new Date().getFullYear() ? "#dc2626" : "#2f6feb"),
+          data: anosCriacao.map((y) => criacaoCount[y] || 0),
+          backgroundColor: "#2f6feb",
           borderRadius: 6, maxBarThickness: 28,
           showLabels: true, labelColor: "#1d1d1f",
           labelFormatter: (v) => v > 0 ? fmtInt(v) : null
@@ -2345,6 +2354,7 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 20 } },
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
       }
@@ -2452,6 +2462,7 @@
       data: { labels: fundoAnos, datasets: [{ data: fundoAnos.map((y) => fundoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28, showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => v > 0 ? fmtInt(v) : null }] },
       options: {
         responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 20 } },
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
       }
@@ -2537,6 +2548,20 @@
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
+      }
+    });
+
+    const conselhoAnoCount = {};
+    aderidos.forEach((r) => { if (r.conData) { const y = r.conData.slice(0, 4); conselhoAnoCount[y] = (conselhoAnoCount[y] || 0) + 1; } });
+    const conselhoAnos = Object.keys(conselhoAnoCount).sort().slice(-12);
+    S.mkChart("chartConselhoAno", {
+      type: "bar",
+      data: { labels: conselhoAnos, datasets: [{ data: conselhoAnos.map((y) => conselhoAnoCount[y]), backgroundColor: "#2f6feb", borderRadius: 6, maxBarThickness: 28, showLabels: true, labelColor: "#1d1d1f", labelFormatter: (v) => v > 0 ? fmtInt(v) : null }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 20 } },
         plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true, grid: { color: "#eef2f7" } }, x: { grid: { display: false } } }
       }
