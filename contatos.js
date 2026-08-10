@@ -30,7 +30,7 @@ const SNC_CONTATOS = [
     funcao: "Coordenador de Articulação do SNC",
     telefone: "(61) 2024-2406",
     email: "charles.vianna@cultura.gov.br",
-    foto: ""
+    foto: "fotos/charles-vianna.jpg"
   },
   {
     nome: "Lidia Marcia Anselmo",
