@@ -68,6 +68,18 @@ for _, r in mun.iterrows():
         vig_year = None
     plano_vencido = 1 if (plano == 1 and vig_year is not None and vig_year < 2026) else 0
 
+    # sem_info: aderiu mas nenhum dos 5 componentes tem QUALQUER dado enviado (todos "Não informado(a)").
+    # Diferente de indice==0, que também inclui quem enviou algo mas ficou pendente
+    # (arquivo incorreto/incompleto/danificado, anexo em avaliação).
+    status_componentes = [
+        r['Situação da Lei do Sistema de Cultura'],
+        r['Situação da Lei do Conselho de Política Cultural'],
+        r['Situação da Lei do Fundo de Cultura'],
+        r['Situação do Plano de Cultura'],
+        r['Situação do Órgão Gestor'],
+    ]
+    sem_info = aderiu and all((v == 'Não informado(a)' or not isinstance(v, str)) for v in status_componentes)
+
     row = {
         "m": r['Ente Federado'],
         "uf": r['UF'],
@@ -78,7 +90,7 @@ for _, r in mun.iterrows():
         "sit": situacao.replace("Nao possui adesão", "Não possui adesão"),
         "ad": aderiu,
         "dtAd": parse_date(r['Data Adesão']) if aderiu else None,
-        "sis": sistema, "con": conselho, "fun": fundo, "pla": plano, "org": orgao, "idx": indice,
+        "sis": sistema, "con": conselho, "fun": fundo, "pla": plano, "org": orgao, "idx": indice, "semInfo": sem_info,
         # status granular (texto bruto da planilha) por componente, para checklists e relatórios detalhados
         "sisSt": clean_status(r['Situação da Lei do Sistema de Cultura']) if aderiu else None,
         "orgSt": clean_status(r['Situação do Órgão Gestor']) if aderiu else None,

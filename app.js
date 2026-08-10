@@ -344,7 +344,7 @@
       if (f.adesao === "plena" && !isAdesaoPlena(r)) return false;
       if (f.adesao === "provisoria" && !isAdesaoProvisoria(r)) return false;
       if (f.adesao === "aguardando" && r.sit !== "Aguardando publicação no DOU") return false;
-      if (f.adesao === "semComponente" && !(r.ad && r.idx === 0)) return false;
+      if (f.adesao === "semComponente" && !(r.ad && r.semInfo)) return false;
       if (f.desatualizado && (!r.ad || !r.upd || new Date(r.upd) >= doisAnosAtras)) return false;
       if (f.periodo && (!r.dtAd || !r.dtAd.startsWith(f.periodo))) return false;
       if (f.search) {
@@ -419,8 +419,9 @@
     const semConselho = aderidos.filter((r) => r.con === 0).length;
     const semFundo = aderidos.filter((r) => r.fun === 0).length;
     const planosVencidos = aderidos.filter((r) => r.venc === 1).length;
-    // Bug #10: aderidos com 0 componentes implementados
-    const aderidosSemComponentes = aderidos.filter((r) => r.idx === 0).length;
+    // Aderidos que não informaram NENHUM dado em nenhum componente (exclui quem tem
+    // algo pendente/incorreto em análise — esses têm dado, só não está concluído).
+    const aderidosSemComponentes = aderidos.filter((r) => r.semInfo).length;
     const hoje = new Date();
     const doisAnosAtras = new Date(hoje.getFullYear() - 2, hoje.getMonth(), hoje.getDate());
     const semAtualizacao2anos = aderidos.filter((r) => {
@@ -2726,6 +2727,124 @@
       </div>`;
   }
 
+  function buildComponentesReportConfig(agg) {
+    return {
+      type: "bar",
+      data: {
+        labels: COMPONENT_KEYS.map((k) => COMPONENT_LABELS[k]),
+        datasets: [{
+          data: COMPONENT_KEYS.map((k) => agg.componentRates[k].pct),
+          backgroundColor: COMPONENT_KEYS.map((k) => S.COMPONENT_COLORS[k]),
+          borderRadius: 7,
+          maxBarThickness: 38,
+          showLabels: true,
+          labelColor: "#1d1d1f",
+          labelFormatter: (v, i) => `${fmtPct(v)}%\n${fmtInt(COMPONENT_KEYS.map((k) => agg.componentRates[k].n)[i])}`
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, max: 100, grid: { color: "#eef2f7" }, ticks: { callback: (v) => v + "%" } },
+          x: { grid: { display: false } }
+        }
+      }
+    };
+  }
+
+  function buildMaturidadeReportConfig(agg) {
+    const colors = ["#dc2626", "#f08c3a", "#f2c94c", "#3fae6b", "#0a6e3a", "#065f33"];
+    const labels = ["0 componentes", "1 componente", "2 componentes", "3 componentes", "4 componentes", "5 componentes"];
+    return {
+      type: "doughnut",
+      data: { labels, datasets: [{ data: agg.donut, backgroundColor: colors, borderWidth: 2, borderColor: "#fff", showLabels: true, labelColor: "#1d1d1f" }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "68%",
+        layout: { padding: 28 },
+        plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, padding: 12 } } }
+      }
+    };
+  }
+
+  function renderInstitucionalizacaoReport(agg) {
+    const el = document.getElementById("reportContainer");
+    if (!el || !agg) return;
+    STATE.reportOrientation = "portrait";
+    STATE.reportFilename = `relatorio-institucionalizacao-snc-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    const ultimoAno = agg.evolucao.length ? agg.evolucao[agg.evolucao.length - 1] : null;
+    const anoAtual = new Date().getFullYear();
+    const aguardandoDOU = agg.situacaoCount ? (agg.situacaoCount["Aguardando publicação no DOU"] || 0) : 0;
+    const plena = agg.adesaoPlenaCount || 0;
+    const provisoria = agg.adesaoProvisoriaCount || 0;
+    const pctPlena = agg.aderidosCount ? (plena / agg.aderidosCount * 100) : 0;
+    const pctProvisoria = agg.aderidosCount ? (provisoria / agg.aderidosCount * 100) : 0;
+    const donutLabels = ["0 componentes", "1 componente", "2 componentes", "3 componentes", "4 componentes", "5 componentes"];
+
+    el.innerHTML = `
+      <div class="report-page">
+        <div class="report-header">
+          <div>
+            <div class="rh-title">Relatório Geral de Institucionalização — Sistema Nacional de Cultura</div>
+            <div class="rh-sub">Gerado em ${hoje} · Abrangência: nacional</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted);">
+            Iniciativa coordenada pelo SNC<br>Criado pelo Chefe de Divisão Fagner Silva Ribeiro
+          </div>
+        </div>
+
+        <div class="report-section">
+          <h3>Tipos de Adesões</h3>
+          <table class="report-table">
+            <thead><tr><th>Indicador</th><th>Valor</th></tr></thead>
+            <tbody>
+              <tr><td>Municípios com Adesão</td><td>${fmtInt(agg.aderidosCount)} (${fmtPct(agg.pctAderidos)} do total nacional)</td></tr>
+              <tr><td>Adesões referentes ao ano atual (${anoAtual})</td><td>${ultimoAno ? fmtInt(ultimoAno.novo) : "—"}</td></tr>
+              <tr><td>Aguardando publicação no DOU</td><td>${fmtInt(aguardandoDOU)}</td></tr>
+              <tr><td>Índice médio de maturidade (entre aderidos)</td><td>${agg.mediaMaturidadeAderidos.toFixed(1)} / 5</td></tr>
+              <tr><td>Adesão Plena <span style="color:var(--muted);font-weight:400;">(Lei do Sistema + Conselho + Plano + Fundo)</span></td><td>${fmtInt(plena)} (${fmtPct(pctPlena)} das adesões)</td></tr>
+              <tr><td>Adesão Provisória <span style="color:var(--muted);font-weight:400;">(em processo de institucionalização)</span></td><td>${fmtInt(provisoria)} (${fmtPct(pctProvisoria)} das adesões)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <h3>Evolução Histórica das Adesões</h3>
+          ${chartImg(S.buildEvolucaoConfig, agg, "Evolução histórica das adesões")}
+        </div>
+
+        <div class="report-section">
+          <h3>Taxa de Conclusão por Componente</h3>
+          ${chartImg(buildComponentesReportConfig, agg, "Taxa de conclusão por componente")}
+          <table class="report-table" style="margin-top:10px;">
+            <thead><tr><th>Componente</th><th>Concluídos</th><th>% sobre aderidos</th></tr></thead>
+            <tbody>
+              ${COMPONENT_KEYS.map((k) => `<tr><td>${COMPONENT_LABELS[k]}</td><td>${fmtInt(agg.componentRates[k].n)}</td><td>${fmtPct(agg.componentRates[k].pct)}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <h3>Distribuição do Índice de Maturidade</h3>
+          ${chartImg(buildMaturidadeReportConfig, agg, "Distribuição do índice de maturidade")}
+          <table class="report-table" style="margin-top:10px;">
+            <thead><tr><th>Componentes concluídos</th><th>Municípios</th></tr></thead>
+            <tbody>
+              ${donutLabels.map((l, i) => `<tr><td>${l}</td><td>${fmtInt(agg.donut[i])}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <div style="font-size:10.5px;color:var(--muted);">
+            Classificação de Adesão Plena e Adesão Provisória conforme Lei nº 14.835/2024, art. 5º, §§4º e 5º.
+            O componente Órgão Gestor é acompanhado no painel do SNC, mas não integra o critério legal de Adesão Plena/Provisória.
+          </div>
+        </div>
+      </div>`;
+  }
 
   /* ---------------- Exportação PDF ---------------- */
   function exportPdfReport() {
@@ -2759,6 +2878,7 @@
   }
 
   S.renderReport = renderReport;
+  S.renderInstitucionalizacaoReport = renderInstitucionalizacaoReport;
   S.exportPdfReport = exportPdfReport;
 })();
 
@@ -2962,6 +3082,9 @@
     if (STATE.activeReportKind === "executivo") {
       S.renderReport(aggBase);
     }
+    if (STATE.activeReportKind === "institucionalizacao") {
+      S.renderInstitucionalizacaoReport(aggBase);
+    }
 
     const cfgFonte = document.getElementById("cfgFonte");
     const cfgTotal = document.getElementById("cfgTotal");
@@ -3070,8 +3193,11 @@
     const tipo = tipoSel.value;
     const muniWrap = document.getElementById("repMunicipioWrap");
     const filtroWrap = document.getElementById("repFiltroWrap");
+    const estadoWrap = document.getElementById("repEstadoWrap");
     if (muniWrap) muniWrap.style.display = (tipo === "municipio" || tipo === "contatos") ? "" : "none";
     if (filtroWrap) filtroWrap.style.display = tipo === "checklist" ? "" : "none";
+    // Relatório Geral de Institucionalização é nacional — não precisa de recorte por estado
+    if (estadoWrap) estadoWrap.style.display = tipo === "institucionalizacao" ? "none" : "";
     const repEstadoEl = document.getElementById("repEstado");
     if (tipo === "contatos" || tipo === "municipio") populateRepMunicipioSelect(repEstadoEl ? repEstadoEl.value : "");
   }
@@ -3408,7 +3534,7 @@
       btnGerarDetalhado.addEventListener("click", () => {
         const tipo = document.getElementById("repTipo").value;
         const uf = document.getElementById("repEstado").value;
-        if (!uf) { showToast("Selecione um estado.", true); return; }
+        if (tipo !== "institucionalizacao" && !uf) { showToast("Selecione um estado.", true); return; }
         if (tipo === "municipio") {
           const mNome = document.getElementById("repMunicipio").value;
           if (!mNome) { showToast("Selecione um município.", true); return; }
@@ -3433,6 +3559,9 @@
             const mNome = document.getElementById("repMunicipio").value;
             STATE.activeReportKind = "contatos";
             S.renderContatosReport(uf, mNome || null);
+          } else if (tipo === "institucionalizacao") {
+            STATE.activeReportKind = "institucionalizacao";
+            S.renderInstitucionalizacaoReport(STATE.lastAggBase || STATE.lastAgg);
           }
           btnGerarDetalhado.disabled = false;
           btnGerarDetalhado.innerHTML = original;
