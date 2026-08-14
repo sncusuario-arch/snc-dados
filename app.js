@@ -3230,23 +3230,7 @@
     if (STATE.localMeta) {
       const dt = new Date(STATE.localMeta.savedAt);
       const dataFmt = dt.toLocaleDateString("pt-BR") + " às " + dt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block;"></span>Dados da planilha <b>&nbsp;${escapeHtml(STATE.localMeta.fileName)}&nbsp;</b> · carregada em ${dataFmt}
-        <button id="btnVoltarBaseOficial" style="margin-left:8px;font-size:11px;font-weight:700;color:var(--accent);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">Voltar para base oficial</button>`;
-      const btnVoltar = document.getElementById("btnVoltarBaseOficial");
-      if (btnVoltar) {
-        btnVoltar.addEventListener("click", () => {
-          clearLocalData().then(() => {
-            STATE.localMeta = null;
-            STATE.raw = (typeof SNC_DEFAULT_DATA !== "undefined") ? SNC_DEFAULT_DATA : [];
-            STATE.sourceLabel = (typeof SNC_DATA_META !== "undefined" && SNC_DATA_META.total)
-              ? `Base oficial SNC (carregada automaticamente · ${fmtInt(SNC_DATA_META.total)} municípios)`
-              : "Base oficial do sistema";
-            refreshAll();
-            updateDataBanner();
-            showToast("Base oficial restaurada — dados da planilha local removidos.");
-          });
-        });
-      }
+      banner.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block;"></span>Dados da planilha <b>&nbsp;${escapeHtml(STATE.localMeta.fileName)}&nbsp;</b> · carregada em ${dataFmt}`;
     } else {
       let dataAtualizacao = "";
       if (typeof SNC_DATA_META !== "undefined" && SNC_DATA_META.gerado) {
