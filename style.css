@@ -77,6 +77,18 @@ a { color: inherit; }
   padding: 6px 10px 26px 10px;
 }
 
+/* Botão de recolher/expandir menu quando embutido no menu lateral (telas grandes) */
+.sidebar .sidebar-toggle-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  box-shadow: none;
+}
+.sidebar .sidebar-toggle-btn:hover { background: var(--sidebar-hover); }
+.sidebar .sidebar-toggle-btn svg { width: 16px; height: 16px; }
+
 .brand-mark {
   width: 34px;
   height: 34px;
@@ -148,7 +160,7 @@ a { color: inherit; }
   background: rgba(248, 250, 252, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
-  padding: 16px 28px;
+  padding: 12px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -270,13 +282,17 @@ input[type="file"] { display: none; }
 /* ---------------- Menu lateral: recolher (telas grandes) ---------------- */
 @media (min-width: 861px) {
   .sidebar { transition: width 0.2s ease; }
+  .topbar-title { display: none; }
   body.sidebar-collapsed .sidebar { width: 76px; padding-left: 10px; padding-right: 10px; }
   body.sidebar-collapsed .sidebar .nav-item { justify-content: center; padding: 10px; gap: 0; font-size: 0; }
   body.sidebar-collapsed .sidebar .nav-item svg { margin: 0; }
-  body.sidebar-collapsed .sidebar .brand { justify-content: center; padding-left: 0; padding-right: 0; }
+  body.sidebar-collapsed .sidebar .brand { flex-direction: column; justify-content: center; gap: 10px; padding-left: 0; padding-right: 0; }
   body.sidebar-collapsed .sidebar .brand-text,
   body.sidebar-collapsed .sidebar .nav-group-label,
   body.sidebar-collapsed .sidebar .sidebar-footer { display: none; }
+}
+@media (max-width: 860px) {
+  .sidebar-toggle-btn-desktop { display: none; }
 }
 
 /* ---------------- Menu lateral: gaveta (telas pequenas) ---------------- */

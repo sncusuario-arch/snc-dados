@@ -3300,6 +3300,8 @@
 
     const sidebarToggle = document.getElementById("sidebarToggle");
     if (sidebarToggle) sidebarToggle.addEventListener("click", toggleSidebar);
+    const sidebarToggleDesktop = document.getElementById("sidebarToggleDesktop");
+    if (sidebarToggleDesktop) sidebarToggleDesktop.addEventListener("click", toggleSidebar);
     const sidebarBackdrop = document.getElementById("sidebarBackdrop");
     if (sidebarBackdrop) sidebarBackdrop.addEventListener("click", closeSidebarMobile);
 
