@@ -331,8 +331,26 @@ input[type="file"] { display: none; }
 @media (max-width: 480px) {
   .topbar-title h1 { font-size: 16.5px; }
   .topbar-title span { display: none; }
-  .search-control input { width: 130px; }
-  .topbar-controls { width: 100%; }
+  .topbar-controls {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: dense;
+    gap: 8px;
+  }
+  .topbar-controls .select-control,
+  .topbar-controls .search-control,
+  .topbar-controls label.btn,
+  .topbar-controls button.btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+  }
+  .topbar-controls .search-control input { width: 100%; }
+  .topbar-controls .search-control,
+  .topbar-controls #btnLimparFiltros {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 1180px) {
