@@ -138,7 +138,7 @@
     sourceLabel: "Base padrão SNC (planilha oficial carregada)",
     currentView: "dashboard",
     filters: { uf: "", regiao: "", adesao: "", periodo: "", search: "", desatualizado: false },
-    table: { sortKey: "idx", sortDir: "desc", page: 1, pageSize: 25, search: "" },
+    table: { sortKey: "idx", sortDir: "desc", page: 1, pageSize: 25, search: "", updateBefore: "" },
     mapLabels: true,
     charts: {},
     activeReportKind: null    // "executivo" | "municipio" | "estado" | "checklist" | "contatos" | null
@@ -1503,6 +1503,12 @@
     if (STATE.table.search) {
       const s = STATE.table.search.toLowerCase();
       rows = rows.filter((r) => r.m.toLowerCase().includes(s) || r.uf.toLowerCase().includes(s));
+    }
+    if (STATE.table.updateBefore) {
+      const anoLimite = parseInt(STATE.table.updateBefore, 10);
+      // Inclui quem nunca teve nenhuma atualização registrada — é o caso mais
+      // extremo de "desatualizado".
+      rows = rows.filter((r) => !r.upd || new Date(r.upd).getFullYear() < anoLimite);
     }
     const t = STATE.table;
     rows = rows.slice().sort((a, b) => {
@@ -3089,6 +3095,13 @@
       const anos = Array.from(new Set(STATE.raw.filter((r) => r.dtAd).map((r) => r.dtAd.slice(0, 4)))).sort().reverse();
       periodSel.innerHTML = `<option value="">Todos</option>` + anos.map((y) => `<option value="${y}">${y}</option>`).join("");
     }
+    const tableUpdateSel = document.getElementById("tableUpdateFilter");
+    if (tableUpdateSel) {
+      const anosUpd = Array.from(new Set(STATE.raw.filter((r) => r.upd).map((r) => r.upd.slice(0, 4)))).sort().reverse();
+      const prevVal = tableUpdateSel.value;
+      tableUpdateSel.innerHTML = `<option value="">Última atualização</option>` + anosUpd.map((y) => `<option value="${y}">Não atualiza desde ${y}</option>`).join("");
+      tableUpdateSel.value = prevVal;
+    }
     const pageSizeSel = document.getElementById("cfgPageSize");
     if (pageSizeSel) pageSizeSel.value = String(STATE.table.pageSize);
 
@@ -3409,6 +3422,15 @@
       tableSearch.addEventListener("keyup", tableSearchHandler);
     }
 
+    const tableUpdateFilter = document.getElementById("tableUpdateFilter");
+    if (tableUpdateFilter) {
+      tableUpdateFilter.addEventListener("change", () => {
+        STATE.table.updateBefore = tableUpdateFilter.value;
+        STATE.table.page = 1;
+        S.renderMunicipiosTable();
+      });
+    }
+
     const estadosSearch = document.getElementById("estadosSearch");
     if (estadosSearch) {
       const estadosSearchHandler = debounce(() => {
@@ -3534,6 +3556,9 @@
             const mNome = document.getElementById("repMunicipio").value;
             STATE.activeReportKind = "contatos";
             S.renderContatosReport(uf, mNome || null);
+          } else if (tipo === "semCadastrador") {
+            STATE.activeReportKind = "semCadastrador";
+            S.renderSemCadastradorReport(uf);
           } else if (tipo === "institucionalizacao") {
             STATE.activeReportKind = "institucionalizacao";
             S.renderInstitucionalizacaoReport(STATE.lastAggBase || STATE.lastAgg);
@@ -4148,10 +4173,59 @@
     STATE.reportFilename = `contatos-${uf.toLowerCase()}-${sufixo}-${new Date().toISOString().slice(0, 10)}.pdf`;
   }
 
+  /* ---------------- Municípios sem Cadastrador ---------------- */
+  function renderSemCadastradorReport(uf) {
+    const rows = STATE.raw.filter((r) => r.uf === uf && !r.cad).slice().sort((a, b) => a.m.localeCompare(b.m));
+    const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+
+    const tableHtml = !rows.length
+      ? `<div class="section-sub" style="margin:0;padding:20px 0;text-align:center;">Todos os municípios deste estado têm cadastrador informado.</div>`
+      : `
+      <table class="report-table compact">
+        <thead>
+          <tr>
+            <th>Município</th>
+            <th>Prefeito(a)</th><th>E-mail Gabinete</th>
+            <th>Gestor de Cultura</th><th>E-mail Gestor</th>
+            <th>Cadastrador</th><th>E-mail Cadastrador</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r) => `
+            <tr>
+              <td><b>${escapeHtml(r.m)}</b>${!r.ad ? ` <span class="status-badge gray" style="margin-left:4px;">sem adesão</span>` : ""}</td>
+              ${contatoCell(r.pref, r.emailPref)}
+              ${contatoCell(r.gestor, r.emailGestor)}
+              ${contatoCell(r.cad, r.emailCad)}
+            </tr>`).join("")}
+        </tbody>
+      </table>`;
+
+    const html = `
+      <div class="report-page">
+        <div class="report-header">
+          <div>
+            <div class="rh-title">Municípios sem Cadastrador — ${UF_NOME[uf] || uf}</div>
+            <div class="rh-sub">Gerado em ${hoje} · ${fmtInt(rows.length)} de ${fmtInt(STATE.raw.filter((r) => r.uf === uf).length)} municípios sem ninguém cadastrado como responsável pelo registro no SNC</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:var(--muted);">Lei nº 14.835/2024<br>Iniciativa coordenada pelo SNC</div>
+        </div>
+        <div class="report-section">
+          ${tableHtml}
+        </div>
+        ${reportFooter()}
+      </div>`;
+
+    document.getElementById("reportContainer").innerHTML = html;
+    STATE.reportOrientation = "landscape";
+    STATE.reportFilename = `municipios-sem-cadastrador-${uf.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  }
+
   S.statusBadge = statusBadge;
   S.checklistTableHtml = checklistTableHtml;
   S.renderMunicipioReport = renderMunicipioReport;
   S.renderEstadoReport = renderEstadoReport;
   S.renderChecklistReport = renderChecklistReport;
   S.renderContatosReport = renderContatosReport;
+  S.renderSemCadastradorReport = renderSemCadastradorReport;
 })();
