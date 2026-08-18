@@ -1318,9 +1318,10 @@
     const porteGroups = {};
     municipiosComPorte.forEach(({ r, _porte }) => {
       const p = _porte || "Não informado";
-      if (!porteGroups[p]) porteGroups[p] = { total: 0, aderidos: 0, somaIdxAderidos: 0 };
+      if (!porteGroups[p]) porteGroups[p] = { total: 0, aderidos: 0, somaIdxAderidos: 0, somaPop: 0, comPop: 0 };
       porteGroups[p].total++;
       if (r.ad) { porteGroups[p].aderidos++; porteGroups[p].somaIdxAderidos += r.idx; }
+      if (r.pop) { porteGroups[p].somaPop += r.pop; porteGroups[p].comPop++; }
     });
     const porteRows = PORTE_ORDER.filter((p) => porteGroups[p]).map((p, i) => {
       const g = porteGroups[p];
@@ -1329,6 +1330,7 @@
         idx: i, label: p, total: g.total, aderidos: g.aderidos,
         pctAdesao: g.total ? (g.aderidos / g.total) * 100 : 0,
         idxMedio: g.aderidos ? g.somaIdxAderidos / g.aderidos : 0,
+        popMedia: g.comPop ? g.somaPop / g.comPop : 0,
         municipios
       };
     });
@@ -1337,6 +1339,9 @@
         <div class="porte-row" data-porte-idx="${pr.idx}" style="display:flex;justify-content:space-between;margin-bottom:5px;cursor:pointer;">
           <span style="font-size:12.5px;font-weight:600;">${pr.label} <span style="color:var(--muted);font-weight:400;">(clique para ver municípios)</span></span>
           <span style="font-size:12px;font-weight:700;color:var(--accent);">${fmtInt(pr.aderidos)}/${fmtInt(pr.total)} aderidos (${fmtPct(pr.pctAdesao)}) · índice médio ${pr.idxMedio.toFixed(1)}</span>
+        </div>
+        <div class="porte-row" data-porte-idx="${pr.idx}" style="font-size:10.5px;color:var(--muted);margin-bottom:5px;cursor:pointer;">
+          População média: ${pr.popMedia ? fmtInt(Math.round(pr.popMedia)) + " habitantes" : "—"}
         </div>
         <div class="porte-row" data-porte-idx="${pr.idx}" style="height:8px;background:var(--surface);border-radius:9999px;overflow:hidden;border:1px solid var(--border);cursor:pointer;">
           <div style="height:100%;width:${Math.min(pr.pctAdesao,100).toFixed(1)}%;background:var(--accent);border-radius:9999px;transition:width .4s;"></div>
