@@ -1016,16 +1016,6 @@
       label: "Municípios sem Fundo de Cultura", sub: "Entre os municípios aderidos ao SNC",
       value: fmtInt(a.semFundo)
     }));
-    cards.push(alertCardHtml({
-      tone: "red", icon: ICONS.clock, goto: "planos", gotoCompFilter: "vencidos",
-      label: "Planos de Cultura vencidos", sub: "Vigência encerrada e ainda não renovada",
-      value: fmtInt(a.planosVencidos)
-    }));
-    cards.push(alertCardHtml({
-      tone: "amber", icon: ICONS.clock, goto: "municipios", gotoFilter: "desatualizado",
-      label: "Sem atualização há mais de 2 anos", sub: "Cadastro desatualizado na plataforma SNC",
-      value: fmtInt(a.semAtualizacao2anos)
-    }));
     if (a.piorEstado) {
       cards.push(alertCardHtml({
         tone: "red", icon: ICONS.flag, gotoUf: a.piorEstado.uf,
@@ -2395,7 +2385,7 @@
           <div class="kpi-delta down">Sem lei concluída</div>
         </div>`,
         `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="avaliando">
-          <div class="kpi-top"><div class="kpi-label">Avaliando anexo</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
+          <div class="kpi-top"><div class="kpi-label">Avaliando</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
           <div class="kpi-value">${fmtInt(avaliandoAnexo)}</div>
           <div class="kpi-delta flat">Em análise pela equipe SNC</div>
         </div>`
