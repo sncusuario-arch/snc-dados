@@ -2169,7 +2169,10 @@
     const table = document.getElementById("tableRecentes");
     if (!table) return;
     const t = STATE.adesoesTable;
-    const rows = (STATE.lastFiltered || []).slice().sort((a, b) => a.m.localeCompare(b.m, "pt-BR"));
+    // Tela de Adesões: só faz sentido listar municípios que têm alguma adesão
+    // (mesmo que em trâmite). Sem adesão não pertence aqui, independente do
+    // filtro global de situação estar em "Todos".
+    const rows = (STATE.lastFiltered || []).filter((r) => r.ad).slice().sort((a, b) => a.m.localeCompare(b.m, "pt-BR"));
 
     const titleEl = document.getElementById("tableRecentesTitle");
     const tagEl = document.getElementById("tableRecentesTag");
@@ -2309,9 +2312,11 @@
       monitorados: "Planos monitorados",
       semVigencia: "Sem ano de vigência informado"
     };
-    const planosRows = planosFiltroKey ? agg.aderidosArr.filter(planosPredicates[planosFiltroKey]) : agg.aderidosArr;
+    // Por padrão (sem card clicado), lista só quem já tem Plano concluído — não
+    // faz sentido a tela de Plano listar município sem Plano por padrão.
+    const planosRows = agg.aderidosArr.filter(planosPredicates[planosFiltroKey || "concluidos"]);
     renderCompMunicipiosTable("planos", planosRows, "tablePlanos", "tablePlanosTitle", "tablePlanosTag", "paginationPlanos",
-      planosFiltroKey ? planosLabels[planosFiltroKey] : "Todos os municípios aderidos");
+      planosLabels[planosFiltroKey || "concluidos"]);
 
     S.mkChart("chartPeriodicidade", {
       type: "doughnut",
@@ -2412,9 +2417,11 @@
       avaliando: "Avaliando anexo",
       problema: "Arquivo com problema"
     };
-    const fundoRows = fundoFiltroKey ? aderidos.filter(fundoPredicates[fundoFiltroKey]) : aderidos;
+    // Por padrão (sem card clicado), lista só quem já tem Fundo concluído — não
+    // faz sentido a tela de Fundo listar município sem Fundo por padrão.
+    const fundoRows = aderidos.filter(fundoPredicates[fundoFiltroKey || "concluidos"]);
     renderCompMunicipiosTable("fundo", fundoRows, "tableFundo", "tableFundoTitle", "tableFundoTag", "paginationFundo",
-      fundoFiltroKey ? fundoLabels[fundoFiltroKey] : "Todos os municípios aderidos");
+      fundoLabels[fundoFiltroKey || "concluidos"]);
 
     const dist = statusDistribution(aderidos, "funSt");
     S.mkChart("chartFundoStatus", {
@@ -2508,9 +2515,11 @@
       paritarios: "Conselhos paritários",
       exclusivos: "Conselhos exclusivos de cultura"
     };
-    const conselhoRows = conselhoFiltroKey ? aderidos.filter(conselhoPredicates[conselhoFiltroKey]) : aderidos;
+    // Por padrão (sem card clicado), lista só quem já tem Conselho concluído — não
+    // faz sentido a tela de Conselho listar município sem Conselho por padrão.
+    const conselhoRows = aderidos.filter(conselhoPredicates[conselhoFiltroKey || "concluidos"]);
     renderCompMunicipiosTable("conselho", conselhoRows, "tableConselho", "tableConselhoTitle", "tableConselhoTag", "paginationConselho",
-      conselhoFiltroKey ? conselhoLabels[conselhoFiltroKey] : "Todos os municípios aderidos");
+      conselhoLabels[conselhoFiltroKey || "concluidos"]);
 
     const naoParitarios = concluidos.length - paritarios;
     const naoExclusivos = concluidos.length - exclusivos;
