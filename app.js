@@ -2386,6 +2386,29 @@
     return { labels, values: labels.map((s) => count[s]), colors: labels.map((s) => STATUS_CORES[s] || "#94a3b8") };
   }
 
+  /* ---------------- Mini-donut de percentual (com/sem CNPJ do Fundo) ---------------- */
+  function renderCnpjDonut(canvasId, labelId, comCnpj, total) {
+    const pct = total ? (comCnpj / total) * 100 : 0;
+    S.mkChart(canvasId, {
+      type: "doughnut",
+      data: {
+        labels: ["Com CNPJ", "Sem CNPJ"],
+        datasets: [{ data: [comCnpj, Math.max(total - comCnpj, 0)], backgroundColor: ["#007aff", "#e5e5ea"], borderWidth: 2, borderColor: "#fff" }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "72%",
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${fmtInt(ctx.parsed)}` } }
+        }
+      }
+    });
+    const labelEl = document.getElementById(labelId);
+    if (labelEl) {
+      labelEl.innerHTML = `<span class="dc-value">${fmtPct(pct)}</span><span class="dc-sub">${fmtInt(comCnpj)} de ${fmtInt(total)}</span>`;
+    }
+  }
+
   function renderFundoView(agg) {
     const fundoData = agg.componentRates.fun;
     const aderidos = agg.aderidosArr;
@@ -2420,23 +2443,22 @@
       wireCompCardClicks("fundoKpiRow", "fundo");
     }
 
-    // Nota: percentual de municípios, estados e capitais com Fundo de Cultura
-    // e CNPJ próprio já registrado (entre quem já tem o Fundo concluído).
-    const noteEl = document.getElementById("fundoCnpjNote");
-    if (noteEl) {
-      let estadosTxt = "";
-      if (typeof SNC_ESTADOS_DATA !== "undefined") {
-        const estadosArr = Object.values(SNC_ESTADOS_DATA);
-        const estComFundo = estadosArr.filter((e) => e.fun === 1);
-        const estComCnpj = estComFundo.filter((e) => !!e.funCnpj);
-        estadosTxt = ` · <b>Estados:</b> ${fmtInt(estComCnpj.length)} de ${fmtInt(estComFundo.length)} com Fundo concluído já têm CNPJ (${fmtPct(estComFundo.length ? (estComCnpj.length / estComFundo.length) * 100 : 0)})`;
-      }
-      const capitais = (STATE.raw || []).filter((r) => CAPITAIS_POR_UF[r.uf] === r.m);
-      const capComFundo = capitais.filter((r) => r.fun === 1);
-      const capComCnpj = capComFundo.filter((r) => r.funCnpj === true);
-      const capitaisTxt = ` · <b>Capitais:</b> ${fmtInt(capComCnpj.length)} de ${fmtInt(capComFundo.length)} com Fundo concluído já têm CNPJ (${fmtPct(capComFundo.length ? (capComCnpj.length / capComFundo.length) * 100 : 0)})`;
-      noteEl.innerHTML = `<b>Municípios:</b> ${fmtInt(comFundoCnpj.length)} de ${fmtInt(comFundo.length)} com Fundo concluído já têm CNPJ (${fmtPct(comFundo.length ? (comFundoCnpj.length / comFundo.length) * 100 : 0)})${estadosTxt}${capitaisTxt}`;
+    // Gráficos de rosca: percentual de municípios, estados e capitais com
+    // Fundo de Cultura e CNPJ próprio já registrado (entre quem já tem o Fundo
+    // concluído).
+    let estComFundo = [], estComCnpj = [];
+    if (typeof SNC_ESTADOS_DATA !== "undefined") {
+      const estadosArr = Object.values(SNC_ESTADOS_DATA);
+      estComFundo = estadosArr.filter((e) => e.fun === 1);
+      estComCnpj = estComFundo.filter((e) => !!e.funCnpj);
     }
+    const capitais = (STATE.raw || []).filter((r) => CAPITAIS_POR_UF[r.uf] === r.m);
+    const capComFundo = capitais.filter((r) => r.fun === 1);
+    const capComCnpj = capComFundo.filter((r) => r.funCnpj === true);
+
+    renderCnpjDonut("chartCnpjMunicipios", "chartCnpjMunicipiosLabel", comFundoCnpj.length, comFundo.length);
+    renderCnpjDonut("chartCnpjEstados", "chartCnpjEstadosLabel", estComCnpj.length, estComFundo.length);
+    renderCnpjDonut("chartCnpjCapitais", "chartCnpjCapitaisLabel", capComCnpj.length, capComFundo.length);
 
     const fundoFiltroKey = (STATE.compTables.fundo || {}).filterKey;
     const fundoPredicates = {

@@ -427,6 +427,17 @@ input[type="file"] { display: none; }
 .chart-wrap.h-220 { height: 220px; }
 .chart-wrap.h-300 { height: 300px; }
 
+.donut-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+.donut-center .dc-value { display: block; font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.donut-center .dc-sub { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+
 .legend-row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
 .legend-swatch { width: 9px; height: 9px; border-radius: 3px; }

@@ -385,7 +385,29 @@
       <!-- ---------- FUNDO DE CULTURA ---------- -->
       <section class="view" id="view-fundo" aria-label="Fundo de Cultura" role="region">
         <div class="grid grid-4 row-block" id="fundoKpiRow"></div>
-        <div class="row-block" id="fundoCnpjNote" style="font-size:11.5px;color:var(--muted);margin-top:-10px;"></div>
+        <div class="card-title-row row-block" style="margin-bottom:-4px;">
+          <div class="section-title" style="margin:0;font-size:13.5px;">Fundos de Cultura com CNPJ próprio</div>
+        </div>
+        <div class="grid grid-3 row-block">
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Municípios</div></div>
+            <div class="chart-wrap" style="height:180px;"><canvas id="chartCnpjMunicipios"></canvas>
+              <div class="donut-center" id="chartCnpjMunicipiosLabel"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Estados</div></div>
+            <div class="chart-wrap" style="height:180px;"><canvas id="chartCnpjEstados"></canvas>
+              <div class="donut-center" id="chartCnpjEstadosLabel"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title-row"><div class="card-title">Capitais</div></div>
+            <div class="chart-wrap" style="height:180px;"><canvas id="chartCnpjCapitais"></canvas>
+              <div class="donut-center" id="chartCnpjCapitaisLabel"></div>
+            </div>
+          </div>
+        </div>
         <div class="grid grid-2">
           <div class="card">
             <div class="card-title-row">
@@ -578,11 +600,11 @@
 <script src="chart.umd.js"></script>
 <script src="xlsx.full.min.js"></script>
 <script src="html2pdf.bundle.min.js"></script>
-<script src="data.js?v=20260904b"></script>
-<script src="contatos.js?v=20260904b"></script>
-<script src="pnab-ciclo2.js?v=20260904b"></script>
-<script src="lpg.js?v=20260904b"></script>
-<script src="lpg-estados.js?v=20260904b"></script>
-<script src="app.js?v=20260904b"></script>
+<script src="data.js?v=20260904c"></script>
+<script src="contatos.js?v=20260904c"></script>
+<script src="pnab-ciclo2.js?v=20260904c"></script>
+<script src="lpg.js?v=20260904c"></script>
+<script src="lpg-estados.js?v=20260904c"></script>
+<script src="app.js?v=20260904c"></script>
 </body>
 </html>
