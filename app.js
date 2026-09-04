@@ -1936,6 +1936,15 @@
     fmtInt, fmtPct, fmtDate, escapeHtml, colorForContato } = S;
   const ICONS = S.ICONS;
 
+  // Capitais de cada UF (nome exatamente como aparece no campo "m" dos municípios).
+  const CAPITAIS_POR_UF = {
+    AC: "Rio Branco", AL: "Maceió", AP: "Macapá", AM: "Manaus", BA: "Salvador", CE: "Fortaleza",
+    DF: "Distrito Federal", ES: "Vitória", GO: "Goiânia", MA: "São Luís", MT: "Cuiabá", MS: "Campo Grande",
+    MG: "Belo Horizonte", PA: "Belém", PB: "João Pessoa", PR: "Curitiba", PE: "Recife", PI: "Teresina",
+    RJ: "Rio de Janeiro", RN: "Natal", RS: "Porto Alegre", RO: "Porto Velho", RR: "Boa Vista",
+    SC: "Florianópolis", SP: "São Paulo", SE: "Aracaju", TO: "Palmas"
+  };
+
   /* ---------------- Adesões ---------------- */
   function renderAdesoesView(agg) {
     const ultimoAno = agg.evolucao.length ? agg.evolucao[agg.evolucao.length - 1] : null;
@@ -2381,6 +2390,8 @@
     const fundoData = agg.componentRates.fun;
     const aderidos = agg.aderidosArr;
     const avaliandoAnexo = aderidos.filter((r) => r.funSt === "Avaliando anexo").length;
+    const comFundo = aderidos.filter((r) => r.fun === 1);
+    const comFundoCnpj = comFundo.filter((r) => r.funCnpj === true);
 
     const el = document.getElementById("fundoKpiRow");
     if (el) {
@@ -2399,9 +2410,32 @@
           <div class="kpi-top"><div class="kpi-label">Avaliando</div><div class="kpi-icon amber">${ICONS.clock}</div></div>
           <div class="kpi-value">${fmtInt(avaliandoAnexo)}</div>
           <div class="kpi-delta flat">Em análise pela equipe SNC</div>
+        </div>`,
+        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="comCnpj">
+          <div class="kpi-top"><div class="kpi-label">Fundos com CNPJ</div><div class="kpi-icon blue">${ICONS.bank}</div></div>
+          <div class="kpi-value">${fmtInt(comFundoCnpj.length)}</div>
+          <div class="kpi-delta flat">${fmtPct(comFundo.length ? (comFundoCnpj.length / comFundo.length) * 100 : 0)} dos fundos concluídos</div>
         </div>`
       ].join("");
       wireCompCardClicks("fundoKpiRow", "fundo");
+    }
+
+    // Nota: percentual de municípios, estados e capitais com Fundo de Cultura
+    // e CNPJ próprio já registrado (entre quem já tem o Fundo concluído).
+    const noteEl = document.getElementById("fundoCnpjNote");
+    if (noteEl) {
+      let estadosTxt = "";
+      if (typeof SNC_ESTADOS_DATA !== "undefined") {
+        const estadosArr = Object.values(SNC_ESTADOS_DATA);
+        const estComFundo = estadosArr.filter((e) => e.fun === 1);
+        const estComCnpj = estComFundo.filter((e) => !!e.funCnpj);
+        estadosTxt = ` · <b>Estados:</b> ${fmtInt(estComCnpj.length)} de ${fmtInt(estComFundo.length)} com Fundo concluído já têm CNPJ (${fmtPct(estComFundo.length ? (estComCnpj.length / estComFundo.length) * 100 : 0)})`;
+      }
+      const capitais = (STATE.raw || []).filter((r) => CAPITAIS_POR_UF[r.uf] === r.m);
+      const capComFundo = capitais.filter((r) => r.fun === 1);
+      const capComCnpj = capComFundo.filter((r) => r.funCnpj === true);
+      const capitaisTxt = ` · <b>Capitais:</b> ${fmtInt(capComCnpj.length)} de ${fmtInt(capComFundo.length)} com Fundo concluído já têm CNPJ (${fmtPct(capComFundo.length ? (capComCnpj.length / capComFundo.length) * 100 : 0)})`;
+      noteEl.innerHTML = `<b>Municípios:</b> ${fmtInt(comFundoCnpj.length)} de ${fmtInt(comFundo.length)} com Fundo concluído já têm CNPJ (${fmtPct(comFundo.length ? (comFundoCnpj.length / comFundo.length) * 100 : 0)})${estadosTxt}${capitaisTxt}`;
     }
 
     const fundoFiltroKey = (STATE.compTables.fundo || {}).filterKey;
@@ -2409,13 +2443,15 @@
       concluidos: (r) => r.fun === 1,
       pendentes: (r) => r.fun === 0,
       avaliando: (r) => r.funSt === "Avaliando anexo",
-      problema: (r) => ["Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado"].includes(r.funSt)
+      problema: (r) => ["Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado"].includes(r.funSt),
+      comCnpj: (r) => r.fun === 1 && r.funCnpj === true
     };
     const fundoLabels = {
       concluidos: "Fundos de Cultura concluídos",
       pendentes: "Fundos pendentes",
       avaliando: "Avaliando anexo",
-      problema: "Arquivo com problema"
+      problema: "Arquivo com problema",
+      comCnpj: "Fundos de Cultura com CNPJ"
     };
     // Por padrão (sem card clicado), lista só quem já tem Fundo concluído — não
     // faz sentido a tela de Fundo listar município sem Fundo por padrão.

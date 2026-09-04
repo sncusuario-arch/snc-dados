@@ -107,6 +107,7 @@ for _, r in mun.iterrows():
         "conParit": yn(r['Conselho paritário']),
         "ataData": parse_date(r['Data da assinatura da ata da ultima reunião']),
         "funData": parse_date(r['Data da Lei do Fundo de Cultura']),
+        "funCnpj": yn(r['Fundo de Cultura possui CNPJ']),
         "planoData": parse_date(r['Data do Plano de Cultura']),
         "periodicidade": clean_text(r['Periocidade do Plano de Cultura']),
         "upd": parse_date(r['Última atualização'].split(' às')[0]) if isinstance(r['Última atualização'], str) else None,
