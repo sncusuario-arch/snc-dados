@@ -2275,6 +2275,42 @@
           </div>`;
       }).join("");
     }
+
+    // Cobertura de Conselho, Plano e Fundo entre Estados e Capitais (universos
+    // separados dos municípios — 26/27 estados e 27 capitais).
+    const coverageEl = document.getElementById("componentCoverage");
+    if (coverageEl) {
+      const estadosArr = typeof SNC_ESTADOS_DATA !== "undefined" ? Object.values(SNC_ESTADOS_DATA) : [];
+      const capitais = (STATE.raw || []).filter((r) => CAPITAIS_POR_UF[r.uf] === r.m);
+      const itens = [
+        { key: "con", label: COMPONENT_LABELS.con },
+        { key: "pla", label: COMPONENT_LABELS.pla },
+        { key: "fun", label: COMPONENT_LABELS.fun }
+      ];
+      coverageEl.innerHTML = itens.map((it) => {
+        const estN = estadosArr.filter((e) => e[it.key] === 1).length;
+        const estPct = estadosArr.length ? (estN / estadosArr.length) * 100 : 0;
+        const capN = capitais.filter((r) => r[it.key] === 1).length;
+        const capPct = capitais.length ? (capN / capitais.length) * 100 : 0;
+        return `
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <span style="width:10px;height:10px;border-radius:50%;background:${COMPONENT_COLORS[it.key]};flex-shrink:0;"></span>
+              <div class="card-title" style="font-size:13px;">${it.label}</div>
+            </div>
+            <div style="display:flex;gap:20px;">
+              <div>
+                <div class="kpi-value" style="font-size:22px;">${fmtPct(estPct)}</div>
+                <div style="font-size:10.5px;color:var(--muted);margin-top:2px;">Estados · ${fmtInt(estN)} de ${fmtInt(estadosArr.length)}</div>
+              </div>
+              <div>
+                <div class="kpi-value" style="font-size:22px;">${fmtPct(capPct)}</div>
+                <div style="font-size:10.5px;color:var(--muted);margin-top:2px;">Capitais · ${fmtInt(capN)} de ${fmtInt(capitais.length)}</div>
+              </div>
+            </div>
+          </div>`;
+      }).join("");
+    }
   }
 
   /* ---------------- Planos de Cultura ---------------- */
