@@ -600,6 +600,11 @@
     const el = document.getElementById(containerId || "kpiRow");
     if (!el) return;
     const nUf = Object.keys(base.byUF).length;
+    // Estados (unidades federativas) que também têm adesão ao SNC — somado ao
+    // total de municípios com adesão para o card "Municípios e Estados com Adesão".
+    const estadosComAdesao = (typeof SNC_ESTADOS_DATA !== "undefined")
+      ? Object.values(SNC_ESTADOS_DATA).filter((e) => e.sit && e.sit !== "Não possui adesão").length
+      : 0;
     // Bug #4: label contextual baseado nos filtros ativos
     const f = STATE.filters;
     const contexto = f.uf ? "do total estadual" : f.regiao ? "do total regional" : "do total nacional";
@@ -628,8 +633,8 @@
         delta: `${fmtInt(nUf)} unidade${nUf === 1 ? "" : "s"} federativa${nUf === 1 ? "" : "s"}`, deltaTone: "flat"
       }),
       kpiCardHtml({
-        label: "Municípios com Adesão", value: fmtInt(base.aderidosCount), tone: "green", icon: ICONS.check,
-        delta: `${fmtPct(base.pctAderidos)} ${contexto}`, deltaTone: "up"
+        label: "Municípios e Estados com Adesão", value: fmtInt(base.aderidosCount + estadosComAdesao), tone: "green", icon: ICONS.check,
+        delta: `${fmtInt(base.aderidosCount)} municípios · ${fmtInt(estadosComAdesao)} estados`, deltaTone: "up"
       }),
       kpiCardHtml({
         label: "Municípios sem Adesão", value: fmtInt(base.naoAderidos), tone: "red", icon: ICONS.x,

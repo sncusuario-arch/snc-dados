@@ -52,7 +52,9 @@ PORTE_MAP = {
 rows = []
 for _, r in mun.iterrows():
     situacao = r['Situação']
-    aderiu = situacao != 'Nao possui adesão'
+    # "Diligência Documental" não conta como adesão efetiva — indica pendência
+    # documental que ainda impede a formalização (decisão de 2026-09-15).
+    aderiu = situacao not in ('Nao possui adesão', 'Diligência Documental')
     sistema = is_done(r['Situação da Lei do Sistema de Cultura'])
     conselho = is_done(r['Situação da Lei do Conselho de Política Cultural'])
     fundo = is_done(r['Situação da Lei do Fundo de Cultura'])
