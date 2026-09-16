@@ -647,7 +647,7 @@
       }),
       kpiCardHtml({
         label: "Municípios e Estados com Adesão", value: fmtInt(municipiosPublicados + estadosPublicados), tone: "green", icon: ICONS.check,
-        delta: `${fmtPct(pctMunEstAdesao)} do total · ${fmtInt(municipiosPublicados)} municípios · ${fmtInt(estadosPublicados)} estados`, deltaTone: "up"
+        delta: `${fmtPct(pctMunEstAdesao)} do total · ${fmtInt(municipiosPublicados)} municípios · ${fmtInt(estadosPublicados)} estado${estadosPublicados === 1 ? "" : "s"}`, deltaTone: "up"
       }),
       kpiCardHtml({
         label: "Municípios sem Adesão", value: fmtInt(base.naoAderidos), tone: "red", icon: ICONS.x,
