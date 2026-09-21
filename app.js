@@ -600,19 +600,26 @@
     const el = document.getElementById(containerId || "kpiRow");
     if (!el) return;
     const nUf = Object.keys(base.byUF).length;
+    // Bug #4: label contextual baseado nos filtros ativos
+    const f = STATE.filters;
     // Card "Municípios e Estados com Adesão": conta só quem já está publicado no
     // DOU (não inclui "Aguardando publicação no DOU", que é só esse card — o
     // resto do sistema continua tratando "Aguardando" como aderido).
-    const totalEstados = (typeof SNC_ESTADOS_DATA !== "undefined") ? Object.keys(SNC_ESTADOS_DATA).length : 0;
+    // Estados entram no escopo do card seguindo o mesmo filtro de UF/região do
+    // resto do dashboard — filtrando um estado específico, só aquele estado conta
+    // (não os 26/27 nacionais), e filtrando uma região, só os estados dela.
+    const estadosArrTodos = (typeof SNC_ESTADOS_DATA !== "undefined") ? Object.values(SNC_ESTADOS_DATA) : [];
+    const estadosEmEscopo = f.uf
+      ? estadosArrTodos.filter((e) => e.uf === f.uf)
+      : f.regiao
+      ? estadosArrTodos.filter((e) => e.reg === f.regiao)
+      : estadosArrTodos;
+    const totalEstados = estadosEmEscopo.length;
     const municipiosPublicados = base.situacaoCount ? (base.situacaoCount["Publicado no DOU"] || 0) : 0;
-    const estadosPublicados = (typeof SNC_ESTADOS_DATA !== "undefined")
-      ? Object.values(SNC_ESTADOS_DATA).filter((e) => e.sit === "Publicado no DOU").length
-      : 0;
+    const estadosPublicados = estadosEmEscopo.filter((e) => e.sit === "Publicado no DOU").length;
     const pctMunEstAdesao = (base.total + totalEstados)
       ? ((municipiosPublicados + estadosPublicados) / (base.total + totalEstados)) * 100
       : 0;
-    // Bug #4: label contextual baseado nos filtros ativos
-    const f = STATE.filters;
     const contexto = f.uf ? "do total estadual" : f.regiao ? "do total regional" : "do total nacional";
     // Bug #5: quando filtro de ano está ativo, KPI mostra contexto diferente
     const anoAtivo = f.periodo;
@@ -640,7 +647,7 @@
       }),
       kpiCardHtml({
         label: "Municípios e Estados com Adesão", value: fmtInt(municipiosPublicados + estadosPublicados), tone: "green", icon: ICONS.check,
-        delta: `${fmtPct(pctMunEstAdesao)} do total · ${fmtInt(municipiosPublicados)} municípios · ${fmtInt(estadosPublicados)} estados`, deltaTone: "up"
+        delta: `${fmtPct(pctMunEstAdesao)} do total · ${fmtInt(municipiosPublicados)} municípios · ${fmtInt(estadosPublicados)} estado${estadosPublicados === 1 ? "" : "s"}`, deltaTone: "up"
       }),
       kpiCardHtml({
         label: "Municípios sem Adesão", value: fmtInt(base.naoAderidos), tone: "red", icon: ICONS.x,
