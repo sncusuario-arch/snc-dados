@@ -595,19 +595,14 @@
     clock: `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`
   };
 
-  function renderKPIs(agg, aggBase, containerId) {
-    const base = aggBase || agg;
-    const el = document.getElementById(containerId || "kpiRow");
-    if (!el) return;
-    const nUf = Object.keys(base.byUF).length;
-    // Bug #4: label contextual baseado nos filtros ativos
+  // "Municípios e Estados com Adesão": conta só quem já está publicado no DOU
+  // (não inclui "Aguardando publicação no DOU" — o resto do sistema continua
+  // tratando "Aguardando" como aderido). Usado pelo card do Dashboard e pelo da
+  // tela Adesões, para os dois mostrarem sempre o mesmo número.
+  // Estados seguem o filtro de UF/região: filtrando um estado, só ele conta;
+  // filtrando uma região, só os estados dela.
+  function calcAdesaoPublicada(base) {
     const f = STATE.filters;
-    // Card "Municípios e Estados com Adesão": conta só quem já está publicado no
-    // DOU (não inclui "Aguardando publicação no DOU", que é só esse card — o
-    // resto do sistema continua tratando "Aguardando" como aderido).
-    // Estados entram no escopo do card seguindo o mesmo filtro de UF/região do
-    // resto do dashboard — filtrando um estado específico, só aquele estado conta
-    // (não os 26/27 nacionais), e filtrando uma região, só os estados dela.
     const estadosArrTodos = (typeof SNC_ESTADOS_DATA !== "undefined") ? Object.values(SNC_ESTADOS_DATA) : [];
     const estadosEmEscopo = f.uf
       ? estadosArrTodos.filter((e) => e.uf === f.uf)
@@ -620,6 +615,17 @@
     const pctMunEstAdesao = (base.total + totalEstados)
       ? ((municipiosPublicados + estadosPublicados) / (base.total + totalEstados)) * 100
       : 0;
+    return { municipiosPublicados, estadosPublicados, pctMunEstAdesao };
+  }
+
+  function renderKPIs(agg, aggBase, containerId) {
+    const base = aggBase || agg;
+    const el = document.getElementById(containerId || "kpiRow");
+    if (!el) return;
+    const nUf = Object.keys(base.byUF).length;
+    // Bug #4: label contextual baseado nos filtros ativos
+    const f = STATE.filters;
+    const { municipiosPublicados, estadosPublicados, pctMunEstAdesao } = calcAdesaoPublicada(base);
     const contexto = f.uf ? "do total estadual" : f.regiao ? "do total regional" : "do total nacional";
     // Bug #5: quando filtro de ano está ativo, KPI mostra contexto diferente
     const anoAtivo = f.periodo;
@@ -979,6 +985,7 @@
   S.renderGauge = renderGauge;
   S.renderBrazilMap = renderBrazilMap;
   S.mkChart = mkChart;
+  S.calcAdesaoPublicada = calcAdesaoPublicada;
   S.ICONS = ICONS;
   S.buildEvolucaoConfig = buildEvolucaoConfig;
   S.buildEstadosConfig = buildEstadosConfig;
@@ -1968,14 +1975,15 @@
     const ultimoAno = agg.evolucao.length ? agg.evolucao[agg.evolucao.length - 1] : null;
     const aguardando = agg.situacaoCount["Aguardando publicação no DOU"] || 0;
     const anoAtualStr = String(new Date().getFullYear());
+    const adPub = S.calcAdesaoPublicada(agg);
     const el = document.getElementById("adesoesKpiRow");
     if (el) {
       el.innerHTML = [
         `
         <div class="card kpi-card" style="cursor:pointer;" data-adesoes-filtro="adesao" data-adesoes-valor="com">
-          <div class="kpi-top"><div class="kpi-label">Municípios com Adesão</div><div class="kpi-icon green">${ICONS.check}</div></div>
-          <div class="kpi-value">${fmtInt(agg.aderidosCount)}</div>
-          <div class="kpi-delta up">${fmtPct(agg.pctAderidos)} do total nacional</div>
+          <div class="kpi-top"><div class="kpi-label">Municípios e Estados com Adesão</div><div class="kpi-icon green">${ICONS.check}</div></div>
+          <div class="kpi-value">${fmtInt(adPub.municipiosPublicados + adPub.estadosPublicados)}</div>
+          <div class="kpi-delta up">${fmtPct(adPub.pctMunEstAdesao)} do total · ${fmtInt(adPub.municipiosPublicados)} municípios · ${fmtInt(adPub.estadosPublicados)} estado${adPub.estadosPublicados === 1 ? "" : "s"}</div>
         </div>`,
         `
         <div class="card kpi-card" style="cursor:pointer;" data-adesoes-filtro="periodo" data-adesoes-valor="${anoAtualStr}">
