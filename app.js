@@ -3408,7 +3408,22 @@
     }
   }
 
+  // Campos que a planilha carregada pode não trazer (ou que uma versão antiga do upload não
+  // lia): completa a partir da base oficial pelo código IBGE, só onde o valor está vazio.
+  function enriquecerComBaseOficial(rows) {
+    if (typeof SNC_DEFAULT_DATA === "undefined") return;
+    const oficial = new Map();
+    SNC_DEFAULT_DATA.forEach((o) => { if (o.ibge) oficial.set(o.ibge, o); });
+    const campos = ["funCnpj", "orgPerfil", "ataData", "periodicidade", "siic", "confNac"];
+    rows.forEach((r) => {
+      const o = oficial.get(r.ibge);
+      if (!o) return;
+      campos.forEach((c) => { if ((r[c] === null || r[c] === undefined) && o[c] !== undefined) r[c] = o[c]; });
+    });
+  }
+
   function applyUploadedRows(normalized, fileName, savedAt) {
+    enriquecerComBaseOficial(normalized);
     STATE.raw = normalized;
     STATE.localMeta = { fileName, savedAt: savedAt || new Date().toISOString() };
     STATE.sourceLabel = `Planilha carregada: ${fileName} (${normalized.length} municípios)`;
