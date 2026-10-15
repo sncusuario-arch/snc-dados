@@ -550,8 +550,10 @@
             ctx.textAlign = "left";
             ctx.fillText(label, element.x + 4, element.y);
           } else {
-            // Barra vertical ou ponto: label acima
-            ctx.fillText(label, element.x, element.y - 4);
+            // Barra vertical ou ponto: label acima (ou abaixo, se o dataset pedir —
+            // evita sobreposição entre duas linhas com valores próximos)
+            if (dataset.labelBelow) { ctx.textBaseline = "top"; ctx.fillText(label, element.x, element.y + 6); }
+            else ctx.fillText(label, element.x, element.y - 4);
           }
           ctx.restore();
         });
@@ -699,15 +701,38 @@
   }
 
   /* ---------------- Gráfico: evolução das adesões ---------------- */
+  // Série do gráfico: só quem está publicado no DOU (municípios + estados), por
+  // ano da data de adesão — mesma conta do card "Municípios e Estados com Adesão".
+  function serieEvolucaoAdesoes(agg) {
+    const byYear = {};
+    (agg.aderidosArr || []).forEach((r) => {
+      if (r.sit !== "Publicado no DOU" || !r.dtAd) return;
+      const y = r.dtAd.slice(0, 4);
+      byYear[y] = (byYear[y] || 0) + 1;
+    });
+    const f = STATE.filters;
+    const estados = (typeof SNC_ESTADOS_DATA !== "undefined") ? Object.values(SNC_ESTADOS_DATA) : [];
+    estados
+      .filter((e) => (f.uf ? e.uf === f.uf : f.regiao ? e.reg === f.regiao : true))
+      .forEach((e) => {
+        if (e.sit !== "Publicado no DOU" || !e.dtAd) return;
+        const y = e.dtAd.slice(0, 4);
+        byYear[y] = (byYear[y] || 0) + 1;
+      });
+    let acc = 0;
+    return Object.keys(byYear).sort().map((y) => { acc += byYear[y]; return { year: y, novo: byYear[y], acumulado: acc }; });
+  }
+
   function buildEvolucaoConfig(agg) {
+    const serie = serieEvolucaoAdesoes(agg);
     return {
       type: "line",
       data: {
-        labels: agg.evolucao.map((d) => d.year),
+        labels: serie.map((d) => d.year),
         datasets: [
           {
             label: "Adesões acumuladas",
-            data: agg.evolucao.map((d) => d.acumulado),
+            data: serie.map((d) => d.acumulado),
             borderColor: "#2f6feb",
             backgroundColor: "rgba(47,111,235,0.08)",
             fill: true,
@@ -721,7 +746,7 @@
           },
           {
             label: "Novas adesões no ano",
-            data: agg.evolucao.map((d) => d.novo),
+            data: serie.map((d) => d.novo),
             borderColor: "#0ea5e9",
             backgroundColor: "rgba(14,165,233,0.0)",
             borderDash: [4, 3],
@@ -730,6 +755,7 @@
             pointBackgroundColor: "#0ea5e9",
             borderWidth: 1.6,
             showLabels: true,
+            labelBelow: true,
             labelColor: "#0ea5e9",
             labelFormatter: (v) => v > 0 ? fmtInt(v) : null
           }
@@ -738,6 +764,7 @@
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
+        layout: { padding: { top: 24, right: 18, bottom: 4 } },
         plugins: { legend: { position: "bottom", labels: { boxWidth: 9, boxHeight: 9, usePointStyle: true, padding: 14 } } },
         scales: {
           x: { grid: { display: false } },
@@ -3152,7 +3179,9 @@
     // KPIs: Total usa aggBase (universo real), aderidos/sem adesão usam agg (filtrado)
     S.renderKPIs(agg, aggBase, "kpiRow");
     S.renderEvolucaoChart(agg, "chartEvolucao");
-    S.renderEstadosChart(agg, "chartEstados");
+    // Ranking por UF usa o universo real (aggBase): o % é cobertura sobre todos os
+    // municípios do estado, mesmo com o filtro "Com adesão" ligado.
+    S.renderEstadosChart(aggBase, "chartEstados");
     S.renderComponentesChart(agg, "chartComponentes");
     S.renderDonut(agg, "chartDonut", "donutLegend");
     S.renderGauge(agg);
