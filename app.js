@@ -172,7 +172,7 @@
     upd: ["última atualização", "ultima atualizacao", "última atualizacao"],
     pt: ["situação do plano de trabalho"],
     acf: ["acf incluído", "acf incluido"],
-    vig: ["último ano de vigência do plano de cultura", "ultimo ano de vigencia"],
+    vig: ["último ano de vigência do plano de cultura", "último ano de vigência", "ultimo ano de vigencia"],
     mon: ["plano monitorado"],
     pref: ["prefeito"],
     emailPref: ["email prefeito", "e-mail prefeito"],
@@ -187,6 +187,7 @@
     conAtaData: ["data da assinatura da ata"],
     siic: ["data siic"],
     porte: ["faixa populacional"],
+    funCnpj: ["fundo de cultura possui cnpj"],
   };
 
   function findHeader(headers, candidates) {
@@ -205,7 +206,7 @@
   function truthyDone(v) {
     if (v === null || v === undefined) return 0;
     const s = String(v).trim().toLowerCase();
-    return (s === "concluída" || s === "concluida" || s === "sim" || s === "1" || s === "true" || s === "yes") ? 1 : 0;
+    return (s === "concluída" || s === "concluida" || s === "concluido" || s === "concluído" || s === "sim" || s === "1" || s === "true" || s === "yes") ? 1 : 0;
   }
 
   function parseBrDate(v) {
@@ -243,8 +244,15 @@
       if (ufRaw === "DF" && nome.toLowerCase() === "brasília") continue;
 
       const sitVal = map.sitGeneric ? r[map.sitGeneric] : (map.sis ? r[map.sis] : null);
-      const sitStr = (sitVal || "").toString().trim();
-      const semAdesaoTokens = ["nao possui adesão", "não possui adesão", "nao possui adesao", "não", "nao", "n", "0"];
+      let sitStr = (sitVal || "").toString().trim();
+      // Exportação "ente_federado": vocabulário sem acento/abreviado — traduz para o padrão do portal
+      const sitKey = sitStr.toLowerCase();
+      if (sitKey === "publicado dou") sitStr = "Publicado no DOU";
+      else if (sitKey === "em analise" || sitKey === "em análise") sitStr = "Aguardando publicação no DOU";
+      else if (sitKey === "diligencia documental") sitStr = "Diligência Documental";
+      else if (sitKey === "aguardando preenchimento") sitStr = "Não possui adesão";
+      // "Diligência Documental" não conta como adesão (mesma regra do extract.py)
+      const semAdesaoTokens = ["nao possui adesão", "não possui adesão", "nao possui adesao", "diligência documental", "diligencia documental", "não", "nao", "n", "0"];
       const aderiu = sitStr ? !semAdesaoTokens.includes(sitStr.toLowerCase()) : true;
 
       const sis = map.sis ? truthyDone(r[map.sis]) : 0;
@@ -287,6 +295,8 @@
         ataSt: map.ataSt ? (r[map.ataSt] || null) : null,
         conAta: null,
         conAtaData: map.conAtaData ? parseBrDate(r[map.conAtaData]) : null,
+        funCnpj: map.funCnpj ? (String(r[map.funCnpj] || "").trim().toLowerCase() === "sim" ? true : (String(r[map.funCnpj] || "").trim().toLowerCase() === "não" ? false : null)) : null,
+        semInfo: !!aderiu && [map.sis, map.con, map.fun, map.pla, map.org].every((k) => !k || !r[k] || r[k] === "Não informado(a)"),
         conExcl: map.conExcl ? (String(r[map.conExcl] || "").toLowerCase() === "sim") : false,
         conParit: map.conParit ? (String(r[map.conParit] || "").toLowerCase() === "sim") : false,
         upd: map.upd ? parseBrDate(r[map.upd]) : null,
