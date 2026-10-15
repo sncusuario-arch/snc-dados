@@ -1312,7 +1312,7 @@
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Componentes do Estado</div>
         ${compRow("Sistema Estadual de Cultura", ed.sis===1, ed.sisSt, ed.sisData)}
         ${compRow("Órgão Gestor de Cultura", ed.org===1, ed.orgSt + (ed.orgPerfil ? " · " + ed.orgPerfil : ""), ed.orgData)}
-        ${compRow("Conselho Estadual de Política Cultural", ed.con===1, ed.conSt + (ed.conNatureza ? " · " + ed.conNatureza : "") + (ed.conExcl ? " · Exclusivo" : "") + (ed.conParit ? " · Paritário" : ""), ed.conData)}
+        ${compRow("Conselho Estadual de Política Cultural", ed.con===1, ed.conSt + (ed.conNatureza ? " · " + ed.conNatureza : "") + (ed.conExcl ? " · Exclusivo" : ""), ed.conData)}
         ${compRow("Fundo Estadual de Cultura", ed.fun===1, ed.funSt, ed.funData)}
         ${compRow("Plano Estadual de Cultura", ed.pla===1, ed.plaSt + (ed.plaMetas !== null ? (ed.plaMetas ? " · Com metas" : " · Sem metas") : ""), ed.plaData)}
       </div>
@@ -2629,7 +2629,6 @@
     const conData = agg.componentRates.con;
     const aderidos = agg.aderidosArr;
     const concluidos = aderidos.filter((r) => r.con === 1);
-    const paritarios = concluidos.filter((r) => r.conParit === true).length;
     const exclusivos = concluidos.filter((r) => r.conExcl === true).length;
 
     const el = document.getElementById("conselhoKpiRow");
@@ -2645,11 +2644,6 @@
           <div class="kpi-value">${fmtInt(agg.alerts.semConselho)}</div>
           <div class="kpi-delta down">Sem lei concluída</div>
         </div>`,
-        `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="paritarios">
-          <div class="kpi-top"><div class="kpi-label">Paritários</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
-          <div class="kpi-value">${fmtInt(paritarios)}</div>
-          <div class="kpi-delta flat">Entre os concluídos · atributos não exclusivos</div>
-        </div>`,
         `<div class="card kpi-card" style="cursor:pointer;" data-comp-filtro="exclusivos">
           <div class="kpi-top"><div class="kpi-label">Exclusivos de cultura</div><div class="kpi-icon blue">${ICONS.gauge}</div></div>
           <div class="kpi-value">${fmtInt(exclusivos)}</div>
@@ -2663,13 +2657,11 @@
     const conselhoPredicates = {
       concluidos: (r) => r.con === 1,
       pendentes: (r) => r.con === 0,
-      paritarios: (r) => r.con === 1 && r.conParit === true,
       exclusivos: (r) => r.con === 1 && r.conExcl === true
     };
     const conselhoLabels = {
       concluidos: "Conselhos concluídos",
       pendentes: "Conselhos pendentes",
-      paritarios: "Conselhos paritários",
       exclusivos: "Conselhos exclusivos de cultura"
     };
     // Por padrão (sem card clicado), lista só quem já tem Conselho concluído — não
@@ -2678,15 +2670,14 @@
     renderCompMunicipiosTable("conselho", conselhoRows, "tableConselho", "tableConselhoTitle", "tableConselhoTag", "paginationConselho",
       conselhoLabels[conselhoFiltroKey || "concluidos"]);
 
-    const naoParitarios = concluidos.length - paritarios;
     const naoExclusivos = concluidos.length - exclusivos;
     S.mkChart("chartConselhoNatureza", {
       type: "bar",
       data: {
-        labels: ["Paritário", "Não paritário", "Exclusivo de cultura", "Compartilhado"],
+        labels: ["Exclusivo de cultura", "Compartilhado"],
         datasets: [{
-          data: [paritarios, naoParitarios, exclusivos, naoExclusivos],
-          backgroundColor: ["#2f6feb", "#d2d2d7", "#16a34a", "#d2d2d7"],
+          data: [exclusivos, naoExclusivos],
+          backgroundColor: ["#16a34a", "#d2d2d7"],
           borderRadius: 6, maxBarThickness: 36,
           showLabels: true, labelColor: "#1d1d1f",
           labelFormatter: (v) => v > 0 ? fmtInt(v) : null
@@ -4061,7 +4052,6 @@
     if (r.conData) parts.push("Lei de " + fmtDate(r.conData));
     const adj = [];
     if (r.conExcl) adj.push("exclusivo");
-    if (r.conParit) adj.push("paritário");
     if (adj.length) parts.push(adj.join(", "));
     return parts.length ? parts.join(" — ") : "—";
   }
