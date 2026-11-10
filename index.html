@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261019">
 </head>
 <body>
 
@@ -63,10 +63,6 @@
         <svg viewBox="0 0 24 24" fill="none"><path d="M3 17l5-5 4 4 8-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7h6v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Adesões
       </li>
-      <li class="nav-item" data-view="componentes">
-        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.7" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="3" width="8" height="8" rx="1.7" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="13" width="8" height="8" rx="1.7" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="8" height="8" rx="1.7" stroke="currentColor" stroke-width="1.7"/></svg>
-        Componentes
-      </li>
       <li class="nav-item" data-view="fundo">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v10M9.5 9.3c0-1.3 1.1-2.3 2.5-2.3s2.5.9 2.5 2c0 1.3-1.1 1.7-2.5 2.2-1.4.5-2.5 1-2.5 2.3 0 1.1 1.1 2 2.5 2s2.5-.9 2.5-2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         Fundo de Cultura
@@ -78,6 +74,10 @@
       <li class="nav-item" data-view="conselho">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Conselho
+      </li>
+      <li class="nav-item" data-view="componentes">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.7" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="3" width="8" height="8" rx="1.7" stroke="currentColor" stroke-width="1.7"/><rect x="3" y="13" width="8" height="8" rx="1.7" stroke="currentColor" stroke-width="1.7"/><rect x="13" y="13" width="8" height="8" rx="1.7" stroke="currentColor" stroke-width="1.7"/></svg>
+        Outros componentes
       </li>
     </ul>
 
@@ -329,7 +329,7 @@
       </section>
 
       <!-- ---------- COMPONENTES ---------- -->
-      <section class="view" id="view-componentes" aria-label="Componentes do SNC" role="region">
+      <section class="view" id="view-componentes" aria-label="Outros componentes do SNC" role="region">
         <div class="grid grid-2 row-block">
           <div class="card">
             <div class="card-title-row">
@@ -347,11 +347,16 @@
             <div class="legend-row" id="donutLegend2"></div>
           </div>
         </div>
-        <div class="grid grid-5" id="componentCards"></div>
+        <div class="grid grid-2" id="componentCards"></div>
         <div class="card-title-row row-block" style="margin-top:28px;">
           <div class="section-title" style="margin:0;">Cobertura entre Estados e Capitais</div>
         </div>
-        <div class="grid grid-3" id="componentCoverage"></div>
+        <div class="grid grid-2" id="componentCoverage"></div>
+        <div class="card-title-row row-block" style="margin-top:28px;">
+          <div class="section-title" style="margin:0;">Outros componentes do SNC</div>
+          <div class="card-tag">Municípios aderidos que informaram cada item na plataforma</div>
+        </div>
+        <div class="grid grid-4" id="outrosComponentes"></div>
       </section>
 
       <!-- ---------- PLANOS ---------- -->
@@ -589,7 +594,7 @@
                 Brasil
               </button>
               <button class="theme-btn" data-theme="governo" style="display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:9999px;border:2px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;font-weight:600;">
-                <span style="display:flex;gap:3px;"><span style="width:12px;height:12px;border-radius:50%;background:#003580;"></span><span style="width:12px;height:12px;border-radius:50%;background:#1d8348;"></span><span style="width:12px;height:12px;border-radius:50%;background:#d4a017;"></span></span>
+                <span style="display:flex;gap:3px;"><span style="width:12px;height:12px;border-radius:50%;background:#00a03c;"></span><span style="width:12px;height:12px;border-radius:50%;background:#ffcd00;"></span><span style="width:12px;height:12px;border-radius:50%;background:#1e3fff;"></span><span style="width:12px;height:12px;border-radius:50%;background:#ee1c25;"></span></span>
                 Governo Federal
               </button>
             </div>
@@ -604,11 +609,11 @@
 <script src="chart.umd.js"></script>
 <script src="xlsx.full.min.js"></script>
 <script src="html2pdf.bundle.min.js"></script>
-<script src="data.js?v=20261018"></script>
-<script src="contatos.js?v=20261018"></script>
-<script src="pnab-ciclo2.js?v=20261018"></script>
-<script src="lpg.js?v=20261018"></script>
-<script src="lpg-estados.js?v=20261018"></script>
-<script src="app.js?v=20261018"></script>
+<script src="data.js?v=20261019"></script>
+<script src="contatos.js?v=20261019"></script>
+<script src="pnab-ciclo2.js?v=20261019"></script>
+<script src="lpg.js?v=20261019"></script>
+<script src="lpg-estados.js?v=20261019"></script>
+<script src="app.js?v=20261019"></script>
 </body>
 </html>

@@ -188,7 +188,48 @@
     siic: ["data siic"],
     porte: ["faixa populacional"],
     funCnpj: ["fundo de cultura possui cnpj"],
+    orgPerfil: ["perfil do órgão gestor", "perfil do orgao gestor"],
+    periodicidade: ["periodicidade do plano", "periocidade do plano"],
+    confNac: ["participou da conferência nacional"],
+    // Colunas da planilha nova (ente_federado.xlsx, 2026-11)
+    cnpjEnte: ["cnpj ente federado"],
+    orgTemCnpj: ["órgão gestor possui cnpj", "orgao gestor possui cnpj"],
+    orgCnpj: ["cnpj do órgão gestor", "cnpj do orgao gestor"],
+    formacao: ["participou de programa de formação", "participou de algum programa de formação"],
+    formacaoData: ["data programa de formação"],
+    confAnos: ["data conferência (anos)", "data conferência"],
+    setorial: ["possui sistema setorial"],
+    cib: ["data cib"],
+    plaMetas: ["possui metas"],
+    metasSt: ["situação das metas"],
   };
+
+  // Vocabulário da planilha nova traduzido para o usado no dashboard (mesma regra do extract.py)
+  const STATUS_UPLOAD_MAP = {
+    "concluido": "Concluída", "concluído": "Concluída", "concluida": "Concluída", "aprovado": "Concluída",
+    "aguardando preenchimento": "Não informado(a)", "apto analise": "Apto para análise",
+    "aguardando analise": "Aguardando análise", "em diligencia": "Em diligência", "nao instituido": "Não instituído"
+  };
+  function normStatus(v) {
+    if (v === null || v === undefined || v === "") return null;
+    const s = String(v).trim();
+    return STATUS_UPLOAD_MAP[s.toLowerCase()] || s;
+  }
+  function simNao(v) {
+    const s = String(v == null ? "" : v).trim().toLowerCase();
+    return s === "sim" ? true : (s === "não" || s === "nao") ? false : null;
+  }
+  function fmtCnpjTxt(v) {
+    const d = String(v == null ? "" : v).replace(/\D/g, "");
+    if (!d) return null;
+    const s = d.padStart(14, "0");
+    return s.length === 14 ? `${s.slice(0, 2)}.${s.slice(2, 5)}.${s.slice(5, 8)}/${s.slice(8, 12)}-${s.slice(12)}` : d;
+  }
+  const TEXTO_VAZIO = ["não informado(a)", "não informado", "nao possui adesão", "não possui adesão", "aguardando preenchimento"];
+  function textoLimpo(v) {
+    const s = String(v == null ? "" : v).trim();
+    return s && !TEXTO_VAZIO.includes(s.toLowerCase()) ? s : null;
+  }
 
   function findHeader(headers, candidates) {
     const lower = headers.map((h) => (h || "").toString().toLowerCase().trim());
@@ -238,7 +279,7 @@
       // ignora linhas que representam o próprio Estado (entes estaduais), já que o
       // dashboard trabalha em nível municipal
       // Ignora linhas que representam o próprio Estado (entes estaduais)
-      if (/^estado de /i.test(nome)) continue;
+      if (/^estado (de|do|da|dos|das) /i.test(nome)) continue; // "Estado do Acre", "ESTADO DA BAHIA"...
       // O DF aparece duplicado na planilha como "Brasília" (sem adesão) e "Distrito Federal"
       // (com adesão) — mantém apenas o Distrito Federal, descarta Brasília/DF duplicado
       if (ufRaw === "DF" && nome.toLowerCase() === "brasília") continue;
@@ -271,11 +312,11 @@
       out.push({
         m: nome,
         uf: ufRaw,
-        reg: map.reg ? (r[map.reg] || "").toString().trim() : "",
+        reg: map.reg ? (r[map.reg] || "").toString().trim().replace("Centro-Oeste", "Centro Oeste") : "",
         ibge: map.ibge ? parseInt(r[map.ibge], 10) || null : null,
         pop: map.pop ? parseInt(r[map.pop], 10) || null : null,
-        porte: map.porte ? (r[map.porte] || null) : null,
-        sit: aderiu ? (sitStr || "Publicado no DOU") : "Não possui adesão",
+        porte: aderiu && map.porte ? ((String(r[map.porte] || "").match(/^Porte \d \([^)]*\)/) || [null])[0]) : null,
+        sit: aderiu ? (sitStr || "Publicado no DOU") : (sitStr === "Diligência Documental" ? sitStr : "Não possui adesão"),
         ad: aderiu,
         dtAd: aderiu && map.dtAd ? parseBrDate(r[map.dtAd]) : null,
         sis, con, fun, pla, org, idx,
@@ -286,21 +327,21 @@
         planoData: map.planoData ? parseBrDate(r[map.planoData]) : null,
         orgData: map.orgData ? parseBrDate(r[map.orgData]) : null,
         // Status granular dos componentes
-        sisSt: map.sis ? (r[map.sis] || null) : null,
-        conSt: map.con ? (r[map.con] || null) : null,
-        funSt: map.fun ? (r[map.fun] || null) : null,
-        plaSt: map.pla ? (r[map.pla] || null) : null,
-        orgSt: map.org ? (r[map.org] || null) : null,
+        sisSt: aderiu && map.sis ? normStatus(r[map.sis]) : null,
+        conSt: aderiu && map.con ? normStatus(r[map.con]) : null,
+        funSt: aderiu && map.fun ? normStatus(r[map.fun]) : null,
+        plaSt: aderiu && map.pla ? normStatus(r[map.pla]) : null,
+        orgSt: aderiu && map.org ? normStatus(r[map.org]) : null,
         // Ata do conselho
-        ataSt: map.ataSt ? (r[map.ataSt] || null) : null,
+        ataSt: aderiu && map.ataSt ? normStatus(r[map.ataSt]) : null,
         conAta: null,
         conAtaData: map.conAtaData ? parseBrDate(r[map.conAtaData]) : null,
         funCnpj: map.funCnpj ? (String(r[map.funCnpj] || "").trim().toLowerCase() === "sim" ? true : (String(r[map.funCnpj] || "").trim().toLowerCase() === "não" ? false : null)) : null,
-        semInfo: !!aderiu && [map.sis, map.con, map.fun, map.pla, map.org].every((k) => !k || !r[k] || r[k] === "Não informado(a)"),
+        semInfo: !!aderiu && [map.sis, map.con, map.fun, map.pla, map.org].every((k) => !k || !r[k] || normStatus(r[k]) === "Não informado(a)"),
         conExcl: map.conExcl ? (String(r[map.conExcl] || "").toLowerCase() === "sim") : false,
         conParit: map.conParit ? (String(r[map.conParit] || "").toLowerCase() === "sim") : false,
         upd: map.upd ? parseBrDate(r[map.upd]) : null,
-        pt: map.pt ? (r[map.pt] || null) : null,
+        pt: map.pt ? (/^\s*(aprovado|rejeitado)\s*$/i.test(String(r[map.pt] || "")) ? String(r[map.pt]).trim().replace(/^./, (c) => c.toUpperCase()) : textoLimpo(normStatus(r[map.pt]))) : null,
         acf: map.acf ? truthyDone(r[map.acf]) : 0,
         vig: vigYear,
         venc: (pla === 1 && vigYear !== null && vigYear < new Date().getFullYear()) ? 1 : 0,
@@ -311,6 +352,21 @@
         emailCad: map.emailCad ? (r[map.emailCad] || null) : null,
         gestor: map.gestor ? (r[map.gestor] || null) : null,
         emailGestor: map.emailGestor ? (r[map.emailGestor] || null) : null,
+        orgPerfil: map.orgPerfil ? textoLimpo(r[map.orgPerfil]) : null,
+        periodicidade: map.periodicidade ? textoLimpo(r[map.periodicidade]) : null,
+        siic: map.siic ? (textoLimpo(r[map.siic]) ? 1 : 0) : null,
+        confNac: map.confNac ? (simNao(r[map.confNac]) === true ? 1 : 0) : null,
+        // Colunas da planilha nova (ente_federado.xlsx)
+        cnpjEnte: map.cnpjEnte ? fmtCnpjTxt(r[map.cnpjEnte]) : null,
+        orgTemCnpj: map.orgTemCnpj ? simNao(r[map.orgTemCnpj]) : null,
+        orgCnpj: map.orgCnpj ? fmtCnpjTxt(r[map.orgCnpj]) : null,
+        formacao: map.formacao ? simNao(r[map.formacao]) : null,
+        formacaoData: map.formacaoData ? parseBrDate(r[map.formacaoData]) : null,
+        confAnos: map.confAnos ? textoLimpo(r[map.confAnos]) : null,
+        setorial: map.setorial ? simNao(r[map.setorial]) : null,
+        cib: map.cib ? parseBrDate(r[map.cib]) : null,
+        plaMetas: map.plaMetas ? simNao(r[map.plaMetas]) : null,
+        metasSt: map.metasSt ? textoLimpo(r[map.metasSt]) : null,
       });
     }
 
@@ -820,26 +876,28 @@
   }
 
   /* ---------------- Gráfico: componentes do SNC (barras) ---------------- */
-  function renderComponentesChart(agg, canvasId) {
+  // keys: componentes exibidos (padrão: os 5). A tela "Outros componentes" passa só Sistema e Órgão Gestor.
+  function renderComponentesChart(agg, canvasId, keys) {
+    const ks = keys || COMPONENT_KEYS;
     mkChart(canvasId || "chartComponentes", {
       type: "bar",
       data: {
-        labels: COMPONENT_KEYS.map((k) => COMPONENT_LABELS[k]),
+        labels: ks.map((k) => COMPONENT_LABELS[k]),
         datasets: [{
-          data: COMPONENT_KEYS.map((k) => agg.componentRates[k].pct),
-          backgroundColor: COMPONENT_KEYS.map((k) => COMPONENT_COLORS[k]),
+          data: ks.map((k) => agg.componentRates[k].pct),
+          backgroundColor: ks.map((k) => COMPONENT_COLORS[k]),
           borderRadius: 7,
           maxBarThickness: 38,
           showLabels: true,
           labelColor: "#1d1d1f",
-          labelFormatter: (v, i) => `${fmtPct(v)}%\n${fmtInt(COMPONENT_KEYS.map(k=>agg.componentRates[k].n)[i])}`
+          labelFormatter: (v, i) => `${fmtPct(v)}\n${fmtInt(ks.map(k=>agg.componentRates[k].n)[i])}`
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: (ctx) => `${fmtPct(ctx.parsed.y)} concluído (${fmtInt(COMPONENT_KEYS.map(k=>agg.componentRates[k].n)[ctx.dataIndex])} municípios)` } }
+          tooltip: { callbacks: { label: (ctx) => `${fmtPct(ctx.parsed.y)} concluído (${fmtInt(ks.map(k=>agg.componentRates[k].n)[ctx.dataIndex])} municípios)` } }
         },
         scales: {
           y: { beginAtZero: true, max: 100, grid: { color: "#eef2f7" }, ticks: { callback: (v) => v + "%" } },
@@ -1435,7 +1493,7 @@
         <div>
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px;">Distribuição por nº de componentes</div>
           ${[0,1,2,3,4,5].map((i) => {
-            const cnt = agg && agg.donut ? (agg.donut[i] || 0) : 0;
+            const cnt = aderidosUF.filter((r) => (r.idx || 0) === i).length;
             const colors = ["#dc2626","#f08c3a","#f2c94c","#3fae6b","#16a34a","#0a6e3a"];
             return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
               <span style="width:10px;height:10px;border-radius:50%;background:${colors[i]};flex-shrink:0;"></span>
@@ -1668,7 +1726,7 @@
       return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
         ${icon}
         <span style="flex:1;font-weight:600;font-size:13px;">${label}</span>
-        <span style="font-size:11.5px;color:${done ? "#16a34a" : "var(--muted)"};">${st || (done ? "Concluída" : "Pendente")}</span>
+        <span style="font-size:11.5px;color:${done ? "#16a34a" : "var(--muted)"};">${st ? escapeHtml(st) : (done ? "Concluída" : "Pendente")}</span>
         ${done && dt ? `<span style="font-size:11px;color:var(--muted);margin-left:8px;">${fmtDate(dt)}</span>` : ""}
       </div>`;
     }
@@ -1783,6 +1841,33 @@
           ${compRowMun("Plano de Cultura", !!r.pla, r.planoData, r.plaSt)}
           ${compRowMun("Órgão Gestor de Cultura", !!r.org, r.orgData, r.orgSt)}
         </div>
+
+        <!-- Outros componentes do SNC (campos da planilha nova ente_federado.xlsx) -->
+        ${(r.formacao != null || r.setorial != null || r.confAnos || r.plaMetas != null || r.cib) ? `
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:12px;">
+            Outros componentes do SNC
+            <div style="flex:1;height:1px;background:var(--border);"></div>
+          </div>
+          ${compRowMun("Programa de Formação na área da cultura", r.formacao === true, r.formacaoData, r.formacao === true ? "Participou" : r.formacao === false ? "Não participou" : "Não informado")}
+          ${compRowMun("Conferência de Cultura", !!r.confAnos, null, r.confAnos ? "Anos: " + r.confAnos : (r.confNac ? "Participou da Conferência Nacional" : "Não informado"))}
+          ${compRowMun("Sistema Setorial de Cultura", r.setorial === true, null, r.setorial === true ? "Possui" : r.setorial === false ? "Não possui" : "Não informado")}
+          ${compRowMun("Comissão Intergestora Bipartite (CIB)", !!r.cib, r.cib, r.cib ? "Instituída" : "Não informado")}
+          ${compRowMun("Metas do Plano de Cultura", r.plaMetas === true, null, r.plaMetas === true ? "Possui metas" + (r.metasSt ? " · " + r.metasSt : "") : "Não informado")}
+        </div>` : ""}
+
+        <!-- Identificação (CNPJ do ente e do órgão gestor) -->
+        ${(r.cnpjEnte || r.orgTemCnpj != null) ? `
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+            Identificação
+            <div style="flex:1;height:1px;background:var(--border);"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;">
+            ${r.cnpjEnte ? `<div class="card" style="padding:12px 14px;"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px;">CNPJ do Ente Federado</div><div style="font-size:12.5px;font-weight:600;">${escapeHtml(r.cnpjEnte)}</div></div>` : ""}
+            ${r.orgTemCnpj != null ? `<div class="card" style="padding:12px 14px;"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-bottom:4px;">CNPJ do Órgão Gestor</div><div style="font-size:12.5px;font-weight:600;">${r.orgCnpj ? escapeHtml(r.orgCnpj) : "—"}</div><div style="font-size:11px;color:${r.orgTemCnpj ? "var(--success)" : "var(--muted)"};margin-top:3px;">${r.orgTemCnpj ? "Possui CNPJ próprio" : "Não possui CNPJ próprio"}</div></div>` : ""}
+          </div>
+        </div>` : ""}
 
         <!-- Contatos -->
         <div style="margin-bottom:20px;">
@@ -2318,13 +2403,16 @@
   }
 
   /* ---------------- Componentes ---------------- */
+  // Tela "Outros componentes": Fundo, Plano e Conselho têm telas próprias, então aqui
+  // ficam só Sistema e Órgão Gestor + os componentes que vieram na planilha nova.
+  const OUTROS_COMP_KEYS = ["sis", "org"];
   function renderComponentesView(agg) {
-    S.renderComponentesChart(agg, "chartComponentesDetalhe");
+    S.renderComponentesChart(agg, "chartComponentesDetalhe", OUTROS_COMP_KEYS);
     S.renderDonut(agg, "chartDonut2", "donutLegend2");
 
     const el = document.getElementById("componentCards");
     if (el) {
-      el.innerHTML = COMPONENT_KEYS.map((k) => {
+      el.innerHTML = OUTROS_COMP_KEYS.map((k) => {
         const c = agg.componentRates[k];
         const faltam = agg.aderidosCount - c.n;
         return `
@@ -2339,17 +2427,13 @@
       }).join("");
     }
 
-    // Cobertura de Conselho, Plano e Fundo entre Estados e Capitais (universos
+    // Cobertura de Sistema e Órgão Gestor entre Estados e Capitais (universos
     // separados dos municípios — 26/27 estados e 27 capitais).
     const coverageEl = document.getElementById("componentCoverage");
     if (coverageEl) {
       const estadosArr = typeof SNC_ESTADOS_DATA !== "undefined" ? Object.values(SNC_ESTADOS_DATA) : [];
       const capitais = (STATE.raw || []).filter((r) => CAPITAIS_POR_UF[r.uf] === r.m);
-      const itens = [
-        { key: "con", label: COMPONENT_LABELS.con },
-        { key: "pla", label: COMPONENT_LABELS.pla },
-        { key: "fun", label: COMPONENT_LABELS.fun }
-      ];
+      const itens = OUTROS_COMP_KEYS.map((k) => ({ key: k, label: COMPONENT_LABELS[k] }));
       coverageEl.innerHTML = itens.map((it) => {
         const estN = estadosArr.filter((e) => e[it.key] === 1).length;
         const estPct = estadosArr.length ? (estN / estadosArr.length) * 100 : 0;
@@ -2374,6 +2458,49 @@
           </div>`;
       }).join("");
     }
+
+    // Outros componentes do SNC (campos da planilha nova ente_federado.xlsx)
+    const outrosEl = document.getElementById("outrosComponentes");
+    if (outrosEl) {
+      const itens = outrosComponentesItens(agg.aderidosArr);
+      outrosEl.innerHTML = itens.map((it) => {
+        const pct = it.pct;
+        return `
+          <div class="card kpi-card">
+            <div class="kpi-top"><div class="kpi-label">${it.label}</div></div>
+            <div class="kpi-value">${fmtInt(it.n)}</div>
+            <div class="kpi-delta flat">${fmtPct(pct)} ${it.sub}</div>
+            <div style="height:6px;background:var(--surface-2);border-radius:9999px;margin-top:10px;overflow:hidden;">
+              <div style="width:${Math.min(pct, 100)}%;height:100%;background:var(--accent);border-radius:9999px;"></div>
+            </div>
+          </div>`;
+      }).join("");
+    }
+  }
+
+  // Indicadores de "Outros componentes do SNC" sobre uma lista de aderidos — usados na tela
+  // Outros componentes e nos relatórios (Geral de Institucionalização e Estratégico do Estado).
+  function outrosComponentesItens(aderidos) {
+    const ad = aderidos || [];
+    const orgConcluidos = ad.filter((r) => r.org === 1);
+    return [
+      { label: "Programa de Formação", n: ad.filter((r) => r.formacao === true).length, base: ad.length, sub: "dos aderidos participaram" },
+      { label: "Conferência Nacional", n: ad.filter((r) => r.confNac === 1).length, base: ad.length, sub: "dos aderidos participaram" },
+      { label: "Sistema Setorial", n: ad.filter((r) => r.setorial === true).length, base: ad.length, sub: "dos aderidos possuem" },
+      { label: "Órgão Gestor com CNPJ", n: orgConcluidos.filter((r) => r.orgTemCnpj === true).length, base: orgConcluidos.length, sub: "dos órgãos gestores concluídos" }
+    ].map((it) => Object.assign(it, { pct: it.base ? (it.n / it.base) * 100 : 0 }));
+  }
+
+  // Tabela de "Outros componentes do SNC" para os relatórios
+  function outrosComponentesTabelaHtml(aderidos) {
+    const itens = outrosComponentesItens(aderidos);
+    return `
+      <table class="report-table">
+        <thead><tr><th>Indicador</th><th>Quantidade</th><th>Percentual</th></tr></thead>
+        <tbody>
+          ${itens.map((it) => `<tr><td>${it.label}</td><td>${fmtInt(it.n)} de ${fmtInt(it.base)}</td><td>${fmtPct(it.pct)} ${it.sub}</td></tr>`).join("")}
+        </tbody>
+      </table>`;
   }
 
   /* ---------------- Planos de Cultura ---------------- */
@@ -2472,8 +2599,10 @@
   }
 
   /* ---------------- Fundo de Cultura ---------------- */
-  const STATUS_ORDEM = ["Concluída", "Avaliando anexo", "Em preenchimento", "Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado", "Não informado(a)"];
-  const STATUS_CORES = { "Concluída": "#16a34a", "Avaliando anexo": "#2f6feb", "Em preenchimento": "#f2994a", "Arquivo incorreto": "#dc2626", "Arquivo incompleto": "#dc2626", "Arquivo danificado": "#dc2626", "Não informado(a)": "#d2d2d7" };
+  const STATUS_ORDEM = ["Concluída", "Avaliando anexo", "Apto para análise", "Aguardando análise", "Em preenchimento", "Em diligência", "Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado", "Não instituído", "Não informado(a)"];
+  const STATUS_CORES = { "Concluída": "#16a34a", "Avaliando anexo": "#2f6feb", "Apto para análise": "#2f6feb", "Aguardando análise": "#2f6feb", "Em diligência": "#dc2626", "Não instituído": "#94a3b8", "Em preenchimento": "#f2994a", "Arquivo incorreto": "#dc2626", "Arquivo incompleto": "#dc2626", "Arquivo danificado": "#dc2626", "Não informado(a)": "#d2d2d7" };
+  // "Avaliando anexo" (planilha antiga) = "Apto para análise" / "Aguardando análise" (planilha nova)
+  const STATUS_EM_ANALISE = ["Avaliando anexo", "Apto para análise", "Aguardando análise"];
 
   function statusDistribution(aderidosArr, key) {
     const count = {};
@@ -2511,7 +2640,7 @@
   function renderFundoView(agg) {
     const fundoData = agg.componentRates.fun;
     const aderidos = agg.aderidosArr;
-    const avaliandoAnexo = aderidos.filter((r) => r.funSt === "Avaliando anexo").length;
+    const avaliandoAnexo = aderidos.filter((r) => STATUS_EM_ANALISE.includes(r.funSt)).length;
     const comFundo = aderidos.filter((r) => r.fun === 1);
     const comFundoCnpj = comFundo.filter((r) => r.funCnpj === true);
 
@@ -2563,8 +2692,8 @@
     const fundoPredicates = {
       concluidos: (r) => r.fun === 1,
       pendentes: (r) => r.fun === 0,
-      avaliando: (r) => r.funSt === "Avaliando anexo",
-      problema: (r) => ["Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado"].includes(r.funSt),
+      avaliando: (r) => STATUS_EM_ANALISE.includes(r.funSt),
+      problema: (r) => ["Arquivo incorreto", "Arquivo incompleto", "Arquivo danificado", "Em diligência"].includes(r.funSt),
       comCnpj: (r) => r.fun === 1 && r.funCnpj === true
     };
     const fundoLabels = {
@@ -2739,6 +2868,8 @@
 
   S.renderAdesoesView = renderAdesoesView;
   S.renderComponentesView = renderComponentesView;
+  S.outrosComponentesItens = outrosComponentesItens;
+  S.outrosComponentesTabelaHtml = outrosComponentesTabelaHtml;
   S.renderPlanosView = renderPlanosView;
   S.renderFundoView = renderFundoView;
   S.renderConselhoView = renderConselhoView;
@@ -2875,7 +3006,7 @@
           maxBarThickness: 38,
           showLabels: true,
           labelColor: "#1d1d1f",
-          labelFormatter: (v, i) => `${fmtPct(v)}%\n${fmtInt(COMPONENT_KEYS.map((k) => agg.componentRates[k].n)[i])}`
+          labelFormatter: (v, i) => `${fmtPct(v)}\n${fmtInt(COMPONENT_KEYS.map((k) => agg.componentRates[k].n)[i])}`
         }]
       },
       options: {
@@ -2974,6 +3105,11 @@
         </div>
 
         <div class="report-section">
+          <h3>Outros Componentes do SNC</h3>
+          ${S.outrosComponentesTabelaHtml(agg.aderidosArr)}
+        </div>
+
+        <div class="report-section">
           <div style="font-size:10.5px;color:var(--muted);">
             Classificação de Adesão Plena e Adesão Provisória conforme Lei nº 14.835/2024, art. 5º, §§4º e 5º.
             O componente Órgão Gestor é acompanhado no painel do SNC, mas não integra o critério legal de Adesão Plena/Provisória.
@@ -3031,7 +3167,7 @@
     estados: { title: "Estados", sub: "Painel comparativo por unidade federativa" },
     municipios: { title: "Municípios", sub: "Tabela executiva com busca, ordenação e detalhamento" },
     adesoes: { title: "Adesões", sub: "Evolução histórica e situação das adesões ao SNC" },
-    componentes: { title: "Componentes", sub: "Sistema, Conselho, Fundo, Plano e Órgão Gestor" },
+    componentes: { title: "Outros componentes", sub: "Sistema, Órgão Gestor, Formação, Conferência e Sistema Setorial" },
     planos: { title: "Planos de Cultura", sub: "Monitoramento e vigência dos planos municipais" },
     fundo: { title: "Fundo de Cultura", sub: "Situação da Lei do Fundo Municipal de Cultura" },
     conselho: { title: "Conselho", sub: "Situação da Lei do Conselho de Política Cultural" },
@@ -3414,10 +3550,14 @@
     if (typeof SNC_DEFAULT_DATA === "undefined") return;
     const oficial = new Map();
     SNC_DEFAULT_DATA.forEach((o) => { if (o.ibge) oficial.set(o.ibge, o); });
-    const campos = ["funCnpj", "orgPerfil", "ataData", "periodicidade", "siic", "confNac"];
+    const campos = ["funCnpj", "orgPerfil", "ataData", "periodicidade", "siic", "confNac",
+      "cnpjEnte", "orgTemCnpj", "orgCnpj", "formacao", "formacaoData", "confAnos", "setorial", "cib", "plaMetas", "metasSt"];
     rows.forEach((r) => {
+      // Planilha nova: apóstrofo dobrado ("D''Oeste") e nomes sem acento ("MUNICIPIO DE JOAO PESSOA")
+      if (r.m) r.m = r.m.replace(/''/g, "'");
       const o = oficial.get(r.ibge);
       if (!o) return;
+      if (o.m && r.m && (/^munic[ií]pio de /i.test(r.m) || r.m === r.m.toUpperCase())) r.m = o.m;
       campos.forEach((c) => { if ((r[c] === null || r[c] === undefined) && o[c] !== undefined) r[c] = o[c]; });
     });
   }
@@ -3851,18 +3991,30 @@
         "--accent": "#d4a017", "--accent-light": "#fdf6e3", "--accent-2": "#003580",
         "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#003580"
       },
+      // Identidade visual do Governo Federal (verde, amarelo, azul e vermelho)
       governo: {
-        "--sidebar": "#003580", "--sidebar-hover": "#004aab",
-        "--accent": "#1d8348", "--accent-light": "#eaf4ee", "--accent-2": "#d4a017",
-        "--success": "#1d8348", "--danger": "#c0392b", "--warning": "#d4a017"
+        "--sidebar": "#0f2a9e", "--sidebar-hover": "#1b38c4", "--sidebar-text": "#c9d4ff",
+        "--accent": "#1e3fff", "--accent-light": "#e9edff", "--accent-2": "#00a03c",
+        "--success": "#00913a", "--success-light": "#e6f6ec", "--danger": "#e01b22", "--danger-light": "#fdeaea",
+        "--warning": "#e0a800", "--warning-light": "#fff8d9"
       }
     };
+    // Cores dos componentes nos gráficos, por tema (os demais temas usam as cores originais)
+    const COMP_COLORS_ORIGINAL = Object.assign({}, S.COMPONENT_COLORS);
+    const THEME_COMP_COLORS = {
+      governo: { sis: "#1e3fff", con: "#00a03c", fun: "#ffb800", pla: "#ee1c25", org: "#3c3c3c" }
+    };
+    const THEME_VARS = Array.from(new Set(Object.values(THEMES).flatMap((t) => Object.keys(t))));
 
-    function applyTheme(name) {
+    function applyTheme(name, rerender) {
       const theme = THEMES[name];
       if (!theme) return;
       const root = document.documentElement;
+      THEME_VARS.forEach((k) => root.style.removeProperty(k));
       Object.entries(theme).forEach(([k, v]) => root.style.setProperty(k, v));
+      Object.keys(THEMES).forEach((t) => root.classList.toggle("theme-" + t, t === name));
+      Object.assign(S.COMPONENT_COLORS, COMP_COLORS_ORIGINAL, THEME_COMP_COLORS[name] || {});
+      if (rerender) { try { window.__SNC.refreshAll(); } catch (e) {} }
       try { localStorage.setItem("snc-theme", name); } catch (e) {}
       document.querySelectorAll(".theme-btn").forEach((btn) => {
         const isActive = btn.getAttribute("data-theme") === name;
@@ -3877,7 +4029,7 @@
     } catch (e) { applyTheme("padrao"); }
 
     document.querySelectorAll(".theme-btn").forEach((btn) => {
-      btn.addEventListener("click", () => applyTheme(btn.getAttribute("data-theme")));
+      btn.addEventListener("click", () => applyTheme(btn.getAttribute("data-theme"), true));
     });
 
     const cfgPageSize = document.getElementById("cfgPageSize");
@@ -3972,11 +4124,16 @@
     "Arquivo incorreto": { label: "Arquivo incorreto", color: "red" },
     "Arquivo incompleto": { label: "Arquivo incompleto", color: "amber" },
     "Arquivo danificado": { label: "Arquivo danificado", color: "red" },
-    "Em preenchimento": { label: "Em preenchimento", color: "amber" }
+    "Em preenchimento": { label: "Em preenchimento", color: "amber" },
+    "Apto para análise": { label: "Apto para análise", color: "blue" },
+    "Aguardando análise": { label: "Aguardando análise", color: "blue" },
+    "Em diligência": { label: "Em diligência", color: "red" },
+    "Não instituído": { label: "Não instituído", color: "gray" },
+    "Reprovado": { label: "Reprovado", color: "red" }
   };
   function statusBadge(st) {
     if (!st) return `<span class="status-badge gray">—</span>`;
-    const meta = STATUS_META[st] || { label: st, color: "gray" };
+    const meta = STATUS_META[st] || { label: escapeHtml(st), color: "gray" };
     return `<span class="status-badge ${meta.color}">${meta.color === "green" ? "✓ " : ""}${meta.label}</span>`;
   }
 
@@ -4014,7 +4171,7 @@
           <tr>
             <th>Município</th>
             ${showAdesao ? "<th>Situação</th>" : ""}
-            <th>Atualização</th><th style="text-align:center;">Sistema</th><th style="text-align:center;">Conselho</th><th style="text-align:center;">Ata</th><th style="text-align:center;">Fundo</th><th style="text-align:center;">Plano</th><th style="text-align:center;">Órgão Gestor</th>
+            <th>Atualização</th><th style="text-align:center;">Sistema</th><th style="text-align:center;">Conselho</th><th style="text-align:center;">Fundo</th><th style="text-align:center;">Plano</th><th style="text-align:center;">Órgão Gestor</th><th style="text-align:center;">Formação</th><th style="text-align:center;">Sist. Setorial</th>
           </tr>
         </thead>
         <tbody>
@@ -4025,10 +4182,11 @@
               <td>${r.upd ? fmtDate(r.upd) : "—"}</td>
               ${checklistCell(r.sisSt === "Concluída")}
               ${checklistCell(r.conSt === "Concluída")}
-              ${checklistCell(r.ataSt === "Concluída")}
               ${checklistCell(r.funSt === "Concluída")}
               ${checklistCell(r.plaSt === "Concluída")}
               ${checklistCell(r.orgSt === "Concluída")}
+              ${checklistCell(r.formacao === true)}
+              ${checklistCell(r.setorial === true)}
             </tr>`).join("")}
         </tbody>
       </table>`;
@@ -4047,11 +4205,14 @@
     const concluidos = COMPONENT_KEYS.filter((k) => r[k] === 1).map((k) => COMP_LABELS_SHORT[k]);
     const pendentes = COMPONENT_KEYS.filter((k) => r[k] === 0).map((k) => COMP_LABELS_SHORT[k]);
     if (concluidos.length) partes.push(`${concluidos.join(" e ")} concluído${concluidos.length > 1 ? "s" : ""}.`);
-    if (r.ataSt && r.ataSt !== "Concluída") {
-      const ataLabel = (STATUS_META[r.ataSt] ? STATUS_META[r.ataSt].label : r.ataSt).toLowerCase();
-      partes.push(`Ata do Conselho pendente (${ataLabel}).`);
-    }
     if (pendentes.length) partes.push(`Pendências: ${pendentes.join(", ")} sem registro de conclusão.`);
+    const outros = [];
+    if (r.formacao === true) outros.push("participou de Programa de Formação");
+    if (r.confAnos) outros.push(`realizou Conferência de Cultura (${escapeHtml(r.confAnos)})`);
+    else if (r.confNac) outros.push("participou da Conferência Nacional");
+    if (r.setorial === true) outros.push("possui Sistema Setorial de Cultura");
+    if (r.plaMetas === true) outros.push("possui metas no Plano de Cultura");
+    if (outros.length) partes.push(`Outros componentes: ${outros.join("; ")}.`);
 
     if (r.porte) {
       const nivel = r.idx <= 1 ? "baixo" : r.idx <= 3 ? "médio" : "alto";
@@ -4084,11 +4245,20 @@
       { label: "Lei do Sistema Municipal de Cultura", badge: statusBadge(r.sisSt), detail: r.sisData ? fmtDate(r.sisData) : "—" },
       { label: "Órgão Gestor de Cultura", badge: statusBadge(r.orgSt), detail: [r.orgData ? "Lei de " + fmtDate(r.orgData) : null, r.orgPerfil].filter(Boolean).join(" — ") || "—" },
       { label: "Conselho de Política Cultural — Lei", badge: statusBadge(r.conSt), detail: conselhoDetail(r) },
-      { label: "Conselho de Política Cultural — Ata", badge: statusBadge(r.ataSt), detail: r.ataData ? "Assinada em " + fmtDate(r.ataData) : (r.ataSt === "Em preenchimento" ? "Sem ata válida registrada" : "—") },
       { label: "Fundo Municipal de Cultura — Lei", badge: statusBadge(r.funSt), detail: r.funData ? fmtDate(r.funData) : "—" },
       { label: "Plano Municipal de Cultura", badge: statusBadge(r.plaSt), detail: r.planoData ? fmtDate(r.planoData) + (r.periodicidade ? " — " + r.periodicidade : "") : "—" },
       { label: "ACF incluído", badge: r.acf ? `<span class="status-badge green">✓ Sim</span>` : `<span class="status-badge gray">—</span>`, detail: "—" },
-      { label: "Plano de Trabalho", badge: r.pt === "Aprovado" ? `<span class="status-badge green">✓ Aprovado</span>` : r.pt === "Rejeitado" ? `<span class="status-badge red">Rejeitado</span>` : `<span class="status-badge gray">—</span>`, detail: r.pt || "—" }
+      { label: "Plano de Trabalho", badge: r.pt === "Aprovado" ? `<span class="status-badge green">✓ Aprovado</span>` : r.pt === "Rejeitado" ? `<span class="status-badge red">Rejeitado</span>` : `<span class="status-badge gray">—</span>`, detail: r.pt ? escapeHtml(r.pt) : "—" }
+    ];
+
+    // Outros componentes do SNC (planilha nova da plataforma)
+    const simBadge = (v, txtSim) => v === true ? `<span class="status-badge green">✓ ${txtSim}</span>` : v === false ? `<span class="status-badge gray">Não</span>` : `<span class="status-badge gray">Não informado</span>`;
+    const outrosRows = [
+      { label: "Programa de Formação na área da cultura", badge: simBadge(r.formacao == null ? null : r.formacao === true, "Participou"), detail: r.formacao === true && r.formacaoData ? fmtDate(r.formacaoData) : "—" },
+      { label: "Conferência de Cultura", badge: simBadge(r.confAnos || r.confNac ? true : null, "Realizou"), detail: r.confAnos ? "Anos: " + escapeHtml(r.confAnos) : (r.confNac ? "Participou da Conferência Nacional" : "—") },
+      { label: "Sistema Setorial de Cultura", badge: simBadge(r.setorial == null ? null : r.setorial === true, "Possui"), detail: "—" },
+      { label: "Comissão Intergestora Bipartite (CIB)", badge: simBadge(r.cib ? true : null, "Instituída"), detail: r.cib ? fmtDate(r.cib) : "—" },
+      { label: "Metas do Plano de Cultura", badge: simBadge(r.plaMetas === true ? true : null, "Possui metas"), detail: r.plaMetas === true && r.metasSt ? escapeHtml(r.metasSt) : "—" }
     ];
 
     const html = `
@@ -4126,6 +4296,8 @@
           <div class="detail-item"><label>E-mail Gestor</label><div>${escapeHtml(r.emailGestor || "Não informado")}</div></div>
           <div class="detail-item"><label>Prefeito(a)</label><div>${escapeHtml(r.pref || "Não informado")}</div></div>
           <div class="detail-item"><label>E-mail Gabinete</label><div>${escapeHtml(r.emailPref || "Não informado")}</div></div>
+          <div class="detail-item"><label>CNPJ do Ente Federado</label><div>${escapeHtml(r.cnpjEnte || "Não informado")}</div></div>
+          <div class="detail-item"><label>CNPJ do Órgão Gestor</label><div>${r.orgCnpj ? escapeHtml(r.orgCnpj) : (r.orgTemCnpj === false ? "Não possui CNPJ próprio" : "Não informado")}</div></div>
         </div>
 
         <div class="report-section">
@@ -4134,6 +4306,16 @@
             <thead><tr><th>Componente</th><th>Situação</th><th>Detalhes / Data</th></tr></thead>
             <tbody>
               ${compRows.map((c) => `<tr><td>${c.label}</td><td>${c.badge}</td><td style="color:var(--muted);">${c.detail}</td></tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <h3>Outros Componentes do SNC</h3>
+          <table class="report-table">
+            <thead><tr><th>Componente</th><th>Situação</th><th>Detalhes / Data</th></tr></thead>
+            <tbody>
+              ${outrosRows.map((c) => `<tr><td>${c.label}</td><td>${c.badge}</td><td style="color:var(--muted);">${c.detail}</td></tr>`).join("")}
             </tbody>
           </table>
         </div>
@@ -4235,6 +4417,11 @@
                 <div style="font-size:11px;color:var(--muted);margin-top:3px;">${fmtInt(n)} concluídos · ${fmtInt(aderidos.length - n)} não informados</div>
               </div>`;
           }).join("")}
+        </div>
+
+        <div class="report-section">
+          <h3>Outros Componentes do SNC</h3>
+          ${S.outrosComponentesTabelaHtml(aderidos)}
         </div>
 
         <div class="report-section">
