@@ -788,7 +788,7 @@ html.theme-governo body::before {
   pointer-events: none;
 }
 html.theme-governo .sidebar::after {
-  content: ""; position: sticky; display: block; bottom: -22px; margin: auto -14px -22px -14px; height: 90px; flex-shrink: 0;
+  content: ""; position: relative; display: block; margin: 14px -14px -22px -14px; height: 90px; flex-shrink: 0;
   background:
     linear-gradient(135deg, #ffcd00 0%, #ffcd00 50%, transparent 50%) left bottom / 90px 90px no-repeat,
     linear-gradient(90deg, #00a03c 0%, #00a03c 100%) right bottom / 60px 60px no-repeat;
@@ -796,6 +796,7 @@ html.theme-governo .sidebar::after {
 }
 html.theme-governo .nav-item.active { background: #ffcd00; color: var(--text); }
 html.theme-governo .nav-group-label { color: #ffcd00; opacity: .85; }
+html.theme-governo .sidebar-footer { color: #ffffff; border-top-color: rgba(255, 255, 255, .25); }
 html.theme-governo .kpi-card { position: relative; overflow: hidden; }
 html.theme-governo .kpi-card::after {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #00a03c;

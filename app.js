@@ -4015,7 +4015,7 @@
       Object.keys(THEMES).forEach((t) => root.classList.toggle("theme-" + t, t === name));
       Object.assign(S.COMPONENT_COLORS, COMP_COLORS_ORIGINAL, THEME_COMP_COLORS[name] || {});
       if (rerender) { try { window.__SNC.refreshAll(); } catch (e) {} }
-      try { localStorage.setItem("snc-theme", name); } catch (e) {}
+      try { localStorage.setItem("snc-theme-v2", name); } catch (e) {}
       document.querySelectorAll(".theme-btn").forEach((btn) => {
         const isActive = btn.getAttribute("data-theme") === name;
         btn.style.borderColor = isActive ? "var(--accent)" : "var(--border)";
@@ -4024,9 +4024,9 @@
     }
 
     try {
-      const savedTheme = localStorage.getItem("snc-theme") || "padrao";
+      const savedTheme = localStorage.getItem("snc-theme-v2") || "governo";
       applyTheme(savedTheme);
-    } catch (e) { applyTheme("padrao"); }
+    } catch (e) { applyTheme("governo"); }
 
     document.querySelectorAll(".theme-btn").forEach((btn) => {
       btn.addEventListener("click", () => applyTheme(btn.getAttribute("data-theme"), true));

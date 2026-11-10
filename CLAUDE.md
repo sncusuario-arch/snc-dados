@@ -35,6 +35,13 @@ Estilo Apple. Sempre usar estas variáveis/cores, nunca hardcodar outras:
 --radius-card: 14px   --shadow-md: 0 2px 8px rgba(0,0,0,0.06)
 ```
 Fonte: Inter (Google Fonts). Botões pill (`border-radius: 9999px`). Zero emojis — só SVG inline.
+
+**Tema oficial (padrão desde 2026-11-10): "Governo Federal"** — aplicado em tempo de execução
+pelo seletor de tema (`THEMES.governo` em `app.js` + regras `html.theme-governo` no fim do
+`style.css`). Paleta: verde `#00a03c`, amarelo `#ffcd00`, azul `#1e3fff`, vermelho `#ee1c25`,
+grafite `#3c3c3c`; menu lateral `#0f2a9e`. As variáveis acima continuam sendo a base do CSS
+(tema "Padrão"); elementos novos devem usar as variáveis (`var(--accent)` etc.) para seguir
+o tema ativo. Preferência salva por navegador em `localStorage["snc-theme-v2"]`.
 Espaço em branco generoso. Regra vale para relatórios, PDFs, dashboards — qualquer output visual.
 
 ## Classificação legal Adesão Plena / Provisória (Lei 14.835/2024, art. 5º §§4º-5º)
